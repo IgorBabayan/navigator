@@ -105,31 +105,89 @@
             </Button>
           </StackPanel>
 
-          <!-- Omnibar: breadcrumb (default) or editable path -->
-          <Border Grid.Column="1" Classes="card omnibar-host" Classes.editing="{Binding ActivePane.IsEditingAddress}" Padding="4,0" Height="{DynamicResource Size.Control}" Margin="4,0" PointerPressed="OnOmnibarPointerPressed">
-            <Panel>
-              <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" IsVisible="{Binding !ActivePane.IsEditingAddress}">
-                <ItemsControl ItemsSource="{Binding ActivePane.Breadcrumbs}">
-                  <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                      <StackPanel Orientation="Horizontal" />
-                    </ItemsPanelTemplate>
-                  </ItemsControl.ItemsPanel>
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="panes:BreadcrumbViewModel">
-                      <StackPanel Orientation="Horizontal">
-                        <Button Classes="subtle" Padding="6,2" MinHeight="26" Content="{Binding Name}"
-                                Command="{Binding $parent[v:MainWindow].Shell.ActivePane.NavigateToBreadcrumbCommand}" CommandParameter="{Binding}" />
-                        <c:IconView Kind="ChevronRight" Width="12" Height="12" IsVisible="{Binding !IsLast}" Margin="2,0" Opacity="0.7" />
-                      </StackPanel>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
-              </ScrollViewer>
-              <TextBox x:Name="AddressBox" Classes="omnibar address" BorderThickness="0" Background="Transparent" Margin="-4,0"
+          <!-- Omnibar: breadcrumb with sub-folder chevrons (default) or editable path with autocompletion.
+               The leading button lists root locations (and the segments scrolled out of view, shown as «);
+               the trailing arrow opens the typed-address history. -->
+          <Border x:Name="OmnibarHost" Grid.Column="1" Classes="card omnibar-host" Classes.editing="{Binding ActivePane.IsEditingAddress}" Padding="4,0" Height="{DynamicResource Size.Control}" Margin="4,0" PointerPressed="OnOmnibarPointerPressed">
+            <Border.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="{c:Tr Omnibar.CopyAddress}" Command="{Binding ActivePane.CopyAddressCommand}" />
+                <MenuItem Header="{c:Tr Command.EditAddress}" Click="OnEditAddressClick" />
+                <Separator />
+                <MenuItem Header="{c:Tr Omnibar.ClearHistory}" Command="{Binding ActivePane.ClearAddressHistoryCommand}" />
+              </ContextMenu>
+            </Border.ContextMenu>
+            <Grid ColumnDefinitions="*,Auto">
+              <DockPanel IsVisible="{Binding !ActivePane.IsEditingAddress}">
+                <Button x:Name="RootChevron" DockPanel.Dock="Left" Classes="subtle crumbchevron" ToolTip.Tip="{c:Tr Omnibar.Locations}" Click="OnRootChevronClick">
+                  <Panel>
+                    <c:IconView x:Name="RootChevronIcon" Kind="ChevronRight" Width="12" Height="12" />
+                    <TextBlock x:Name="OverflowGlyph" Text="«" IsVisible="False" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="2,-2,2,0" />
+                  </Panel>
+                  <Button.Flyout>
+                    <MenuFlyout Placement="BottomEdgeAlignedLeft" FlyoutPresenterClasses="crumbs" />
+                  </Button.Flyout>
+                </Button>
+                <ScrollViewer x:Name="CrumbScroller" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" ScrollChanged="OnCrumbScrollChanged">
+                  <ItemsControl x:Name="CrumbItems" ItemsSource="{Binding ActivePane.Breadcrumbs}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="panes:BreadcrumbViewModel">
+                        <StackPanel Orientation="Horizontal">
+                          <Button Classes="subtle" Padding="6,2" MinHeight="26" Content="{Binding Name}" PointerReleased="OnCrumbPointerReleased"
+                                  Command="{Binding $parent[v:MainWindow].Shell.ActivePane.NavigateToBreadcrumbCommand}" CommandParameter="{Binding}">
+                            <Button.ContextMenu>
+                              <ContextMenu IsEnabled="{Binding HasPath}">
+                                <MenuItem Header="{c:Tr Command.OpenInNewTab}" Command="{Binding $parent[v:MainWindow].Shell.ActivePane.OpenBreadcrumbInNewTabCommand}" CommandParameter="{Binding}" />
+                                <MenuItem Header="{c:Tr Omnibar.CopyAddress}" Command="{Binding $parent[v:MainWindow].Shell.ActivePane.CopyBreadcrumbPathCommand}" CommandParameter="{Binding}" />
+                              </ContextMenu>
+                            </Button.ContextMenu>
+                          </Button>
+                          <Button Classes="subtle crumbchevron" IsVisible="{Binding CanExpand}" Click="OnCrumbChevronClick">
+                            <c:IconView Kind="ChevronRight" Width="12" Height="12" />
+                            <Button.Flyout>
+                              <MenuFlyout Placement="BottomEdgeAlignedLeft" FlyoutPresenterClasses="crumbs" />
+                            </Button.Flyout>
+                          </Button>
+                        </StackPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+              </DockPanel>
+              <!-- Spans the drop-down arrow (drawn on top) so the focus border still follows the whole card -->
+              <TextBox x:Name="AddressBox" Grid.ColumnSpan="2" Classes="omnibar address" BorderThickness="0" Background="Transparent" Margin="-4,0" Padding="10,0,34,0"
                        IsVisible="{Binding ActivePane.IsEditingAddress}" Text="{Binding ActivePane.AddressText}"
                        KeyDown="OnAddressKeyDown" LostFocus="OnAddressLostFocus" />
-            </Panel>
+              <Button x:Name="HistoryButton" Grid.Column="1" Classes="subtle crumbchevron" Focusable="False" Margin="2,0,0,0"
+                      ToolTip.Tip="{c:Tr Omnibar.History}" Click="OnHistoryButtonClick">
+                <c:IconView Kind="ChevronDown" Width="12" Height="12" />
+              </Button>
+              <Popup x:Name="SuggestionPopup" PlacementTarget="{Binding #OmnibarHost}" Placement="BottomEdgeAlignedLeft" VerticalOffset="4"
+                     IsLightDismissEnabled="False" IsOpen="{Binding ActivePane.IsAddressDropDownOpen, Mode=OneWay}">
+                <Border x:Name="SuggestionCard" Classes="omnibar-dropdown" Width="{Binding #OmnibarHost.Bounds.Width}">
+                  <ListBox x:Name="SuggestionList" Classes="suggestions" ItemsSource="{Binding ActivePane.AddressSuggestions}" MaxHeight="360"
+                           Tapped="OnSuggestionTapped">
+                    <ListBox.ItemTemplate>
+                      <DataTemplate x:DataType="panes:AddressSuggestion">
+                        <Grid ColumnDefinitions="Auto,*">
+                          <c:IconView Kind="{Binding IconKey}" Width="16" Height="16" Margin="0,0,10,0" VerticalAlignment="Center" />
+                          <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Classes="caption" Text="{Binding Detail}" TextTrimming="CharacterEllipsis"
+                                       IsVisible="{Binding Detail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                          </StackPanel>
+                        </Grid>
+                      </DataTemplate>
+                    </ListBox.ItemTemplate>
+                  </ListBox>
+                </Border>
+              </Popup>
+            </Grid>
           </Border>
 
           <TextBox x:Name="SearchBox" Grid.Column="2" Width="260" Margin="4,0" Classes="omnibar"

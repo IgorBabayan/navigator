@@ -21,7 +21,7 @@ Honest list of what is missing, partial or unverified. Keep it current.
 | Clipboard | Copy/cut/paste of files works only inside Navigator. Pasting files copied in Explorer/Finder/Nautilus (and vice versa) is not implemented. |
 | Drag and drop | Only within Navigator; no drag to/from other applications. |
 | Rubber-band selection | Selects only realized (visible) rows; items scrolled out of view during the drag are not included. |
-| Breadcrumbs | No chevron flyouts listing sibling folders; no address autocompletion. |
+| Omnibar | No drag-and-drop onto breadcrumb segments; typed commands (e.g. `cmd`, `notepad`) and URLs are not launched; on Windows, mice whose driver sends only `WM_APPCOMMAND` (no XBUTTON or browser keys) do not navigate. |
 | Columns | Columns can be resized and hidden, not reordered. |
 | Views | No column (Miller) view; no compact overlay. |
 | Tabs | Cannot drag a tab out to a new window. |

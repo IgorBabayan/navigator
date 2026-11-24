@@ -29,6 +29,8 @@ Originality scan: 0 matching code windows against Files app sources — see `doc
 - Platform services for Windows, Linux, macOS.
 - Updater with signed manifests and per-installation-kind installers with rollback.
 - All view models incl. 12 settings pages, command registry with customizable shortcuts, en/uk localization.
+- Explorer-style omnibar: sub-folder chevrons, root-locations/overflow button, autocompletion, typed-address
+  history, shell names; mouse side buttons and browser keys for back/forward.
 - Avalonia UI: design tokens, styles, title bar tabs, omnibar, command bar, sidebar, all layouts,
   preview pane, operations, dialogs, properties and settings windows, motion system, original icons/logo.
 - CI and release workflows; Windows/Linux/macOS packaging scripts.

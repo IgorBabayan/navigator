@@ -33,10 +33,24 @@ Navigator's window follows the familiar Files-app layout. Everything is styled t
   titles, left first, as `Left | Right`; middle-click closes, drag to reorder, context menu (new, duplicate,
   pin, close, close others, close to the right, reopen closed); Ctrl+Shift+T reopens closed tabs
   (25 remembered); new windows via the `window.new` command.
-- **Omnibar**: shows clickable breadcrumb segments; clicking the empty area or Ctrl+L / Alt+D switches to an
-  editable path box (accepts `~`, environment variables, relative paths); Ctrl+F / F3 searches the current
-  folder recursively; Ctrl+Shift+F filters the current listing; Ctrl+Shift+P opens the command palette.
-  (Breadcrumb chevron flyouts and path autocompletion are not implemented yet — `docs/KNOWN_ISSUES.md`.)
+- **Omnibar** (behaves like a desktop file manager's address bar):
+  - Breadcrumb mode: clickable segments; the chevron after a segment lists its sub-folders (the one on the
+    current path in bold); the leading button lists root locations (Home, user folders, drives, Trash) and turns
+    into « when the path is scrolled, then also listing the hidden segments; middle-click on a segment or list
+    entry opens it in a new tab; segment context menu: open in new tab, copy address.
+  - Clicking the empty area, Ctrl+L / Alt+D or F4 switches to the editable box (full path selected). It accepts
+    absolute and relative paths (`..`), `~`, environment variables, `file://` URIs and shell names
+    (`Downloads`, `Recycle Bin`, `shell:Desktop`, English or localized); folders open in place, files open with
+    their default app.
+  - While typing, a drop-down suggests matching history entries, shell names and sub-folders (case-insensitive,
+    natural order, hidden folders only when shown). Up/Down browse it and write the entry into the box (moving
+    past either end restores the typed text), Tab completes into the folder, Enter navigates, Escape closes the
+    list and then leaves edit mode. The ▾ arrow, F4 and Alt+Down show the 25 most recent typed addresses.
+  - Omnibar context menu: copy address, edit address, clear address history.
+- **Mouse and browser keys**: the mouse back/forward side buttons (XButton1/XButton2) navigate back/forward on
+  release, on the pane under the pointer; the BrowserBack/BrowserForward keys do the same for the active pane.
+- **Search and palette**: Ctrl+F / F3 searches the current folder recursively; Ctrl+Shift+F filters the current
+  listing; Ctrl+Shift+P opens the command palette.
 - **Sidebar**: collapsible sections, resizable with a splitter (clamped to 160–480 px, persisted), toggled
   with the sidebar command; pinned folders are reorderable by drag; the Recycle Bin / Trash sits at the end of the
   pinned (quick access) section, or below the sections when quick access is hidden; drives show a usage bar; context menus

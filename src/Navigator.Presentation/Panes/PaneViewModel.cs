@@ -17,15 +17,6 @@ using Navigator.Presentation.Shell;
 
 namespace Navigator.Presentation.Panes;
 
-public sealed class BreadcrumbViewModel(string name, string path, bool isLast)
-{
-    public string Name { get; } = name;
-
-    public string Path { get; } = path;
-
-    public bool IsLast { get; } = isLast;
-}
-
 /// <summary>
 /// One file browsing pane (a tab has one, or two in split view). Owns navigation history, the incremental
 /// listing, sorting/grouping/filtering, selection, file system monitoring and all item commands.
@@ -89,6 +80,7 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         RefreshCommand = new RelayCommand(Refresh);
         NavigateToAddressCommand = new AsyncRelayCommand(NavigateToAddressAsync);
         NavigateToBreadcrumbCommand = new RelayCommand<BreadcrumbViewModel>(NavigateToBreadcrumb);
+        InitializeAddressCommands();
         SetLayoutCommand = new RelayCommand<FolderLayout>(l => Layout = l);
         SortByCommand = new RelayCommand<SortColumn>(SortBy);
         SetGroupByCommand = new RelayCommand<GroupBy>(g => GroupBy = g);
@@ -189,7 +181,11 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
     public string AddressText
     {
         get => _addressText;
-        set => SetProperty(ref _addressText, value);
+        set
+        {
+            if (SetProperty(ref _addressText, value) && _isEditingAddress && !_suppressAddressSuggestions)
+                ScheduleAddressSuggestions();
+        }
     }
 
     public bool IsEditingAddress
@@ -197,8 +193,12 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         get => _isEditingAddress;
         set
         {
-            if (SetProperty(ref _isEditingAddress, value) && value)
-                AddressText = _location.Path ?? string.Empty;
+            if (!SetProperty(ref _isEditingAddress, value))
+                return;
+            if (value)
+                SetAddressTextSilently(_location.Path ?? string.Empty);
+            else
+                CloseAddressDropDown();
         }
     }
 
@@ -552,35 +552,6 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         Navigate(Location.Search(root, text));
     }
 
-    private async Task NavigateToAddressAsync()
-    {
-        var input = AddressText.Trim();
-        if (input.Length == 0)
-        {
-            IsEditingAddress = false;
-            return;
-        }
-
-        var resolved = PathUtil.ExpandUserInput(input, _services.Platform.HomeDirectory);
-        if (resolved is null && !Path.IsPathRooted(input) && CurrentDirectory is { } current)
-            resolved = PathUtil.ExpandUserInput(Path.Combine(current, input), _services.Platform.HomeDirectory);
-
-        if (resolved is not null && Directory.Exists(resolved))
-        {
-            Navigate(Location.Folder(resolved));
-            return;
-        }
-
-        if (resolved is not null && File.Exists(resolved))
-        {
-            await _services.Launcher.OpenAsync(resolved).ConfigureAwait(true);
-            IsEditingAddress = false;
-            return;
-        }
-
-        await _services.Dialogs.ShowMessageAsync(_services.Localizer["Error.PathNotFoundTitle"], _services.Localizer.Format("Error.PathNotFound", input)).ConfigureAwait(true);
-    }
-
     /// <summary>
     /// A crumb with a path navigates there. Home, Trash and Tag views have a single path-less crumb: clicking it
     /// switches the omnibar to the editable address box instead of navigating to an empty path.
@@ -604,7 +575,8 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
             for (var i = 0; i < segments.Count; i++)
             {
                 var name = i == 0 && segments[i].Name == "/" ? _services.Localizer["Drive.FileSystem"] : FolderDisplayName(segments[i].FullPath, segments[i].Name);
-                Breadcrumbs.Add(new BreadcrumbViewModel(name, segments[i].FullPath, i == segments.Count - 1 && !IsSearch));
+                var next = i + 1 < segments.Count ? segments[i + 1].FullPath : null;
+                Breadcrumbs.Add(new BreadcrumbViewModel(name, segments[i].FullPath, i == segments.Count - 1 && !IsSearch, canExpand: true, next));
             }
 
             if (IsSearch)
@@ -639,6 +611,7 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         GoForwardCommand.NotifyCanExecuteChanged();
         GoUpCommand.NotifyCanExecuteChanged();
         SearchCommand.NotifyCanExecuteChanged();
+        CopyAddressCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(ParentPath));
     }
 
@@ -678,6 +651,7 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
             return;
         _disposed = true;
         CancelLoad();
+        CancelAddressSuggestions();
         StopMonitoring();
         foreach (var item in _ordered)
             item.CancelThumbnail();

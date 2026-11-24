@@ -115,6 +115,36 @@
   <Style Selector="Border.omnibar-host.editing">
     <Setter Property="BorderBrush" Value="Transparent" />
   </Style>
+  <!-- Breadcrumb segment chevrons (sub-folder lists) and the drop-down arrow: narrow buttons inside the omnibar -->
+  <Style Selector="Button.crumbchevron">
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="MinHeight" Value="26" />
+    <Setter Property="Padding" Value="3,2" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Button.crumbchevron c|IconView">
+    <Setter Property="Opacity" Value="0.7" />
+  </Style>
+  <Style Selector="MenuFlyoutPresenter.crumbs">
+    <Setter Property="MaxHeight" Value="480" />
+  </Style>
+  <!-- Omnibar drop-down: autocompletion and typed-address history -->
+  <Style Selector="Border.omnibar-dropdown">
+    <Setter Property="Background" Value="{DynamicResource Brush.Flyout}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Stroke}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{StaticResource Radius.Overlay}" />
+    <Setter Property="Padding" Value="4" />
+  </Style>
+  <Style Selector="ListBox.suggestions">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Focusable" Value="False" />
+  </Style>
+  <Style Selector="ListBox.suggestions ListBoxItem">
+    <Setter Property="Focusable" Value="False" />
+    <Setter Property="Padding" Value="8,4" />
+    <Setter Property="CornerRadius" Value="{StaticResource Radius.Control}" />
+  </Style>
 
   <!-- ── Flyouts, menus, tooltips ─────────────────────────── -->
   <Style Selector="MenuFlyoutPresenter, ContextMenu">

@@ -165,6 +165,9 @@ public sealed class GeneralSettings
     public bool ShowOpenTerminalInContextMenu { get; set; } = true;
 
     public string? CodeEditorCommand { get; set; }
+
+    /// <summary>Addresses typed into the omnibar, most recent first (its history drop-down); bounded by the omnibar.</summary>
+    public List<string> AddressHistory { get; set; } = [];
 }
 
 public sealed class SidebarSettings

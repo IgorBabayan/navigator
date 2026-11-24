@@ -23,10 +23,12 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Tab/window session restore | ✅ | 🟦 | ✓ | ✓ | ✓ | `SessionState` persistence + corruption tests; restore flow in `WindowService` unverified |
 | Drag a tab out into a new window | ⬜ | ⬜ | | | | context-menu alternative not present either |
 | Back / forward / up / refresh, history (128) | ✅ | 🟦 | ✓ | ✓ | ✓ | `NavigationHistory` |
+| Mouse back/forward side buttons, browser keys | ➖ | 🟦 | ✓ | ✓ | ✓ | XButton1/XButton2 act on release on the pane under the pointer; BrowserBack/BrowserForward keys |
 | Breadcrumb bar | ✅ | 🟦 | ✓ | ✓ | ✓ | |
-| Breadcrumb chevron flyouts (sibling folders) | ⬜ | ⬜ | | | | |
-| Editable address bar (`~`, env vars, relative) | ✅ | 🟦 | ✓ | ✓ | ✓ | `PathUtil.ExpandUserInput` |
-| Address autocompletion | ⬜ | ⬜ | | | | |
+| Breadcrumb chevron flyouts (sub-folders, root locations, overflow «) | ✅ | 🟦 | ✓ | ✓ | ✓ | `AddressCompletion.FindFolders`, `PaneViewModel.GetBreadcrumbChildrenAsync` / `GetRootLocationsAsync` |
+| Editable address bar (`~`, env vars, relative, shell names) | ✅ | 🟦 | ✓ | ✓ | ✓ | `PathUtil.ExpandUserInput`, `AddressAliases` |
+| Address autocompletion (Up/Down, Tab) | ✅ | 🟦 | ✓ | ✓ | ✓ | `AddressCompletion` |
+| Typed-address history drop-down (25) | ✅ | 🟦 | ✓ | ✓ | ✓ | `GeneralSettings.AddressHistory`, F4 / Alt+Down / arrow |
 | Command palette | 🟦 | 🟦 | ✓ | ✓ | ✓ | Ctrl+Shift+P |
 | Home page (quick access, drives, recent files, tags) | 🟦 | 🟦 | ✓ | ✓ | ✓ | |
 | Split view (dual pane) | 🟦 | 🟦 | ✓ | ✓ | ✓ | |
