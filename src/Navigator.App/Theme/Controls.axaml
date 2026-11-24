@@ -289,13 +289,13 @@
     <Setter Property="TrackBrush" Value="{DynamicResource Brush.ProgressTrack}" />
     <Setter Property="Transitions" Value="{DynamicResource Motion.Progress}" />
   </Style>
-  <Style Selector="c|IconView.tone-success, c|ProgressRing.tone-success">
+  <Style Selector="c|IconView.tone-success">
     <Setter Property="Foreground" Value="{DynamicResource Brush.Success}" />
   </Style>
-  <Style Selector="c|IconView.tone-warning, c|ProgressRing.tone-warning">
+  <Style Selector="c|IconView.tone-warning">
     <Setter Property="Foreground" Value="{DynamicResource Brush.Warning}" />
   </Style>
-  <Style Selector="c|IconView.tone-error, c|ProgressRing.tone-error">
+  <Style Selector="c|IconView.tone-error">
     <Setter Property="Foreground" Value="{DynamicResource Brush.Danger}" />
   </Style>
   <Style Selector="c|IconView.tone-muted">
