@@ -329,10 +329,14 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
 
     private List<string>? _reselectAfterLoad;
 
+    /// <summary>The folder whose complete listing is in <see cref="_entries"/> (kept current by the monitor).</summary>
+    private (string Path, EnumerationFilter Filter)? _listingToCache;
+
     private void ApplyLocation()
     {
         CancelLoad();
         StopMonitoring();
+        RememberListing();
         Location = History.Current;
         IsEditingAddress = false;
         ErrorText = null;
@@ -417,25 +421,91 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
     {
         _displayContext = CreateDisplayContext();
         var filter = CurrentFilter();
-        var lastPublish = 0L;
-        var first = true;
 
-        await foreach (var batch in DirectoryEnumerator.EnumerateBatchesAsync(path, filter, token).ConfigureAwait(true))
+        if (_services.DirectoryCache.TryGet(path, filter) is { } cached)
         {
-            foreach (var entry in batch)
-                _entries[entry.FullPath] = entry;
-            var now = Environment.TickCount64;
-            if (first || now - lastPublish >= PublishIntervalMilliseconds)
+            await RevalidateCachedListingAsync(path, filter, cached, token).ConfigureAwait(true);
+        }
+        else
+        {
+            var lastPublish = 0L;
+            var first = true;
+            await foreach (var batch in DirectoryEnumerator.EnumerateBatchesAsync(path, filter, token).ConfigureAwait(true))
             {
-                await PublishAsync(token).ConfigureAwait(true);
-                first = false;
-                lastPublish = Environment.TickCount64;
+                foreach (var entry in batch)
+                    _entries[entry.FullPath] = entry;
+                var now = Environment.TickCount64;
+                if (first || now - lastPublish >= PublishIntervalMilliseconds)
+                {
+                    await PublishAsync(token).ConfigureAwait(true);
+                    first = false;
+                    lastPublish = Environment.TickCount64;
+                }
             }
+
+            await PublishAsync(token).ConfigureAwait(true);
         }
 
-        await PublishAsync(token).ConfigureAwait(true);
+        _services.DirectoryCache.Store(path, filter, _entries.Values);
+        _listingToCache = (path, filter);
         StartMonitoring(path);
         ScheduleFolderSizes(token);
+    }
+
+    /// <summary>
+    /// Settings → Performance → "Recently visited folders kept in memory": the cached listing is shown at once, then
+    /// the folder is enumerated again. Unchanged entries keep their instances (and so their item view models,
+    /// thumbnails and selection); the rows are rebuilt only when something was added, removed or changed.
+    /// </summary>
+    private async Task RevalidateCachedListingAsync(string path, EnumerationFilter filter, FileEntry[] cached, CancellationToken token)
+    {
+        foreach (var entry in cached)
+            _entries[entry.FullPath] = entry;
+        await PublishAsync(token).ConfigureAwait(true);
+
+        var fresh = new Dictionary<string, FileEntry>(cached.Length, PathUtil.Comparer);
+        var changed = false;
+        try
+        {
+            await foreach (var batch in DirectoryEnumerator.EnumerateBatchesAsync(path, filter, token).ConfigureAwait(true))
+            {
+                foreach (var entry in batch)
+                {
+                    if (_entries.TryGetValue(entry.FullPath, out var known) && known.IsEquivalentTo(entry))
+                    {
+                        fresh[entry.FullPath] = known;
+                    }
+                    else
+                    {
+                        fresh[entry.FullPath] = entry;
+                        changed = true;
+                    }
+                }
+            }
+        }
+        catch (Exception ex) when (ex is DirectoryEnumerationException or IOException or UnauthorizedAccessException)
+        {
+            // The folder is gone or no longer readable: drop the stale items before the error is shown.
+            _services.DirectoryCache.Invalidate(path);
+            _entries.Clear();
+            ApplySorted([]);
+            throw;
+        }
+
+        if (!changed && fresh.Count == _entries.Count)
+            return;
+        _entries.Clear();
+        foreach (var pair in fresh)
+            _entries[pair.Key] = pair.Value;
+        await PublishAsync(token).ConfigureAwait(true);
+    }
+
+    /// <summary>Puts the listing being left into the shared cache, including changes applied by the monitor since loading.</summary>
+    private void RememberListing()
+    {
+        if (_listingToCache is { } listing)
+            _services.DirectoryCache.Store(listing.Path, listing.Filter, _entries.Values);
+        _listingToCache = null;
     }
 
     private async Task LoadTrashAsync(CancellationToken token)
@@ -653,6 +723,7 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         CancelLoad();
         CancelAddressSuggestions();
         StopMonitoring();
+        RememberListing();
         foreach (var item in _ordered)
             item.CancelThumbnail();
     }

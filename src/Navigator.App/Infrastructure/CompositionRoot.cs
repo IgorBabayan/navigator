@@ -2,6 +2,7 @@ using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Navigator.App.Services;
+using Navigator.Core.Caching;
 using Navigator.Core.IO;
 using Navigator.Core.Operations;
 using Navigator.Core.Platform;
@@ -73,6 +74,7 @@ internal static class CompositionRoot
             });
         });
         services.AddSingleton<FileOperationService>();
+        services.AddSingleton(provider => new DirectoryListingCache(provider.GetRequiredService<SettingsService>().Current.Performance.DirectoryCacheEntries));
         services.AddSingleton(provider => new BackgroundWorkScheduler(provider.GetRequiredService<SettingsService>().Current.Performance.MaxBackgroundWorkers));
         services.AddSingleton(_ => new TagStore(new JsonFileStore<TagAssignments>(directories.TagsFile, SettingsJsonContext.Default.TagAssignments, () => new TagAssignments())));
         services.AddSingleton(_ => new RecentItems(Path.Combine(directories.ConfigDirectory, "recent.json")));
@@ -88,6 +90,7 @@ internal static class CompositionRoot
         services.AddSingleton<NotificationCenter>();
         services.AddSingleton<INotificationCenter>(provider => provider.GetRequiredService<NotificationCenter>());
         services.AddSingleton<ThemeService>();
+        services.AddSingleton<PerformanceMonitor>();
         services.AddSingleton<PinnedFolders>();
         services.AddSingleton<TrashStatus>();
         services.AddSingleton<PaneServices>();

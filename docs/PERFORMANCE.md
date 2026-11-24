@@ -26,6 +26,9 @@ the numbers that were **actually measured**, and what is still unmeasured. No fi
 | Lazy work | display strings on first access; thumbnails only for realized rows, cancelled on recycle; folder sizes opt-in | `FileItemViewModel`, `RowThumbnails` |
 | Scheduling | priority worker pool: Visible > Normal > Background | `BackgroundWorkScheduler` |
 | Caching | cost-bounded LRU with request de-duplication (thumbnails, icons, folder sizes) | `LruCache` |
+| Revisits | recently visited folder listings (count- and entry-bounded) shown at once, re-enumerated in the background; unchanged entries keep their instances, so rows are not rebuilt | `DirectoryListingCache`, `PaneViewModel.RevalidateCachedListingAsync` |
+| Thumbnails on disk | PNG copies of thumbnails of images > 256 KB, size-bounded, oldest evicted, scanned lazily on the first write | `DiskCache`, `ThumbnailProvider` |
+| Diagnostics | status bar indicator fed by Avalonia's metrics (`Avalonia.Diagnostic.Meter`) through a `MeterListener` that exists only while the indicator is on; never forces frames | `PerformanceMonitor`, `PerformanceIndicator` |
 | Startup | ReadyToRun, compiled bindings, JSON source generation, no reflection-based DI scanning, update checks deferred until after the first frame | `Navigator.App.csproj`, `CompositionRoot` |
 | Copy engine | 1 MiB buffers, preallocation, progress sampled by polling instead of per-chunk events | `SafeFileCopier`, `FileOperation` |
 | Memory | bounded history (128), recently closed tabs (25), per-folder preferences (500), log files (7 × 5 MB) | |
@@ -73,7 +76,7 @@ dotnet run -c Release --project tests/Navigator.Benchmarks -- --filter '*'
 |---|---|---|
 | Startup time | Avalonia app could not be built in the development environment | `Program.StartupTimer` logs "first frame after N ms" at Information level |
 | UI memory (idle, 100k folder) | same | Task Manager / `ps -o rss` after opening `navigator-probe/100000` |
-| Scrolling frame rate, animation smoothness | same | Avalonia `RendererDiagnostics` (F12 dev tools in Debug builds) or OS frame tools |
+| Scrolling frame rate, animation smoothness | same | Settings → Performance → "Show performance diagnostics" (status bar; hover for details) or OS frame tools |
 | Copy throughput vs OS file manager | needs real disks | copy a 10 GB mixed tree on the same volume and across volumes |
 | Windows and macOS numbers | no hardware in the development environment | run the probe and benchmark suite |
 

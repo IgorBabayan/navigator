@@ -27,7 +27,16 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
   invalid input is rejected with a message instead of being saved.
 - Settings now expose: font family, startup locations (for "Open specific locations"), sidebar visibility,
   clearing address history / remembered folder views / the skipped update version.
-- "Show performance diagnostics" turns on the renderer's FPS and layout/render time overlay.
+- "Show performance diagnostics" shows a compact indicator in the status bar: frame and layout time, rendered
+  frames per second, managed memory and a frame-time graph (hover for compositor/layout/input breakdown, visual
+  count, working set and GC counts). It reads Avalonia's own metrics and measures nothing while it is off.
+- "Show labels on toolbar buttons" works: off makes New/Sort/Group/Layout icon-only (with tooltips).
+- "Show check boxes for selecting items": a check box in front of each item (Details, List, tiles) toggles it in
+  the selection; Shift+click on it adds a range.
+- Thumbnail disk cache (Settings → Performance): thumbnails of images over 256 KB are kept as small PNGs, bounded
+  by the configured size (oldest removed first), with a "Clear" button.
+- Recently visited folders kept in memory (Settings → Performance): revisiting a folder shows its items at once
+  and refreshes them in the background; unchanged items keep their rows, thumbnails and selection.
 - Packaging: Windows installer + portable ZIP, Linux AppImage + tar.gz, macOS DMG + ZIP.
 - Documentation set and source-originality scanner.
 
@@ -37,8 +46,14 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
 - A tab in split view shows both pane titles separated by "|" (left first).
 - The Recycle Bin / Trash moved into the sidebar's quick access (pinned) section.
 
+### Removed
+
+- The "Enable experimental features" setting (it controlled nothing); the stored value is dropped on next save.
+
 ### Fixed
 
+- The performance overlay (Avalonia's renderer debug overlay) covered the title bar and search box and forced
+  continuous redraws; it is replaced by the status bar indicator.
 - Shortcuts with digit or punctuation keys were not reliably recognized: a bare `1` or `` ` `` is not an Avalonia
   key name (`Ctrl+Shift+1…5`, ``Ctrl+Shift+` ``). Gestures are now normalized to key names (`D1`, `OemTilde`, …)
   and shown in friendly form (`1`, `` ` ``, `,`).

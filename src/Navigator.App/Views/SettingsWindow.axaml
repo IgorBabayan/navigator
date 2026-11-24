@@ -151,6 +151,7 @@
               <CheckBox Content="{c:Tr Settings.ShowProtectedSystemItems}" IsChecked="{Binding ShowProtectedSystemItems}" IsVisible="{Binding IsProtectedSystemItemsSupported}" />
               <CheckBox Content="{c:Tr Settings.ShowFileExtensions}" IsChecked="{Binding ShowFileExtensions}" />
               <CheckBox Content="{c:Tr Settings.ShowThumbnails}" IsChecked="{Binding ShowThumbnails}" />
+              <CheckBox Content="{c:Tr Settings.ShowCheckBoxes}" IsChecked="{Binding ShowCheckBoxes}" />
               <CheckBox Content="{c:Tr Settings.ShowTagsColumn}" IsChecked="{Binding ShowFileTagsColumn}" /></StackPanel></Border>
             <Border Classes="setting"><StackPanel Spacing="4">
               <CheckBox Content="{c:Tr Settings.SingleClick}" IsChecked="{Binding OpenItemsWithSingleClick}" />
@@ -287,10 +288,17 @@
             <Border Classes="setting"><Grid ColumnDefinitions="*,Auto,60"><StackPanel VerticalAlignment="Center"><TextBlock Text="{c:Tr Settings.ThumbnailMemory}" /><TextBlock Classes="description" Text="{c:Tr Settings.ThumbnailMemoryDescription}" /></StackPanel>
               <Slider Grid.Column="1" Width="200" Minimum="16" Maximum="1024" TickFrequency="16" IsSnapToTickEnabled="True" Value="{Binding ThumbnailMemoryCacheMegabytes}" />
               <TextBlock Grid.Column="2" Text="{Binding ThumbnailMemoryCacheMegabytes, StringFormat='{}{0} MB'}" VerticalAlignment="Center" HorizontalAlignment="Right" /></Grid></Border>
+            <Border Classes="setting"><Grid ColumnDefinitions="*,Auto,72,Auto"><StackPanel VerticalAlignment="Center"><TextBlock Text="{c:Tr Settings.ThumbnailDisk}" /><TextBlock Classes="description" Text="{c:Tr Settings.ThumbnailDiskDescription}" TextWrapping="Wrap" /></StackPanel>
+              <Slider Grid.Column="1" Width="200" Minimum="0" Maximum="4096" TickFrequency="64" IsSnapToTickEnabled="True" Value="{Binding ThumbnailDiskCacheMegabytes}" />
+              <TextBlock Grid.Column="2" Text="{Binding ThumbnailDiskCacheMegabytes, StringFormat='{}{0} MB'}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+              <Button Grid.Column="3" Margin="12,0,0,0" Content="{c:Tr Settings.Clear}" Command="{Binding ClearThumbnailCacheCommand}" /></Grid></Border>
+            <Border Classes="setting"><Grid ColumnDefinitions="*,Auto,60"><StackPanel VerticalAlignment="Center"><TextBlock Text="{c:Tr Settings.DirectoryCache}" /><TextBlock Classes="description" Text="{c:Tr Settings.DirectoryCacheDescription}" TextWrapping="Wrap" /></StackPanel>
+              <Slider Grid.Column="1" Width="200" Minimum="0" Maximum="256" TickFrequency="8" IsSnapToTickEnabled="True" Value="{Binding DirectoryCacheEntries}" />
+              <TextBlock Grid.Column="2" Text="{Binding DirectoryCacheEntries}" VerticalAlignment="Center" HorizontalAlignment="Right" /></Grid></Border>
             <Border Classes="setting"><Grid ColumnDefinitions="*,Auto,60"><StackPanel VerticalAlignment="Center"><TextBlock Text="{c:Tr Settings.BackgroundWorkers}" /><TextBlock Classes="description" Text="{c:Tr Settings.RestartRequired}" /></StackPanel>
               <Slider Grid.Column="1" Width="200" Minimum="1" Maximum="{Binding ProcessorCount}" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding MaxBackgroundWorkers}" />
               <TextBlock Grid.Column="2" Text="{Binding MaxBackgroundWorkers}" VerticalAlignment="Center" HorizontalAlignment="Right" /></Grid></Border>
-            <Border Classes="setting"><Grid ColumnDefinitions="*,Auto"><TextBlock Text="{c:Tr Settings.PerformanceOverlay}" VerticalAlignment="Center" />
+            <Border Classes="setting"><Grid ColumnDefinitions="*,Auto"><StackPanel VerticalAlignment="Center"><TextBlock Text="{c:Tr Settings.PerformanceOverlay}" /><TextBlock Classes="description" Text="{c:Tr Settings.PerformanceOverlayDescription}" TextWrapping="Wrap" /></StackPanel>
               <ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowPerformanceOverlay}" OnContent="" OffContent="" /></Grid></Border>
           </StackPanel>
 
@@ -341,8 +349,6 @@
               <Button Grid.Column="1" Content="{c:Tr Settings.Export}" Command="{Binding ExportCommand}" />
               <Button Grid.Column="2" Margin="8,0,0,0" Content="{c:Tr Settings.Import}" Command="{Binding ImportCommand}" />
               <Button Grid.Column="3" Margin="8,0,0,0" Content="{c:Tr Settings.OpenSettingsFolder}" Command="{Binding OpenSettingsFolderCommand}" /></Grid></Border>
-            <Border Classes="setting"><Grid ColumnDefinitions="*,Auto"><TextBlock Text="{c:Tr Settings.Experimental}" VerticalAlignment="Center" />
-              <ToggleSwitch Grid.Column="1" IsChecked="{Binding EnableExperimentalFeatures}" OnContent="" OffContent="" /></Grid></Border>
             <Border Classes="setting"><Grid ColumnDefinitions="*,Auto"><StackPanel VerticalAlignment="Center"><TextBlock Text="{c:Tr Settings.ResetAll}" /><TextBlock Classes="description" Text="{c:Tr Settings.ResetAllMessage}" /></StackPanel>
               <Button Grid.Column="1" Classes="danger" Content="{c:Tr Settings.ResetAll}" Command="{Binding ResetAllCommand}" /></Grid></Border>
           </StackPanel>

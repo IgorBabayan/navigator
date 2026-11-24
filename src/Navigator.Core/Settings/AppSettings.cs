@@ -314,8 +314,6 @@ public sealed class AdvancedSettings
 {
     public LogVerbosity LogLevel { get; set; } = LogVerbosity.Information;
 
-    public bool EnableExperimentalFeatures { get; set; }
-
     public bool ShowPerformanceOverlay { get; set; }
 }
 

@@ -6,13 +6,14 @@
              x:Class="Navigator.App.Views.Rows.ListRow"
              x:DataType="items:FileItemViewModel">
   <Border Classes="item" Classes.selected="{Binding IsSelected}" Height="{DynamicResource Size.Row}" ToolTip.Tip="{Binding FullPath}">
-    <Grid ColumnDefinitions="Auto,*,Auto" Margin="12,0" Opacity="{Binding ContentOpacity}">
-      <Panel Width="{StaticResource Size.RowIcon}" Height="{StaticResource Size.RowIcon}" Margin="0,0,10,0">
+    <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="12,0" Opacity="{Binding ContentOpacity}">
+      <Border Classes="rowCheck"><c:IconView Kind="Check" /></Border>
+      <Panel Grid.Column="1" Width="{StaticResource Size.RowIcon}" Height="{StaticResource Size.RowIcon}" Margin="0,0,10,0">
         <c:IconView Kind="{Binding IconKey}" Width="{StaticResource Size.RowIcon}" Height="{StaticResource Size.RowIcon}" IsVisible="{Binding !HasThumbnail}" />
         <Image Source="{Binding Thumbnail, Converter={x:Static v:ImageConverter.Instance}}" IsVisible="{Binding HasThumbnail}" Stretch="UniformToFill" />
       </Panel>
-      <TextBlock Grid.Column="1" Text="{Binding DisplayName}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-      <TextBlock Grid.Column="2" Classes="caption" Text="{Binding SizeText}" VerticalAlignment="Center" Margin="12,0,0,0" />
+      <TextBlock Grid.Column="2" Text="{Binding DisplayName}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+      <TextBlock Grid.Column="3" Classes="caption" Text="{Binding SizeText}" VerticalAlignment="Center" Margin="12,0,0,0" />
     </Grid>
   </Border>
 </UserControl>

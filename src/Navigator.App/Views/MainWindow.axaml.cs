@@ -47,7 +47,7 @@ public sealed partial class MainWindow : Window
         ConfigureCaptionInsets();
         ApplyBackdrop();
         RebuildKeyGestures();
-        ApplyDiagnosticsOverlay();
+        ApplyToolbarLabels();
         UpdateSidebarColumn();
 
         _theme.BackdropChanged += OnBackdropChanged;
@@ -625,15 +625,12 @@ public sealed partial class MainWindow : Window
     {
         if (section is "keyBindings" or "*")
             Avalonia.Threading.Dispatcher.UIThread.Post(RebuildKeyGestures);
-        if (section is "advanced" or "*")
-            Avalonia.Threading.Dispatcher.UIThread.Post(ApplyDiagnosticsOverlay);
+        if (section is "appearance" or "*")
+            Avalonia.Threading.Dispatcher.UIThread.Post(ApplyToolbarLabels);
     }
 
-    /// <summary>Settings → Performance → "Show performance diagnostics": the renderer's FPS and layout/render time graphs.</summary>
-    private void ApplyDiagnosticsOverlay()
-        => RendererDiagnostics.DebugOverlays = _services.Settings.Current.Advanced.ShowPerformanceOverlay
-            ? Avalonia.Rendering.RendererDebugOverlays.Fps | Avalonia.Rendering.RendererDebugOverlays.LayoutTimeGraph | Avalonia.Rendering.RendererDebugOverlays.RenderTimeGraph
-            : Avalonia.Rendering.RendererDebugOverlays.None;
+    /// <summary>Settings → Appearance → "Show labels on toolbar buttons": icon-only buttons keep their tooltips.</summary>
+    private void ApplyToolbarLabels() => CommandBar.Classes.Set("noLabels", !_services.Settings.Current.Appearance.ShowToolbarLabels);
 
     private void RebuildKeyGestures()
     {

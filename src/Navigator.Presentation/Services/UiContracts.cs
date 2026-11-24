@@ -96,6 +96,9 @@ public interface IThumbnailProvider
     bool CanCreateThumbnail(FileEntry entry);
 
     Task<object?> GetThumbnailAsync(FileEntry entry, int pixelSize, CancellationToken cancellationToken);
+
+    /// <summary>Deletes the thumbnails stored on disk (Settings → Performance).</summary>
+    Task ClearDiskCacheAsync();
 }
 
 public enum NotificationSeverity

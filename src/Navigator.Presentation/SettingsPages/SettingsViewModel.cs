@@ -205,6 +205,7 @@ public sealed class SettingsViewModel : ObservableObject
     private readonly IFileLauncher _launcher;
     private readonly TagStore _tags;
     private readonly AppDirectories _directories;
+    private readonly IThumbnailProvider _thumbnails;
     private readonly Dictionary<string, (string Section, Action<AppSettings, AppSettings> Reset)> _resetters = [];
     private SettingsPage _selectedPage;
     private string _keyBindingFilter = string.Empty;
@@ -213,9 +214,10 @@ public sealed class SettingsViewModel : ObservableObject
     private KeyBindingRowViewModel? _recordingRow;
     private IReadOnlyList<Option<string>>? _fontFamilies;
 
-    public SettingsViewModel(SettingsService settings, Localizer localizer, IDialogService dialogs, IFileLauncher launcher, TagStore tags, AppDirectories directories, UpdateViewModel update)
+    public SettingsViewModel(SettingsService settings, Localizer localizer, IDialogService dialogs, IFileLauncher launcher, TagStore tags, AppDirectories directories, UpdateViewModel update, IThumbnailProvider thumbnails)
     {
         _settings = settings;
+        _thumbnails = thumbnails;
         _localizer = localizer;
         _dialogs = dialogs;
         _launcher = launcher;
@@ -280,6 +282,7 @@ public sealed class SettingsViewModel : ObservableObject
         ClearFolderViewsCommand = new RelayCommand(() => _settings.Update("filesAndFolders", s => s.FilesAndFolders.FolderViews.Clear()));
         ClearSkippedVersionCommand = new RelayCommand(() => Set("updates", (string?)null, s => s.Updates.SkippedVersion, (s, v) => s.Updates.SkippedVersion = v, nameof(SkippedVersion)));
         ClearSearchHistoryCommand = new RelayCommand(() => Set("search", new List<string>(), s => s.Search.History, (s, v) => s.Search.History = v));
+        ClearThumbnailCacheCommand = new AsyncRelayCommand(() => _thumbnails.ClearDiskCacheAsync());
         PickAccentCommand = new RelayCommand<string>(color => AccentColor = color);
         PickBackgroundImageCommand = new AsyncRelayCommand(PickBackgroundImageAsync);
         RegisterResetters();
@@ -624,6 +627,8 @@ public sealed class SettingsViewModel : ObservableObject
 
     public double ThumbnailDiskCacheMegabytes { get => S.Performance.ThumbnailDiskCacheMegabytes; set => Set("performance", (int)Math.Round(value), s => s.Performance.ThumbnailDiskCacheMegabytes, (s, v) => s.Performance.ThumbnailDiskCacheMegabytes = v); }
 
+    public double DirectoryCacheEntries { get => S.Performance.DirectoryCacheEntries; set => Set("performance", (int)Math.Round(value), s => s.Performance.DirectoryCacheEntries, (s, v) => s.Performance.DirectoryCacheEntries = v); }
+
     public double MaxBackgroundWorkers { get => S.Performance.MaxBackgroundWorkers; set => Set("performance", (int)Math.Round(value), s => s.Performance.MaxBackgroundWorkers, (s, v) => s.Performance.MaxBackgroundWorkers = v); }
 
     public double ProcessorCount => Environment.ProcessorCount;
@@ -647,8 +652,6 @@ public sealed class SettingsViewModel : ObservableObject
         get => LogLevels.First(o => o.Value == S.Advanced.LogLevel);
         set { if (value is not null) Set("advanced", value.Value, s => s.Advanced.LogLevel, (s, v) => s.Advanced.LogLevel = v); }
     }
-
-    public bool EnableExperimentalFeatures { get => S.Advanced.EnableExperimentalFeatures; set => Set("advanced", value, s => s.Advanced.EnableExperimentalFeatures, (s, v) => s.Advanced.EnableExperimentalFeatures = v); }
 
     public bool ShowPerformanceOverlay { get => S.Advanced.ShowPerformanceOverlay; set => Set("advanced", value, s => s.Advanced.ShowPerformanceOverlay, (s, v) => s.Advanced.ShowPerformanceOverlay = v); }
 
@@ -685,6 +688,8 @@ public sealed class SettingsViewModel : ObservableObject
     public IRelayCommand ClearSkippedVersionCommand { get; }
 
     public IRelayCommand ClearSearchHistoryCommand { get; }
+
+    public IAsyncRelayCommand ClearThumbnailCacheCommand { get; }
 
     public IRelayCommand<string> PickAccentCommand { get; }
 
@@ -723,6 +728,7 @@ public sealed class SettingsViewModel : ObservableObject
         Register(nameof(SearchMaxResults), "search", (s, d) => s.Search.MaxResults = d.Search.MaxResults);
         Register(nameof(ThumbnailMemoryCacheMegabytes), "performance", (s, d) => s.Performance.ThumbnailMemoryCacheMegabytes = d.Performance.ThumbnailMemoryCacheMegabytes);
         Register(nameof(ThumbnailDiskCacheMegabytes), "performance", (s, d) => s.Performance.ThumbnailDiskCacheMegabytes = d.Performance.ThumbnailDiskCacheMegabytes);
+        Register(nameof(DirectoryCacheEntries), "performance", (s, d) => s.Performance.DirectoryCacheEntries = d.Performance.DirectoryCacheEntries);
         Register(nameof(MaxBackgroundWorkers), "performance", (s, d) => s.Performance.MaxBackgroundWorkers = d.Performance.MaxBackgroundWorkers);
         Register(nameof(UpdateCheckIntervalHours), "updates", (s, d) => s.Updates.CheckIntervalHours = d.Updates.CheckIntervalHours);
         Register(nameof(Channel), "updates", (s, d) => s.Updates.Channel = d.Updates.Channel);
