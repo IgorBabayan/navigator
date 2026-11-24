@@ -31,6 +31,33 @@ env:
   APP: Navigator
 
 jobs:
+  cancel-ci:
+    # The PR's CI run (started on `opened`/`synchronize`) keeps running after the merge, which shows up
+    # as a second build next to this release. The release re-runs the tests on the merge commit, so the
+    # leftover CI validation is redundant: cancel it so a merge produces exactly one build.
+    name: Cancel superseded CI runs
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    permissions:
+      actions: write # cancels workflow runs
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Cancel in-progress CI runs for the merged PR
+        run: |
+          set -euo pipefail
+          ids=$(gh run list --workflow ci.yml --commit "$HEAD_SHA" --event pull_request --limit 20 \
+            --json databaseId,status --jq '.[] | select(.status != "completed") | .databaseId')
+          if [ -z "$ids" ]; then echo "No running CI for $HEAD_SHA."; exit 0; fi
+          for id in $ids; do
+            echo "Cancelling CI run $id"
+            gh run cancel "$id" || true
+          done
+
   prepare:
     name: Validate event and reserve version
     if: >-
