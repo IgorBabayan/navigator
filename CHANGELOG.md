@@ -27,9 +27,9 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
   invalid input is rejected with a message instead of being saved.
 - Settings now expose: font family, startup locations (for "Open specific locations"), sidebar visibility,
   clearing address history / remembered folder views / the skipped update version.
-- "Show performance diagnostics" shows a compact indicator in the status bar: frame and layout time, rendered
-  frames per second, managed memory and a frame-time graph (hover for compositor/layout/input breakdown, visual
-  count, working set and GC counts). It reads Avalonia's own metrics and measures nothing while it is off.
+- "Show performance diagnostics" shows a memory bar in the status bar in the style of the JetBrains IDE memory
+  indicator: managed heap in use of committed heap ("123 of 456M"); click it to run a garbage collection, hover it
+  for frame rate, compositor/layout/input timings, visual count, working set and GC counts. It reads Avalonia's own metrics and measures nothing while it is off.
 - "Show labels on toolbar buttons" works: off makes New/Sort/Group/Layout icon-only (with tooltips).
 - "Show check boxes for selecting items": a check box in front of each item (Details, List, tiles) toggles it in
   the selection; Shift+click on it adds a range.

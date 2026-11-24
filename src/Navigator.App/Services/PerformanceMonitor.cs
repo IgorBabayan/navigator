@@ -18,6 +18,7 @@ public sealed record PerformanceSample(
     PassStatistics Input,
     long VisualCount,
     long ManagedBytes,
+    long HeapCommittedBytes,
     long WorkingSetBytes,
     int Gen0Collections,
     int Gen1Collections,
@@ -35,7 +36,6 @@ public sealed record PerformanceSample(
 public sealed class PerformanceMonitor : IDisposable
 {
     public const string AvaloniaMeterName = "Avalonia.Diagnostic.Meter";
-    public const int HistoryLength = 48;
 
     private const int CompositorRender = 0;
     private const int CompositorUpdate = 1;
@@ -53,12 +53,9 @@ public sealed class PerformanceMonitor : IDisposable
     private readonly double[] _sum = new double[PassKinds];
     private readonly double[] _max = new double[PassKinds];
     private readonly int[] _count = new int[PassKinds];
-    private readonly double[] _history = new double[HistoryLength];
     private MeterListener? _listener;
     private DispatcherTimer? _timer;
     private int _subscribers;
-    private int _historyStart;
-    private int _historyCount;
     private long _visualCount;
     private long _lastSampleTimestamp;
     private bool _disposed;
@@ -78,16 +75,6 @@ public sealed class PerformanceMonitor : IDisposable
         return new Subscription(this);
     }
 
-    /// <summary>Copies the per-sample worst frame times, oldest first, into <paramref name="destination"/>; returns the count.</summary>
-    public int CopyHistory(Span<double> destination)
-    {
-        var count = Math.Min(_historyCount, destination.Length);
-        var skip = _historyCount - count;
-        for (var i = 0; i < count; i++)
-            destination[i] = _history[(_historyStart + skip + i) % HistoryLength];
-        return count;
-    }
-
     private void Unsubscribe()
     {
         if (_subscribers > 0 && --_subscribers == 0)
@@ -97,8 +84,6 @@ public sealed class PerformanceMonitor : IDisposable
     private void Start()
     {
         ResetAccumulators();
-        _historyCount = 0;
-        _historyStart = 0;
         _lastSampleTimestamp = Stopwatch.GetTimestamp();
 
         var listener = new MeterListener
@@ -194,21 +179,11 @@ public sealed class PerformanceMonitor : IDisposable
             passes[Input],
             Interlocked.Read(ref _visualCount),
             GC.GetTotalMemory(forceFullCollection: false),
+            GC.GetGCMemoryInfo().TotalCommittedBytes, // as of the last collection; the indicator never shows less than in use
             Environment.WorkingSet,
             GC.CollectionCount(0),
             GC.CollectionCount(1),
             GC.CollectionCount(2));
-
-        if (_historyCount < HistoryLength)
-        {
-            _history[(_historyStart + _historyCount) % HistoryLength] = frame.MaxMilliseconds;
-            _historyCount++;
-        }
-        else
-        {
-            _history[_historyStart] = frame.MaxMilliseconds;
-            _historyStart = (_historyStart + 1) % HistoryLength;
-        }
 
         Latest = sample;
         Sampled?.Invoke(this, sample);
