@@ -150,6 +150,12 @@ public sealed class GeneralSettings
 
     public bool ConfirmCloseWithMultipleTabs { get; set; } = true;
 
+    /// <summary>
+    /// Keep the process (and its notification-area icon) alive after the last window closes, so the global shortcut
+    /// opens a window instantly instead of only working while a window is open.
+    /// </summary>
+    public bool KeepRunningInBackground { get; set; }
+
     public bool ShowHomeQuickAccess { get; set; } = true;
 
     public bool ShowHomeDrives { get; set; } = true;

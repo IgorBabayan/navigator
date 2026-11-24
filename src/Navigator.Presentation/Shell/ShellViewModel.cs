@@ -386,6 +386,8 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
         var isMac = OperatingSystem.IsMacOS();
         foreach (var command in CommandRegistry.All)
         {
+            if (command.IsGlobal)
+                continue;
             var name = _services.Localizer[command.NameKey];
             if (_paletteFilter.Length > 0 && !name.Contains(_paletteFilter, StringComparison.CurrentCultureIgnoreCase))
                 continue;

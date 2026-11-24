@@ -138,6 +138,7 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Mica / Acrylic backdrop | 🟦 | 🟦 | 🟦 | 🟨 | 🟨 | effect depends on platform/compositor |
 | Animations full / reduced / off | 🟦 | 🟦 | ✓ | ✓ | ✓ | |
 | Customizable keyboard shortcuts | ✅ | 🟦 | ✓ | ✓ | ✓ | `CommandRegistry` |
+| Global shortcut to open Navigator; background mode with tray icon | 🟦 | 🟦 | 🟦 | 🟨 | 🟦 | `GlobalHotkeyController`; X11 only (Wayland: bind a desktop shortcut to the app) |
 | English + Ukrainian | ✅ | 🟦 | ✓ | ✓ | ✓ | key parity test |
 | High-contrast themes | ⬜ | ⬜ | | | | |
 

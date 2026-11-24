@@ -30,6 +30,7 @@ public sealed partial class MainWindow : Window
     private MenuFlyout? _crumbMenu;
     private Button? _lastClosedCrumbMenuOwner;
     private long _lastCrumbMenuClosedAt;
+    private WindowState _stateBeforeMinimize = WindowState.Normal;
 
     public MainWindow()
         : this(ActivatorUtilities.CreateInstance<ShellViewModel>(App.Services), App.Services.GetRequiredService<PaneServices>())
@@ -95,6 +96,23 @@ public sealed partial class MainWindow : Window
 
     public WindowSession CaptureSession()
         => Shell.ToSession(Position.X, Position.Y, Bounds.Width, Bounds.Height, WindowState == WindowState.Maximized);
+
+    /// <summary>Global shortcut / tray: un-minimizes to the state the window had before (e.g. maximized) and focuses it.</summary>
+    public void BringToFront()
+    {
+        if (WindowState == WindowState.Minimized)
+            WindowState = _stateBeforeMinimize;
+        if (!IsVisible)
+            Show();
+        Activate();
+    }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == WindowStateProperty && change.GetNewValue<WindowState>() == WindowState.Minimized)
+            _stateBeforeMinimize = change.GetOldValue<WindowState>();
+    }
 
     // ── Window chrome ─────────────────────────────────────────
 
@@ -638,6 +656,8 @@ public sealed partial class MainWindow : Window
         var isMac = OperatingSystem.IsMacOS();
         foreach (var command in CommandRegistry.All)
         {
+            if (command.IsGlobal)
+                continue; // registered with the OS by GlobalHotkeyController
             foreach (var text in CommandRegistry.GesturesFor(command.Id, _services.Settings.Current, isMac))
             {
                 try

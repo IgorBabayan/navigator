@@ -82,6 +82,14 @@
               <ToggleSwitch Grid.Column="1" IsChecked="{Binding OpenFoldersInNewTab}" OnContent="" OffContent="" /></Grid></Border>
             <Border Classes="setting"><Grid ColumnDefinitions="*,Auto"><TextBlock Text="{c:Tr Settings.ConfirmCloseTabs}" VerticalAlignment="Center" />
               <ToggleSwitch Grid.Column="1" IsChecked="{Binding ConfirmCloseWithMultipleTabs}" OnContent="" OffContent="" /></Grid></Border>
+            <TextBlock Classes="section" Text="{c:Tr Settings.GlobalShortcutSection}" />
+            <Border Classes="setting"><Grid ColumnDefinitions="*,Auto"><StackPanel VerticalAlignment="Center"><TextBlock Text="{c:Tr Command.ActivateApp}" />
+                <TextBlock Classes="description" Text="{Binding GlobalShortcutStatus}" IsVisible="{Binding !HasGlobalShortcutProblem}" />
+                <TextBlock Classes="error" Text="{Binding GlobalShortcutStatus}" IsVisible="{Binding HasGlobalShortcutProblem}" TextWrapping="Wrap" /></StackPanel>
+              <Button Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" Content="{c:Tr Settings.ChangeShortcut}" Command="{Binding ChangeGlobalShortcutCommand}" /></Grid></Border>
+            <Border Classes="setting"><Grid ColumnDefinitions="*,Auto,Auto"><StackPanel VerticalAlignment="Center"><TextBlock Text="{c:Tr Settings.KeepRunningInBackground}" /><TextBlock Classes="description" Text="{c:Tr Settings.KeepRunningInBackgroundDescription}" /></StackPanel>
+              <ToggleSwitch Grid.Column="1" IsChecked="{Binding KeepRunningInBackground}" OnContent="" OffContent="" />
+              <Button Grid.Column="2" Classes="subtle icon" Margin="4,0,0,0" ToolTip.Tip="{c:Tr Settings.Reset}" Command="{Binding ResetCommand}" CommandParameter="KeepRunningInBackground"><c:IconView Kind="Undo" /></Button></Grid></Border>
             <TextBlock Classes="section" Text="{c:Tr Settings.HomeWidgets}" />
             <Border Classes="setting"><StackPanel Spacing="4">
               <CheckBox Content="{c:Tr Home.QuickAccess}" IsChecked="{Binding ShowHomeQuickAccess}" />

@@ -2,8 +2,12 @@ using Navigator.Core.Settings;
 
 namespace Navigator.Presentation.Commands;
 
-/// <summary>A user-invocable action with its default key gestures ("Primary" = Ctrl on Windows/Linux, Cmd on macOS).</summary>
-public sealed record AppCommandInfo(string Id, string NameKey, IReadOnlyList<string> DefaultGestures, string Category);
+/// <summary>
+/// A user-invocable action with its default key gestures ("Primary" = Ctrl on Windows/Linux, Cmd on macOS).
+/// A global command's gesture is registered with the OS and works while any application has focus; it is not offered
+/// in the command palette or handled by the window's key handler.
+/// </summary>
+public sealed record AppCommandInfo(string Id, string NameKey, IReadOnlyList<string> DefaultGestures, string Category, bool IsGlobal = false);
 
 /// <summary>
 /// The catalog of commands shown in the command palette and in Settings → Keyboard shortcuts.
@@ -11,6 +15,9 @@ public sealed record AppCommandInfo(string Id, string NameKey, IReadOnlyList<str
 /// </summary>
 public static class CommandRegistry
 {
+    /// <summary>Global shortcut that brings Navigator to the front, opening a window when none is open.</summary>
+    public const string ActivateAppId = "app.activate";
+
     public static IReadOnlyList<AppCommandInfo> All { get; } =
     [
         new("tab.new", "Command.NewTab", ["Primary+T"], "Tabs"),
@@ -62,6 +69,8 @@ public static class CommandRegistry
         new("edit.redo", "Command.Redo", ["Primary+Y", "Primary+Shift+Z"], "Items"),
         new("app.settings", "Command.Settings", ["Primary+OemComma"], "Application"),
         new("app.fullScreen", "Command.FullScreen", ["F11"], "Application"),
+        // Ctrl+Alt alone is AltGr on many keyboard layouts (€, ł…); with Shift it rarely produces a character.
+        new(ActivateAppId, "Command.ActivateApp", ["Primary+Shift+Alt+E"], "Global", IsGlobal: true),
     ];
 
     private static readonly Dictionary<string, AppCommandInfo> ById = All.ToDictionary(c => c.Id, StringComparer.Ordinal);

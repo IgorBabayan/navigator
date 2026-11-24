@@ -62,6 +62,7 @@ internal static class CompositionRoot
         services.AddSingleton<INativeNotificationService, NativeNotificationService>();
         services.AddSingleton<IFileOwnershipProvider, FileOwnershipProvider>();
         services.AddSingleton(_ => PlatformServices.CreateSystemIcons());
+        services.AddSingleton(provider => PlatformServices.CreateGlobalHotkey(provider.GetRequiredService<IPlatformInfo>()));
 
         // Engines
         services.AddSingleton(provider =>
@@ -94,6 +95,9 @@ internal static class CompositionRoot
         services.AddSingleton<PinnedFolders>();
         services.AddSingleton<TrashStatus>();
         services.AddSingleton<PaneServices>();
+        services.AddSingleton<GlobalHotkeyController>();
+        services.AddSingleton<IGlobalHotkeyStatus>(provider => provider.GetRequiredService<GlobalHotkeyController>());
+        services.AddSingleton<BackgroundModeService>();
 
         // Updates
         services.AddSingleton(_ => UpdateConfiguration.FromAssembly(Assembly.GetEntryAssembly()));

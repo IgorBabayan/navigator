@@ -1,5 +1,6 @@
 using Navigator.Core.IO;
 using Navigator.Core.Operations;
+using Navigator.Core.Platform;
 
 namespace Navigator.Presentation.Services;
 
@@ -14,6 +15,19 @@ public interface IUiDispatcher
 
     /// <summary>Starts a UI-thread timer. Dispose the result to stop it.</summary>
     IDisposable StartTimer(TimeSpan interval, Action tick);
+}
+
+/// <summary>Outcome of registering the global "open Navigator" shortcut with the OS, shown in Settings.</summary>
+public interface IGlobalHotkeyStatus
+{
+    /// <summary>Null when no shortcut is assigned.</summary>
+    HotkeyRegistrationResult? State { get; }
+
+    /// <summary>The assigned shortcut in display form ("Ctrl+Shift+Alt+E"), empty when none.</summary>
+    string Gesture { get; }
+
+    /// <summary>Raised on the UI thread after every (re-)registration.</summary>
+    event EventHandler? Changed;
 }
 
 /// <summary>Runs actions inline; used by unit tests and design-time data.</summary>

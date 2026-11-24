@@ -38,6 +38,13 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
 - Recently visited folders kept in memory (Settings → Performance): revisiting a folder shows its items at once
   and refreshes them in the background; unchanged items keep their rows, thumbnails and selection.
 - Packaging: Windows installer + portable ZIP, Linux AppImage + tar.gz, macOS DMG + ZIP.
+- Global shortcut "Open Navigator from any app" (default Ctrl+Shift+Alt+E, Cmd+Shift+Option+E on macOS): brings
+  Navigator to the front from any application, or opens a window. Change it in Settings → Keyboard shortcuts;
+  Settings → General shows whether it is active and why not (taken by another app, Wayland session).
+  Windows: RegisterHotKey; macOS: Carbon hot keys (no Accessibility permission); Linux X11: XCB key grab.
+- "Keep running in the background" (Settings → General, off by default): after the last window closes Navigator
+  stays in the notification area (Open / Exit) so the global shortcut opens it instantly; the managed heap is
+  compacted once when it goes idle.
 - Documentation set and source-originality scanner.
 
 - Status center for file operations, opened from a toolbar button that appears while operations exist: a progress

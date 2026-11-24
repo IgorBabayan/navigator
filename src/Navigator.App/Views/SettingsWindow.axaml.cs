@@ -19,7 +19,13 @@ public sealed partial class SettingsWindow : Window
             if (e.Key == Key.Escape)
                 Close();
         };
-        Closed += (_, _) => (DataContext as SettingsViewModel)?.CancelKeyBindingRecording();
+        Closed += (_, _) =>
+        {
+            if (DataContext is not SettingsViewModel vm)
+                return;
+            vm.CancelKeyBindingRecording();
+            vm.Detach();
+        };
     }
 
     protected override void OnDataContextChanged(EventArgs e)

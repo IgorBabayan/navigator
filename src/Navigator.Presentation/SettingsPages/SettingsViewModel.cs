@@ -206,6 +206,7 @@ public sealed class SettingsViewModel : ObservableObject
     private readonly TagStore _tags;
     private readonly AppDirectories _directories;
     private readonly IThumbnailProvider _thumbnails;
+    private readonly IGlobalHotkeyStatus _globalHotkey;
     private readonly Dictionary<string, (string Section, Action<AppSettings, AppSettings> Reset)> _resetters = [];
     private SettingsPage _selectedPage;
     private string _keyBindingFilter = string.Empty;
@@ -214,9 +215,11 @@ public sealed class SettingsViewModel : ObservableObject
     private KeyBindingRowViewModel? _recordingRow;
     private IReadOnlyList<Option<string>>? _fontFamilies;
 
-    public SettingsViewModel(SettingsService settings, Localizer localizer, IDialogService dialogs, IFileLauncher launcher, TagStore tags, AppDirectories directories, UpdateViewModel update, IThumbnailProvider thumbnails)
+    public SettingsViewModel(SettingsService settings, Localizer localizer, IDialogService dialogs, IFileLauncher launcher, TagStore tags, AppDirectories directories, UpdateViewModel update, IThumbnailProvider thumbnails, IGlobalHotkeyStatus globalHotkey)
     {
         _settings = settings;
+        _globalHotkey = globalHotkey;
+        _globalHotkey.Changed += OnGlobalHotkeyChanged;
         _thumbnails = thumbnails;
         _localizer = localizer;
         _dialogs = dialogs;
@@ -285,6 +288,11 @@ public sealed class SettingsViewModel : ObservableObject
         ClearThumbnailCacheCommand = new AsyncRelayCommand(() => _thumbnails.ClearDiskCacheAsync());
         PickAccentCommand = new RelayCommand<string>(color => AccentColor = color);
         PickBackgroundImageCommand = new AsyncRelayCommand(PickBackgroundImageAsync);
+        ChangeGlobalShortcutCommand = new RelayCommand(() =>
+        {
+            SelectedPage = Pages.First(p => p.Id == "keyboard");
+            KeyBindingFilter = _localizer[CommandRegistry.Find(CommandRegistry.ActivateAppId)!.NameKey];
+        });
         RegisterResetters();
     }
 
@@ -440,6 +448,24 @@ public sealed class SettingsViewModel : ObservableObject
     public bool ShowCopyPathInContextMenu { get => S.General.ShowCopyPathInContextMenu; set => Set("contextMenu", value, s => s.General.ShowCopyPathInContextMenu, (s, v) => s.General.ShowCopyPathInContextMenu = v); }
 
     public bool ShowOpenTerminalInContextMenu { get => S.General.ShowOpenTerminalInContextMenu; set => Set("contextMenu", value, s => s.General.ShowOpenTerminalInContextMenu, (s, v) => s.General.ShowOpenTerminalInContextMenu = v); }
+
+    public bool KeepRunningInBackground { get => S.General.KeepRunningInBackground; set => Set("general", value, s => s.General.KeepRunningInBackground, (s, v) => s.General.KeepRunningInBackground = v); }
+
+    /// <summary>What the global "open Navigator" shortcut does right now, or why it does not work.</summary>
+    public string GlobalShortcutStatus => _globalHotkey.State switch
+    {
+        null => _localizer["Settings.GlobalShortcutNotSet"],
+        HotkeyRegistrationResult.Registered => _localizer.Format("Settings.GlobalShortcutActive", _globalHotkey.Gesture),
+        HotkeyRegistrationResult.InUse => _localizer.Format("Settings.GlobalShortcutInUse", _globalHotkey.Gesture),
+        HotkeyRegistrationResult.InvalidGesture => _localizer.Format("Settings.GlobalShortcutInvalid", _globalHotkey.Gesture),
+        _ => _localizer.Format("Settings.GlobalShortcutUnsupported", LaunchCommand),
+    };
+
+    public bool HasGlobalShortcutProblem => _globalHotkey.State is not (null or HotkeyRegistrationResult.Registered);
+
+    /// <summary>What a desktop-level shortcut should run where apps cannot register one (Wayland).</summary>
+    private static string LaunchCommand
+        => Environment.GetEnvironmentVariable("APPIMAGE") is { Length: > 0 } appImage ? appImage : Environment.ProcessPath ?? "Navigator";
 
     public string CodeEditorCommand { get => S.General.CodeEditorCommand ?? string.Empty; set => Set("general", string.IsNullOrWhiteSpace(value) ? null : value.Trim(), s => s.General.CodeEditorCommand, (s, v) => s.General.CodeEditorCommand = v); }
 
@@ -695,6 +721,18 @@ public sealed class SettingsViewModel : ObservableObject
 
     public IAsyncRelayCommand PickBackgroundImageCommand { get; }
 
+    /// <summary>Opens Keyboard shortcuts filtered to the global "open Navigator" command.</summary>
+    public IRelayCommand ChangeGlobalShortcutCommand { get; }
+
+    /// <summary>Stops listening to app-wide services; called when the settings window closes (it is created per window).</summary>
+    public void Detach() => _globalHotkey.Changed -= OnGlobalHotkeyChanged;
+
+    private void OnGlobalHotkeyChanged(object? sender, EventArgs e)
+    {
+        OnPropertyChanged(nameof(GlobalShortcutStatus));
+        OnPropertyChanged(nameof(HasGlobalShortcutProblem));
+    }
+
     private void Set<T>(string section, T value, Func<AppSettings, T> get, Action<AppSettings, T> set, [CallerMemberName] string? name = null)
     {
         if (EqualityComparer<T>.Default.Equals(get(S), value))
@@ -710,6 +748,7 @@ public sealed class SettingsViewModel : ObservableObject
         Register(nameof(Language), "language", (s, d) => s.General.Language = d.General.Language);
         Register(nameof(Startup), "general", (s, d) => s.General.Startup = d.General.Startup);
         Register(nameof(OpenFoldersInNewTab), "general", (s, d) => s.General.OpenFoldersInNewTab = d.General.OpenFoldersInNewTab);
+        Register(nameof(KeepRunningInBackground), "general", (s, d) => s.General.KeepRunningInBackground = d.General.KeepRunningInBackground);
         Register(nameof(Theme), "appearance", (s, d) => s.Appearance.Theme = d.Appearance.Theme);
         Register(nameof(AccentColor), "appearance", (s, d) => s.Appearance.AccentColor = d.Appearance.AccentColor);
         Register(nameof(BackgroundColor), "appearance", (s, d) => s.Appearance.BackgroundColor = d.Appearance.BackgroundColor);
