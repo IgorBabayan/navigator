@@ -128,6 +128,22 @@ public sealed class KeyBindingRowViewModel : ObservableObject
 
     public bool HasError => _error is not null;
 
+    /// <summary>The system-wide "open Navigator" command: its row shows whether the OS accepted the shortcut.</summary>
+    public bool IsGlobal => _command.IsGlobal;
+
+    public string GlobalStatus => _command.IsGlobal ? _owner.GlobalShortcutStatus : string.Empty;
+
+    public bool ShowGlobalStatus => _command.IsGlobal && !_owner.HasGlobalShortcutProblem;
+
+    public bool HasGlobalProblem => _command.IsGlobal && _owner.HasGlobalShortcutProblem;
+
+    internal void RefreshGlobalStatus()
+    {
+        OnPropertyChanged(nameof(GlobalStatus));
+        OnPropertyChanged(nameof(ShowGlobalStatus));
+        OnPropertyChanged(nameof(HasGlobalProblem));
+    }
+
     public bool IsModified => _owner.IsKeyBindingModified(Id);
 
     public bool HasConflict
@@ -464,6 +480,7 @@ public sealed class SettingsViewModel : ObservableObject
         {
             Set("general", value, s => s.General.KeepRunningInBackground, (s, v) => s.General.KeepRunningInBackground = v);
             OnPropertyChanged(nameof(GlobalShortcutStatus));
+            RefreshGlobalKeyBindingRow();
         }
     }
 
@@ -752,6 +769,16 @@ public sealed class SettingsViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(GlobalShortcutStatus));
         OnPropertyChanged(nameof(HasGlobalShortcutProblem));
+        RefreshGlobalKeyBindingRow();
+    }
+
+    private void RefreshGlobalKeyBindingRow()
+    {
+        foreach (var row in KeyBindings)
+        {
+            if (row.IsGlobal)
+                row.RefreshGlobalStatus();
+        }
     }
 
     private void Set<T>(string section, T value, Func<AppSettings, T> get, Action<AppSettings, T> set, [CallerMemberName] string? name = null)

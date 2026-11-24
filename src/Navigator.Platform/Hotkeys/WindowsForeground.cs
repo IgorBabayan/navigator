@@ -14,6 +14,20 @@ public static partial class WindowsForeground
 {
     private const int SwRestore = 9;
     private const int AsfwAny = -1;
+    private const uint InputMouse = 0;
+
+    // INPUT with its MOUSEINPUT member (the largest of the union): 28 bytes on 32-bit, 40 on 64-bit.
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Input
+    {
+        public uint Type;
+        public int Dx;
+        public int Dy;
+        public uint MouseData;
+        public uint Flags;
+        public uint Time;
+        public nint ExtraInfo;
+    }
 
     public static void BringToFront(nint window)
     {
@@ -26,6 +40,10 @@ public static partial class WindowsForeground
         if (foreground == window)
             return;
 
+        // A zero-length synthetic mouse input makes this process the one that received the last input event, which
+        // Windows requires before it lets SetForegroundWindow through. No movement, click or key reaches any app.
+        SendNoOpInput();
+
         var self = GetCurrentThreadId();
         var foregroundThread = foreground == 0 ? 0u : GetWindowThreadProcessId(foreground, out _);
         var attached = foregroundThread != 0 && foregroundThread != self && AttachThreadInput(self, foregroundThread, true);
@@ -33,12 +51,23 @@ public static partial class WindowsForeground
         {
             BringWindowToTop(window);
             SetForegroundWindow(window);
+            SetFocus(window);
         }
         finally
         {
             if (attached)
                 AttachThreadInput(self, foregroundThread, false);
         }
+
+        // Last resort when the lock still refused (e.g. the foreground app is elevated): the task-switcher entry point.
+        if (GetForegroundWindow() != window)
+            SwitchToThisWindow(window, true);
+    }
+
+    private static void SendNoOpInput()
+    {
+        var input = new Input { Type = InputMouse };
+        SendInput(1, ref input, Marshal.SizeOf<Input>());
     }
 
     /// <summary>
@@ -80,6 +109,15 @@ public static partial class WindowsForeground
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool AllowSetForegroundWindow(int processId);
+
+    [LibraryImport("user32.dll")]
+    private static partial uint SendInput(uint count, ref Input input, int size);
+
+    [LibraryImport("user32.dll")]
+    private static partial nint SetFocus(nint window);
+
+    [LibraryImport("user32.dll")]
+    private static partial void SwitchToThisWindow(nint window, [MarshalAs(UnmanagedType.Bool)] bool altTab);
 
     [LibraryImport("kernel32.dll")]
     private static partial uint GetCurrentThreadId();
