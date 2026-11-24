@@ -36,6 +36,7 @@ Honest list of what is missing, partial or unverified. Keep it current.
 | Tags | Stored in Navigator's data folder, not in file metadata; renaming files outside Navigator loses tags. |
 | Network | Only mounted network volumes; no SMB/NFS browsing, FTP, SFTP, WebDAV or cloud APIs. |
 | Settings | No search box over settings. |
+| Settings without effect | Stored but not used by the app, and therefore not shown in Settings: `FilesAndFolders.ShowCheckBoxes` (no selection check boxes yet), `Performance.ThumbnailDiskCacheMegabytes` (no disk cache), `Performance.DirectoryCacheEntries` (no directory listing cache). Shown in Settings but not used yet: `Appearance.ShowToolbarLabels` (toolbar has no labels), `Advanced.EnableExperimentalFeatures` (no experimental features). |
 | Accessibility | No explicit `AutomationProperties` names; high-contrast themes not implemented; OS "reduce motion" is not followed automatically. |
 | Git integration | Not implemented. |
 | Linux packages | No DEB/RPM/Flatpak; AppImage + tar.gz only. |

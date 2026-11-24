@@ -175,6 +175,73 @@ public sealed class PresentationTests
     }
 
     [TestMethod]
+    public void DefaultShortcuts_AreAllValidGestures()
+    {
+        foreach (var command in CommandRegistry.All)
+        {
+            foreach (var gesture in command.DefaultGestures)
+            {
+                Assert.IsNotNull(CommandRegistry.NormalizeGesture(gesture, isMac: false), gesture);
+                Assert.IsNotNull(CommandRegistry.NormalizeGesture(gesture, isMac: true), gesture);
+            }
+        }
+    }
+
+    [TestMethod]
+    [DataRow("ctrl + shift + 1", false, "Primary+Shift+D1")]
+    [DataRow("Shift+Ctrl+t", false, "Primary+Shift+T")]
+    [DataRow("Cmd+,", true, "Primary+OemComma")]
+    [DataRow("Ctrl+T", true, "Ctrl+T")]
+    [DataRow("Ctrl++", false, "Primary+OemPlus")]
+    [DataRow("Primary+Shift+`", false, "Primary+Shift+OemTilde")]
+    [DataRow("alt+left", false, "Alt+Left")]
+    [DataRow("F5", false, "F5")]
+    [DataRow("Win+E", false, "Meta+E")]
+    public void NormalizeGesture_ProducesCanonicalForm(string text, bool isMac, string expected)
+        => Assert.AreEqual(expected, CommandRegistry.NormalizeGesture(text, isMac));
+
+    [TestMethod]
+    [DataRow("")]
+    [DataRow("Ctrl+Shift")]
+    [DataRow("Ctrl+A+B")]
+    [DataRow("Ctrl+12")]
+    [DataRow("Ctrl+")]
+    [DataRow("Hyper+A")]
+    public void NormalizeGesture_RejectsInvalidText(string text)
+        => Assert.IsNull(CommandRegistry.NormalizeGesture(text, isMac: false));
+
+    [TestMethod]
+    public void FormatForDisplay_UsesFriendlyKeyNames()
+    {
+        Assert.AreEqual("Ctrl+Shift+1", CommandRegistry.FormatForDisplay("Ctrl+Shift+D1"));
+        Assert.AreEqual("Cmd+,", CommandRegistry.FormatForDisplay("Cmd+OemComma"));
+        Assert.AreEqual("Alt+Left", CommandRegistry.FormatForDisplay("Alt+Left"));
+        Assert.AreEqual("Delete", CommandRegistry.FormatForDisplay("Delete"));
+    }
+
+    [TestMethod]
+    public void DisplayedGestures_RoundTripToTheSameBinding()
+    {
+        foreach (var command in CommandRegistry.All)
+        {
+            foreach (var gesture in CommandRegistry.GesturesFor(command.Id, new AppSettings(), isMac: false))
+            {
+                var shown = CommandRegistry.FormatForDisplay(gesture);
+                Assert.AreEqual(CommandRegistry.NormalizeGesture(gesture, isMac: false), CommandRegistry.NormalizeGesture(shown, isMac: false), shown);
+            }
+        }
+    }
+
+    [TestMethod]
+    public void GestureList_KeepsCommaKeys()
+    {
+        CollectionAssert.AreEqual(new[] { "Ctrl+R", "F5" }, Navigator.Presentation.SettingsPages.SettingsViewModel.SplitGestureList("Ctrl+R, F5"));
+        CollectionAssert.AreEqual(new[] { "Ctrl+,", "F1" }, Navigator.Presentation.SettingsPages.SettingsViewModel.SplitGestureList("Ctrl+, , F1"));
+        CollectionAssert.AreEqual(new[] { "Ctrl+," }, Navigator.Presentation.SettingsPages.SettingsViewModel.SplitGestureList("Ctrl+,"));
+        Assert.AreEqual(0, Navigator.Presentation.SettingsPages.SettingsViewModel.SplitGestureList("  ").Count);
+    }
+
+    [TestMethod]
     public void BulkRename_ValidatesEverythingFirst()
     {
         using var temp = new TempDirectory();

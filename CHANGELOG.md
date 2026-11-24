@@ -22,6 +22,12 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
   layouts, split view, preview pane, operations flyout, properties and settings windows, command palette,
   light/dark themes, accent colors, density, Mica/Acrylic, motion levels, original icon set and logo.
 - English and Ukrainian localization.
+- Settings → Keyboard shortcuts: search by command name, category or shortcut; record a shortcut by pressing it;
+  per-command reset (shows the default) and "Reset all shortcuts"; conflicts are flagged on the affected rows;
+  invalid input is rejected with a message instead of being saved.
+- Settings now expose: font family, startup locations (for "Open specific locations"), sidebar visibility,
+  clearing address history / remembered folder views / the skipped update version.
+- "Show performance diagnostics" turns on the renderer's FPS and layout/render time overlay.
 - Packaging: Windows installer + portable ZIP, Linux AppImage + tar.gz, macOS DMG + ZIP.
 - Documentation set and source-originality scanner.
 
@@ -33,6 +39,10 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
 
 ### Fixed
 
+- Shortcuts with digit or punctuation keys were not reliably recognized: a bare `1` or `` ` `` is not an Avalonia
+  key name (`Ctrl+Shift+1…5`, ``Ctrl+Shift+` ``). Gestures are now normalized to key names (`D1`, `OemTilde`, …)
+  and shown in friendly form (`1`, `` ` ``, `,`).
+- Settings: after "Reset all settings" or "Import", tag and shortcut rows kept editing the replaced settings object.
 - Title bar: the default "Window" caption text no longer appears above the tabs; the window is titled "Navigator".
 - Title bar: the drawn decorations' opaque background no longer shows through the tabs, so the selected tab has one
   color; the navigation toolbar is now full-width and flush with the tab strip.

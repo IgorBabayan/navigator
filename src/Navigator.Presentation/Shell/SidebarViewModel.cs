@@ -273,6 +273,18 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
     {
         if (section is "*" or "sidebarOptions" or "tags" or "language")
             _services.Dispatcher.Post(Rebuild);
+        if (section is "*" or "sidebarVisible")
+            _services.Dispatcher.Post(SyncVisibilityFromSettings);
+    }
+
+    /// <summary>Visibility can also change from Settings (or reset/import); follow it without writing it back.</summary>
+    private void SyncVisibilityFromSettings()
+    {
+        var visible = _services.Settings.Current.Sidebar.IsVisible;
+        if (_isVisible == visible)
+            return;
+        _isVisible = visible;
+        OnPropertyChanged(nameof(IsVisible));
     }
 
     private void OnTrashStatusChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)

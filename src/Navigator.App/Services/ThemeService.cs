@@ -52,6 +52,7 @@ internal sealed class ThemeService(SettingsService settings)
 
         ApplyAccent(app, appearance.AccentColor);
         ApplyDensity(app, appearance.Density, appearance.FontScale);
+        ApplyFontFamily(app, appearance.FontFamily);
         ApplyMotion(app, appearance.Animations);
         ApplyLogLevel();
 
@@ -97,6 +98,15 @@ internal sealed class ThemeService(SettingsService settings)
         app.Resources["Accent.SubtleBrush"] = new SolidColorBrush(color, 0.16);
         app.Resources["Accent.SelectionBrush"] = new SolidColorBrush(color, 0.24);
         app.Resources["Accent.ForegroundBrush"] = new SolidColorBrush(Luminance(color) > 0.55 ? Colors.Black : Colors.White);
+    }
+
+    /// <summary>A custom family overrides the token; removing the override restores the cross-platform fallback list.</summary>
+    private static void ApplyFontFamily(Application app, string? family)
+    {
+        if (string.IsNullOrWhiteSpace(family))
+            app.Resources.Remove("Font.Family");
+        else
+            app.Resources["Font.Family"] = new FontFamily(family);
     }
 
     private static void ApplyDensity(Application app, InterfaceDensity density, double fontScale)

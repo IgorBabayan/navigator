@@ -8,7 +8,7 @@
 
   <!-- ── Typography ───────────────────────────────────────── -->
   <Style Selector="Window">
-    <Setter Property="FontFamily" Value="{StaticResource Font.Family}" />
+    <Setter Property="FontFamily" Value="{DynamicResource Font.Family}" />
     <Setter Property="FontSize" Value="{DynamicResource Font.Body}" />
     <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
   </Style>
