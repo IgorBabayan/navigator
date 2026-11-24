@@ -19,7 +19,8 @@ public sealed class PluginTests
     [TestMethod]
     [DataRow("1.0", true)]
     [DataRow("1", true)]
-    [DataRow("1.1", false)]
+    [DataRow("1.1", true)]
+    [DataRow("1.2", false)]
     [DataRow("2.0", false)]
     [DataRow("0.9", false)]
     [DataRow("", false)]
@@ -297,6 +298,23 @@ public sealed class PluginTests
         Assert.AreEqual(location, Location.TryParse(location.Serialize()));
         Assert.AreNotEqual(location, Location.Remote("sftp://u@h/docs"), "server paths are case-sensitive");
         Assert.AreEqual(LocationKind.Folder, Location.FromPath("/home/u").Kind);
+    }
+
+    [TestMethod]
+    public void NetworkAddresses_MapSharesToUncFoldersAndBack()
+    {
+        Assert.IsNull(Navigator.Plugin.Network.NetworkAddresses.ToSharePath(RemoteUri.Parse("network://computers/")));
+        Assert.IsNull(Navigator.Plugin.Network.NetworkAddresses.ToSharePath(RemoteUri.Parse("network://computers/NAS")));
+        Assert.AreEqual(@"\\NAS\Media", Navigator.Plugin.Network.NetworkAddresses.ToSharePath(RemoteUri.Parse("network://computers/NAS/Media")));
+        Assert.AreEqual(@"\\NAS\Media\Films 2024", Navigator.Plugin.Network.NetworkAddresses.ToSharePath(RemoteUri.Parse("network://computers/NAS/Media/Films 2024")));
+        Assert.IsNull(Navigator.Plugin.Network.NetworkAddresses.ToSharePath(RemoteUri.Parse("sftp://computers/NAS/Media")));
+
+        Assert.AreEqual("network://computers/NAS", Navigator.Plugin.Network.NetworkAddresses.ServerOfShareRoot(@"\\NAS\Media"));
+        Assert.AreEqual("network://computers/NAS", Navigator.Plugin.Network.NetworkAddresses.ServerOfShareRoot(@"\\NAS\Media\"));
+        Assert.IsNull(Navigator.Plugin.Network.NetworkAddresses.ServerOfShareRoot(@"\\NAS\Media\Films"));
+        Assert.IsNull(Navigator.Plugin.Network.NetworkAddresses.ServerOfShareRoot(@"\\?\C:\Temp"));
+        Assert.IsNull(Navigator.Plugin.Network.NetworkAddresses.ServerOfShareRoot(@"C:\Users"));
+        Assert.IsFalse(Navigator.Plugin.Network.NetworkAddresses.IsValidServer("a\\b"));
     }
 
     // ── Session pool ─────────────────────────────────────────

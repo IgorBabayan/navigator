@@ -73,3 +73,20 @@ public interface IRemoteFileSystem
     /// <summary>Renames within the same folder. Must not overwrite an existing item.</summary>
     Task RenameAsync(RemoteAddress address, string newName, CancellationToken cancellationToken);
 }
+
+/// <summary>
+/// Optional for an <see cref="IRemoteFileSystem"/> (plugin API 1.1) whose addresses partly stand for local folders, such
+/// as the Network plugin: "network://computers/SERVER/share" is the folder \\SERVER\share. Every method is a pure,
+/// fast string mapping (no I/O): it is called on the UI thread while navigating.
+/// </summary>
+public interface IRemoteLocationMapper
+{
+    /// <summary>The local folder an address stands for (the pane opens that folder instead), or null.</summary>
+    string? GetLocalPath(RemoteAddress address);
+
+    /// <summary>The address of a local root folder's parent (e.g. the server of a share root, for "Up"), or null.</summary>
+    string? GetParentAddress(string localPath);
+
+    /// <summary>A localized name for an address (e.g. "Network" for the root), or null for the last path segment.</summary>
+    string? GetDisplayName(RemoteAddress address);
+}

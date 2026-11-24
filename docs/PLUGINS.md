@@ -6,7 +6,7 @@ reachable from the plug button next to Settings in the title bar).
 
 | Plugin | Id | Project | Ships | Removable |
 |---|---|---|---|---|
-| Network | `network` | `plugins/Navigator.Plugin.Network` | inside the app (built-in) | no (permanent) |
+| Network (computers, shares, network drives) | `network` | `plugins/Navigator.Plugin.Network` | inside the app (built-in) | no (permanent) |
 | SSH (SFTP) | `ssh` | `plugins/Navigator.Plugin.Ssh` | `navigator-plugin-ssh-{version}.navplugin` | yes |
 | FTP (FTP, FTPS) | `ftp` | `plugins/Navigator.Plugin.Ftp` | `navigator-plugin-ftp-{version}.navplugin` | yes |
 
@@ -143,6 +143,18 @@ Implement `IRemoteFileSystem` for one or more schemes. Rules the host relies on:
 On the host side, downloads are written to `.{guid}.navigator-partial` and moved into place without overwriting
 (" (2)" names), and local files dropped on a server folder are uploaded. The local file engine never receives a
 plugin address.
+
+## Network plugin
+
+- Built into the app and permanent. The sidebar's Network section lists mounted network shares and drives on every OS.
+- **Windows:** the section always starts with a **Network** entry, like File Explorer. `network://computers/` lists the
+  computers Network Discovery found; `network://computers/SERVER` lists that computer's shared folders (administrative
+  shares such as `C$` are hidden; a computer that was not discovered can be typed, e.g. `network://computers/192.168.1.20`).
+  A share opens as the ordinary folder `\\SERVER\share`, so all file actions work there; Up from a share root returns
+  to the computer's list. When a computer asks for credentials, Navigator asks for a user name and password and signs in
+  to the computer (`IPC$`); Windows keeps that session. Uses `WNetEnumResource` and `NetShareEnum`; calls run off the
+  UI thread and are abandoned when the user navigates away.
+- The mapping between plugin addresses and local folders uses `IRemoteLocationMapper` (plugin API 1.1).
 
 ## SSH plugin
 

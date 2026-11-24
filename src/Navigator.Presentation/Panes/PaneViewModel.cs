@@ -145,7 +145,7 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
     public bool CanCreateFolders => IsFolder || IsRemote;
 
     public string? ParentPath => _location.Path is not { } path ? null
-        : IsFolder ? Path.GetDirectoryName(path)
+        : IsFolder ? Path.GetDirectoryName(path) ?? _services.Remote.TryGetRemoteParent(path)
         : IsRemote ? RemoteUri.GetParent(path)
         : IsSearch ? path
         : null;
@@ -156,7 +156,7 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         LocationKind.Trash => _services.Localizer[OperatingSystem.IsWindows() ? "Location.RecycleBin" : "Location.Trash"],
         LocationKind.Search => _services.Localizer.Format("Location.SearchResults", _location.Query),
         LocationKind.Tag => _services.Settings.Current.Tags.FirstOrDefault(t => t.Id == _location.Query)?.Name ?? _services.Localizer["Location.Tag"],
-        LocationKind.Remote => RemoteUri.GetName(_location.Path!),
+        LocationKind.Remote => _services.Remote.TryGetDisplayName(_location.Path!) ?? RemoteUri.GetName(_location.Path!),
         _ => FolderDisplayName(_location.Path!),
     };
 
@@ -296,6 +296,11 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
 
     public void Navigate(Location location)
     {
+        ArgumentNullException.ThrowIfNull(location);
+        // A plugin address that stands for a local folder (network share) opens that folder, so history only holds it.
+        if (location.IsRemote && _services.Remote.TryMapToLocal(location.Path!) is { } local)
+            location = Location.Folder(local);
+
         if (location.IsFolder && _services.Settings.Current.General.OpenFoldersInNewTab && !IsHome && !location.Equals(_location))
         {
             OpenInNewTabRequested?.Invoke(this, location);
@@ -720,7 +725,7 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         {
             var segments = RemoteUri.GetSegments(remote);
             for (var i = 0; i < segments.Count; i++)
-                Breadcrumbs.Add(new BreadcrumbViewModel(segments[i].Name, segments[i].Address, i == segments.Count - 1));
+                Breadcrumbs.Add(new BreadcrumbViewModel(_services.Remote.TryGetDisplayName(segments[i].Address) ?? segments[i].Name, segments[i].Address, i == segments.Count - 1));
         }
         else
         {

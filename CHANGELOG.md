@@ -11,7 +11,8 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
 - Plugin system with a plugin shop (Settings → Plugins, or the plug button in the title bar): install, update and
   remove plugins from a signed catalog published with each release, or install a `.navplugin` file after a warning.
   Plugins load after the first frame, each isolated from the app and from other plugins. See `docs/PLUGINS.md`.
-- Network plugin: the sidebar's Network section, built into the app and permanent.
+- Network plugin: the sidebar's Network section, built into the app and permanent. On Windows it has a "Network" entry
+  that browses computers on the local network and their shared folders (sign-in when a computer asks for it).
 - SSH plugin (separate package): browse SFTP servers in panes; saved connections in the sidebar; password and private
   key sign-in; server keys trusted on first use; open, download, upload, new folder, rename, delete.
 - FTP plugin (separate package): FTP and FTPS (explicit TLS) servers, anonymous sign-in, self-signed certificates
@@ -82,6 +83,8 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
 
 ### Fixed
 
+- The global "open Navigator" shortcut now brings Navigator in front of other apps on Windows (it was blocked by
+  the foreground lock). Its description says when it can also open Navigator (background mode).
 - Rows and tiles no longer blink while scrolling: a recycled container switched its hover/selection state with a fade
   from the previous item's state. `RowSurface` turns transitions off while virtualization assigns a new item.
 - Clearing the search box while search results are shown returns to the searched folder (a Back step when it

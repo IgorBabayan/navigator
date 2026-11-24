@@ -457,13 +457,22 @@ public sealed class SettingsViewModel : ObservableObject
 
     public bool ShowOpenTerminalInContextMenu { get => S.General.ShowOpenTerminalInContextMenu; set => Set("contextMenu", value, s => s.General.ShowOpenTerminalInContextMenu, (s, v) => s.General.ShowOpenTerminalInContextMenu = v); }
 
-    public bool KeepRunningInBackground { get => S.General.KeepRunningInBackground; set => Set("general", value, s => s.General.KeepRunningInBackground, (s, v) => s.General.KeepRunningInBackground = v); }
+    public bool KeepRunningInBackground
+    {
+        get => S.General.KeepRunningInBackground;
+        set
+        {
+            Set("general", value, s => s.General.KeepRunningInBackground, (s, v) => s.General.KeepRunningInBackground = v);
+            OnPropertyChanged(nameof(GlobalShortcutStatus));
+        }
+    }
 
     /// <summary>What the global "open Navigator" shortcut does right now, or why it does not work.</summary>
     public string GlobalShortcutStatus => _globalHotkey.State switch
     {
         null => _localizer["Settings.GlobalShortcutNotSet"],
-        HotkeyRegistrationResult.Registered => _localizer.Format("Settings.GlobalShortcutActive", _globalHotkey.Gesture),
+        // Without background mode, closing the last window exits Navigator, and then no shortcut can open it.
+        HotkeyRegistrationResult.Registered => _localizer.Format(KeepRunningInBackground ? "Settings.GlobalShortcutActive" : "Settings.GlobalShortcutActiveWhileRunning", _globalHotkey.Gesture),
         HotkeyRegistrationResult.InUse => _localizer.Format("Settings.GlobalShortcutInUse", _globalHotkey.Gesture),
         HotkeyRegistrationResult.InvalidGesture => _localizer.Format("Settings.GlobalShortcutInvalid", _globalHotkey.Gesture),
         _ => _localizer.Format("Settings.GlobalShortcutUnsupported", LaunchCommand),

@@ -44,7 +44,7 @@ internal sealed class WindowService(IServiceProvider services, SettingsService s
 
         var window = CreateStartupWindows([]);
         window.Show();
-        window.Activate();
+        window.BringToFront();
     }
 
     public MainWindow CreateStartupWindows(string[] args)

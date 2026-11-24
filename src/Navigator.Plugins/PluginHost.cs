@@ -50,6 +50,9 @@ public sealed class PluginHost : IDisposable
 
     public IReadOnlyList<IPluginSidebarSection> SidebarSections => Volatile.Read(ref _contributions).Sections;
 
+    /// <summary>Every registered file system (once each, whatever its number of schemes).</summary>
+    public IReadOnlyList<IRemoteFileSystem> FileSystems => Volatile.Read(ref _contributions).Distinct;
+
     public bool TryGetFileSystem(string scheme, out IRemoteFileSystem fileSystem)
         => Volatile.Read(ref _contributions).FileSystems.TryGetValue(scheme, out fileSystem!);
 
@@ -444,6 +447,8 @@ public sealed class PluginHost : IDisposable
 
     private sealed record Contributions(IReadOnlyList<IPluginSidebarSection> Sections, FrozenDictionary<string, IRemoteFileSystem> FileSystems)
     {
+        public IReadOnlyList<IRemoteFileSystem> Distinct { get; } = [.. FileSystems.Values.Distinct()];
+
         public static Contributions Empty { get; } = new([], FrozenDictionary<string, IRemoteFileSystem>.Empty);
     }
 }

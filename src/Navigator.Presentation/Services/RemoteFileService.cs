@@ -28,6 +28,30 @@ public sealed class RemoteFileService(PluginHost plugins, AppDirectories directo
             : throw new NoRemoteFileSystemException(address.Scheme);
     }
 
+    /// <summary>The local folder a plugin address stands for (e.g. a network share), or null. No I/O.</summary>
+    public string? TryMapToLocal(string remote)
+        => RemoteUri.TryParse(remote, out var address) && plugins.TryGetFileSystem(address.Scheme, out var fileSystem) && fileSystem is IRemoteLocationMapper mapper
+            ? mapper.GetLocalPath(address)
+            : null;
+
+    /// <summary>The plugin address above a local root folder (a share's server), or null. No I/O.</summary>
+    public string? TryGetRemoteParent(string localPath)
+    {
+        foreach (var fileSystem in plugins.FileSystems)
+        {
+            if (fileSystem is IRemoteLocationMapper mapper && mapper.GetParentAddress(localPath) is { } parent)
+                return parent;
+        }
+
+        return null;
+    }
+
+    /// <summary>A plugin's name for an address (e.g. "Network" for the root), or null.</summary>
+    public string? TryGetDisplayName(string remote)
+        => RemoteUri.TryParse(remote, out var address) && plugins.TryGetFileSystem(address.Scheme, out var fileSystem) && fileSystem is IRemoteLocationMapper mapper
+            ? mapper.GetDisplayName(address)
+            : null;
+
     /// <summary>Lists a remote folder as <see cref="FileEntry"/> snapshots (full paths are remote addresses).</summary>
     public async Task<List<FileEntry>> ListAsync(string folder, bool includeHidden, CancellationToken cancellationToken)
     {

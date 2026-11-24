@@ -10,7 +10,7 @@ public sealed class NetworkPlugin : INavigatorPlugin, IDisposable
     // carries the app's version and is updated together with Navigator).
     public const string Id = "network";
     public const string Name = "Network";
-    public const string Description = "Network shares and mapped network drives in the sidebar.";
+    public const string Description = "Computers and shared folders on the local network, and mapped network drives.";
     public const string IconKey = "DriveNetwork";
 
     private NetworkSection? _section;
@@ -20,6 +20,8 @@ public sealed class NetworkPlugin : INavigatorPlugin, IDisposable
         ArgumentNullException.ThrowIfNull(context);
         _section = new NetworkSection(context);
         context.AddSidebarSection(_section);
+        if (OperatingSystem.IsWindows())
+            context.AddFileSystem(new WindowsNetworkFileSystem(context));
     }
 
     public void Dispose() => _section?.Dispose();
@@ -50,6 +52,7 @@ internal sealed class NetworkSection : IPluginSidebarSection, IDisposable
 
     public int Order => 100;
 
+    /// <summary>On Windows the section always has its "Network" entry; elsewhere it shows only while shares are mounted.</summary>
     public bool ShowWhenEmpty => false;
 
     public IReadOnlyList<PluginCommand> Commands => [];
@@ -59,6 +62,13 @@ internal sealed class NetworkSection : IPluginSidebarSection, IDisposable
     public ValueTask<IReadOnlyList<PluginSidebarEntry>> GetEntriesAsync(CancellationToken cancellationToken)
     {
         var entries = new List<PluginSidebarEntry>();
+        if (OperatingSystem.IsWindows())
+        {
+            // Like File Explorer: browse the computers on the local network and their shared folders.
+            entries.Add(new PluginSidebarEntry("network-computers", _context.GetHostString("Sidebar.Network"), "DriveNetwork",
+                Navigator.Core.Navigation.Location.Remote(WindowsNetworkFileSystem.RootAddress), SystemIconKey: Navigator.Core.Platform.SystemIconKey.Stock(SystemIconKind.Network)));
+        }
+
         foreach (var volume in _context.Volumes.GetVolumes())
         {
             if (volume.Kind != VolumeKind.Network)

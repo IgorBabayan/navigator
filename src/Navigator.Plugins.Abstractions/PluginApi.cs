@@ -9,7 +9,8 @@ public static class PluginApi
 {
     public const int Major = 1;
 
-    public const int Minor = 0;
+    /// <summary>1.1: <see cref="IRemoteLocationMapper"/>.</summary>
+    public const int Minor = 1;
 
     public static string Version => $"{Major}.{Minor}";
 
