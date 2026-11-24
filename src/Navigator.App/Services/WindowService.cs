@@ -77,7 +77,9 @@ internal sealed class WindowService(IServiceProvider services, SettingsService s
 
     private MainWindow CreateWindow(WindowSession? placement)
     {
-        var shell = services.GetRequiredService<ShellViewModel>();
+        // Created outside the container on purpose: a transient IDisposable resolved from the root provider is
+        // tracked until the provider is disposed, which kept every closed window's shell alive and disposed it twice.
+        var shell = ActivatorUtilities.CreateInstance<ShellViewModel>(services);
         var window = new MainWindow(shell, services.GetRequiredService<PaneServices>());
         if (placement is not null)
             ApplyPlacement(window, placement);

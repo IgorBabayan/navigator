@@ -98,8 +98,7 @@ internal static class CompositionRoot
             directories.UpdateDirectory));
         services.AddSingleton<UpdateViewModel>();
 
-        // Per window
-        services.AddTransient<ShellViewModel>();
+        // Per window (ShellViewModel is created by WindowService via ActivatorUtilities so the root provider does not track it)
         services.AddTransient<SettingsViewModel>();
 
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true });

@@ -26,6 +26,7 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
     private bool _isPreviewVisible;
     private bool _isCommandPaletteOpen;
     private string _paletteFilter = string.Empty;
+    private bool _disposed;
 
     public ShellViewModel(PaneServices services, PinnedFolders pins, NotificationCenter notifications, UpdateViewModel update)
     {
@@ -477,8 +478,12 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
         });
     }
 
+    /// <summary>Idempotent: safe to call from window close and again from application shutdown.</summary>
     public void Dispose()
     {
+        if (_disposed)
+            return;
+        _disposed = true;
         _services.Operations.Undo.Changed -= OnUndoChanged;
         _services.Operations.ItemsRelocated -= OnItemsRelocated;
         foreach (var tab in Tabs)

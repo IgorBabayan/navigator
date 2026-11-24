@@ -25,6 +25,15 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
 - Packaging: Windows installer + portable ZIP, Linux AppImage + tar.gz, macOS DMG + ZIP.
 - Documentation set and source-originality scanner.
 
+### Fixed
+
+- Title bar: the default "Window" caption text no longer appears above the tabs; the window is titled "Navigator".
+- Title bar: the drawn decorations' opaque background no longer shows through the tabs, so the selected tab has one
+  color; the navigation toolbar is now full-width and flush with the tab strip.
+- Shutdown: `ObjectDisposedException` from `PreviewViewModel.Dispose`. Window shells were resolved as tracked
+  transients from the root container, so they were disposed on window close and again at shutdown (and every closed
+  window's shell stayed alive until exit). Shells are now created untracked, and `Dispose` is idempotent.
+
 ### Known limitations
 
 See `docs/KNOWN_ISSUES.md`. The UI layer has not been compiled or run yet.

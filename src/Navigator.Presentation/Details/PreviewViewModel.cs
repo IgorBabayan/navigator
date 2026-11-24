@@ -44,6 +44,7 @@ public sealed class PreviewViewModel : ObservableObject, IDisposable
     private string? _sha256;
     private bool _isEnabled;
     private bool _isLoading;
+    private bool _disposed;
 
     public PreviewViewModel(PaneServices services)
     {
@@ -143,6 +144,8 @@ public sealed class PreviewViewModel : ObservableObject, IDisposable
 
     private async Task RefreshAsync()
     {
+        if (_disposed)
+            return;
         _current?.Cancel();
         _current?.Dispose();
         var request = new CancellationTokenSource();
@@ -293,12 +296,19 @@ public sealed class PreviewViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>Idempotent: the owning shell may be disposed by its window and again during application shutdown.</summary>
     public void Dispose()
     {
+        if (_disposed)
+            return;
+        _disposed = true;
         if (_pane is not null)
             _pane.SelectionChanged -= OnSelectionChanged;
-        _current?.Cancel();
-        _current?.Dispose();
+        _pane = null;
+        var current = _current;
+        _current = null;
+        current?.Cancel();
+        current?.Dispose();
     }
 }
 

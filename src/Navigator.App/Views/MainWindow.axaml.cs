@@ -23,7 +23,7 @@ public sealed partial class MainWindow : Window
     private Point _dragStart;
 
     public MainWindow()
-        : this(App.Services.GetRequiredService<ShellViewModel>(), App.Services.GetRequiredService<PaneServices>())
+        : this(ActivatorUtilities.CreateInstance<ShellViewModel>(App.Services), App.Services.GetRequiredService<PaneServices>())
     {
     }
 
