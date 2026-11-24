@@ -99,6 +99,7 @@
   <!-- ── Text input ───────────────────────────────────────── -->
   <Style Selector="TextBox">
     <Setter Property="CornerRadius" Value="{StaticResource Radius.Control}" />
+    <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextControlSelectionForegroundBrush}" />
     <Setter Property="MinHeight" Value="{DynamicResource Size.Control}" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
   </Style>
@@ -211,7 +212,7 @@
     <Setter Property="Background" Value="{DynamicResource Brush.Hover}" />
   </Style>
   <Style Selector="Border.hoverable.selected">
-    <Setter Property="Background" Value="{DynamicResource Brush.Hover}" />
+    <Setter Property="Background" Value="{DynamicResource Accent.SubtleBrush}" />
   </Style>
 
   <!-- Selection pill shown left of the selected sidebar / settings entry -->
@@ -230,8 +231,11 @@
   </Style>
 
   <!-- File rows -->
+  <!-- The 1px border is always present (transparent) so selecting a row recolors it without a relayout -->
   <Style Selector="Border.item">
     <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="{StaticResource Radius.Control}" />
     <Setter Property="Margin" Value="4,1" />
     <Setter Property="Transitions" Value="{DynamicResource Motion.Hover}" />
@@ -241,6 +245,7 @@
   </Style>
   <Style Selector="Border.item.selected">
     <Setter Property="Background" Value="{DynamicResource Accent.SelectionBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent.SelectionBorderBrush}" />
   </Style>
   <Style Selector="Border.item.selected:pointerover">
     <Setter Property="Background" Value="{DynamicResource Accent.SelectionBrush}" />
@@ -248,7 +253,6 @@
   </Style>
   <Style Selector="Border.item.droptarget">
     <Setter Property="BorderBrush" Value="{DynamicResource Accent.Brush}" />
-    <Setter Property="BorderThickness" Value="1" />
   </Style>
 
   <!-- Tabs -->

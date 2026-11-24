@@ -45,6 +45,9 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
 - Tabs all have the same width and shrink equally when the title bar fills up, instead of sizing to their titles.
 - A tab in split view shows both pane titles separated by "|" (left first).
 - The Recycle Bin / Trash moved into the sidebar's quick access (pinned) section.
+- Selection follows the accent color everywhere: selected rows get an accent outline, the selected sidebar entry an
+  accent tint, and text selection / focused text boxes use the accent with a contrasting selected-text color.
+  With "Use system accent", changing the OS accent while Navigator runs updates the UI immediately.
 
 ### Removed
 
@@ -52,6 +55,8 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
 
 ### Fixed
 
+- Clearing the search box while search results are shown returns to the searched folder (a Back step when it
+  came from there); Back/Forward into results shows their query in the search box again.
 - The performance overlay (Avalonia's renderer debug overlay) covered the title bar and search box and forced
   continuous redraws; it is replaced by the status bar indicator.
 - Shortcuts with digit or punctuation keys were not reliably recognized: a bare `1` or `` ` `` is not an Avalonia

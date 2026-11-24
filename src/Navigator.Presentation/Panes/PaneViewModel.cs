@@ -202,10 +202,18 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Search box text. Clearing it while search results are shown leaves the search and returns to the folder
+    /// that was searched (like Files/Explorer); typing alone never starts a search — Enter does.
+    /// </summary>
     public string SearchText
     {
         get => _searchText;
-        set => SetProperty(ref _searchText, value);
+        set
+        {
+            if (SetProperty(ref _searchText, value) && IsSearch && string.IsNullOrWhiteSpace(value))
+                ExitSearch();
+        }
     }
 
     public string FilterText
@@ -341,6 +349,7 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         IsEditingAddress = false;
         ErrorText = null;
         FilterText = string.Empty;
+        SyncSearchText();
         _entries.Clear();
         _itemsByPath.Clear();
         // The sorted list belongs to the previous location: keeping it made the next view (e.g. Recycle Bin) show stale items.
@@ -623,6 +632,27 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
+    /// Returns from search results to the searched folder. When that folder is the previous history entry
+    /// (the usual case) this is a Back step, so history doesn't grow a duplicate entry and the cached listing is reused.
+    /// Never opens a new tab, whatever "open folders in new tab" says: the user is leaving a view, not opening a folder.
+    /// </summary>
+    private void ExitSearch()
+    {
+        if (_location.Path is not { } root)
+            return;
+
+        var folder = Location.Folder(root);
+        if (History.CanGoBack && folder.Equals(History.BackEntries.First()))
+        {
+            GoBack();
+            return;
+        }
+
+        if (History.Navigate(folder))
+            ApplyLocation();
+    }
+
+    /// <summary>
     /// A crumb with a path navigates there. Home, Trash and Tag views have a single path-less crumb: clicking it
     /// switches the omnibar to the editable address box instead of navigating to an empty path.
     /// </summary>
@@ -634,6 +664,19 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
             IsEditingAddress = true;
         else
             Navigate(Location.Folder(crumb.Path));
+    }
+
+    /// <summary>
+    /// Keeps the search box in step with the location: Back/Forward into results shows their query, leaving them
+    /// clears it. Written to the field directly so the change can't re-enter <see cref="ExitSearch"/>.
+    /// </summary>
+    private void SyncSearchText()
+    {
+        var text = IsSearch ? _location.Query ?? string.Empty : string.Empty;
+        if (string.Equals(_searchText, text, StringComparison.Ordinal))
+            return;
+        _searchText = text;
+        OnPropertyChanged(nameof(SearchText));
     }
 
     private void UpdateBreadcrumbs()

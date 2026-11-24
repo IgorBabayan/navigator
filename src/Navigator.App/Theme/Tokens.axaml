@@ -58,7 +58,9 @@
   <SolidColorBrush x:Key="Accent.Brush" Color="#0078D4" />
   <SolidColorBrush x:Key="Accent.SubtleBrush" Color="#0078D4" Opacity="0.16" />
   <SolidColorBrush x:Key="Accent.SelectionBrush" Color="#0078D4" Opacity="0.24" />
+  <SolidColorBrush x:Key="Accent.SelectionBorderBrush" Color="#0078D4" Opacity="0.72" />
   <SolidColorBrush x:Key="Accent.ForegroundBrush" Color="#FFFFFF" />
+  <SolidColorBrush x:Key="TextControlSelectionForegroundBrush" Color="#FFFFFF" />
   <x:Double x:Key="Window.TintOpacity">0.7</x:Double>
 
   <!-- Typography -->

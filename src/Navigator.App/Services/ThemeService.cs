@@ -29,6 +29,18 @@ internal sealed class ThemeService(SettingsService settings)
     public void Initialize()
     {
         ApplyAll();
+        // Fluent's own controls follow the OS accent by themselves; our Accent.* tokens are computed here, so
+        // they must be recomputed when the user changes the Windows/macOS/Linux accent while the app is running.
+        // Only the accent is reapplied (a few brushes), not the whole appearance.
+        if (Application.Current?.PlatformSettings is { } platform)
+        {
+            platform.ColorValuesChanged += (_, _) =>
+            {
+                if (settings.Current.Appearance.AccentColor is null)
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => ApplyAccent(Application.Current!, null));
+            };
+        }
+
         settings.Changed += (_, section) =>
         {
             if (section is "appearance" or "*")
@@ -72,6 +84,8 @@ internal sealed class ThemeService(SettingsService settings)
             _ => LogLevel.Information,
         };
 
+    private static Color? _appliedAccent;
+
     private static void ApplyAccent(Application app, string? accent)
     {
         string[] keys = ["SystemAccentColor", "SystemAccentColorLight1", "SystemAccentColorLight2", "SystemAccentColorLight3", "SystemAccentColorDark1", "SystemAccentColorDark2", "SystemAccentColorDark3"];
@@ -94,10 +108,25 @@ internal sealed class ThemeService(SettingsService settings)
             app.Resources["SystemAccentColorDark3"] = Mix(color, Colors.Black, 0.6);
         }
 
+        // Settings changes and OS color events (which also fire on light/dark switches) often leave the accent
+        // as it was: skip replacing the brushes then, so no DynamicResource consumer is re-resolved for nothing.
+        if (_appliedAccent == color)
+            return;
+        _appliedAccent = color;
+
+        var foreground = new SolidColorBrush(Luminance(color) > 0.55 ? Colors.Black : Colors.White);
         app.Resources["Accent.Brush"] = new SolidColorBrush(color);
         app.Resources["Accent.SubtleBrush"] = new SolidColorBrush(color, 0.16);
         app.Resources["Accent.SelectionBrush"] = new SolidColorBrush(color, 0.24);
-        app.Resources["Accent.ForegroundBrush"] = new SolidColorBrush(Luminance(color) > 0.55 ? Colors.Black : Colors.White);
+        app.Resources["Accent.SelectionBorderBrush"] = new SolidColorBrush(color, 0.72);
+        app.Resources["Accent.ForegroundBrush"] = foreground;
+
+        // Text selection (every TextBox: omnibar, search, rename, settings) and focused text-box borders use the
+        // same accent as the rest of the UI. The selected text gets a contrasting color, so a light accent such
+        // as yellow stays readable.
+        app.Resources["TextControlSelectionHighlightColor"] = new SolidColorBrush(color);
+        app.Resources["TextControlSelectionForegroundBrush"] = foreground;
+        app.Resources["TextControlBorderBrushFocused"] = new SolidColorBrush(color);
     }
 
     /// <summary>A custom family overrides the token; removing the override restores the cross-platform fallback list.</summary>
