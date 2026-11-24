@@ -9,8 +9,6 @@ namespace Navigator.Presentation.Shell;
 /// <summary>A tab: one pane, or two side by side in split (dual pane) view, each with its own history.</summary>
 public sealed class TabViewModel : ObservableObject, IDisposable
 {
-    private static readonly string TrashSystemIconKey = Core.Platform.SystemIconKey.Stock(Core.Platform.SystemIconKind.RecycleBin);
-
     private readonly PaneServices _services;
     private readonly PinnedFolders _pins;
     private PaneViewModel? _secondary;
@@ -27,6 +25,7 @@ public sealed class TabViewModel : ObservableObject, IDisposable
         Primary.IsActive = true;
         if (secondary is not null)
             EnableSplit(secondary);
+        _services.TrashStatus.PropertyChanged += OnTrashStatusChanged;
     }
 
     public PaneViewModel Primary { get; }
@@ -80,7 +79,7 @@ public sealed class TabViewModel : ObservableObject, IDisposable
     };
 
     /// <summary>OS-drawn icon for locations that have one (Recycle Bin); null keeps <see cref="IconKey"/> at no cost.</summary>
-    public string? SystemIconKey => ActivePane.Location.Kind == LocationKind.Trash ? TrashSystemIconKey : null;
+    public string? SystemIconKey => ActivePane.Location.Kind == LocationKind.Trash ? _services.TrashStatus.SystemIconKey : null;
 
     public string ToolTip => ActivePane.Location.Path ?? Header;
 
@@ -147,8 +146,15 @@ public sealed class TabViewModel : ObservableObject, IDisposable
         IsPinned = IsPinned,
     };
 
+    private void OnTrashStatusChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (ActivePane.Location.Kind == LocationKind.Trash)
+            OnPropertyChanged(nameof(SystemIconKey));
+    }
+
     public void Dispose()
     {
+        _services.TrashStatus.PropertyChanged -= OnTrashStatusChanged;
         Primary.Dispose();
         _secondary?.Dispose();
     }

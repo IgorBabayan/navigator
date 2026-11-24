@@ -151,6 +151,7 @@ internal sealed unsafe partial class WindowsShellIcons : ISystemIconProvider, ID
             SystemIconKind.DriveRam => 12,       // SIID_DRIVERAM
             SystemIconKind.Network => 17,        // SIID_MYNETWORK
             SystemIconKind.RecycleBin => 31,     // SIID_RECYCLER
+            SystemIconKind.RecycleBinFull => 32, // SIID_RECYCLERFULL
             SystemIconKind.Computer => 94,       // SIID_DESKTOPPC ("This PC")
             _ => uint.MaxValue,
         };

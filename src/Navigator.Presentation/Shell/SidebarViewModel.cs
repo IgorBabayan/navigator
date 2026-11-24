@@ -18,8 +18,14 @@ public sealed class SidebarItemViewModel(string name, string iconKey, Location l
     /// <summary>Navigator's own icon; also the fallback while (or where) the OS icon is unavailable.</summary>
     public string IconKey { get; } = iconKey;
 
-    /// <summary>OS-drawn icon (<see cref="SystemIconKey"/>), or null to always use <see cref="IconKey"/>.</summary>
-    public string? SystemIconKey { get; } = systemIconKey;
+    private string? _systemIconKey = systemIconKey;
+
+    /// <summary>OS-drawn icon (<see cref="SystemIconKey"/>), or null to always use <see cref="IconKey"/>. Changes for the trash (empty/full).</summary>
+    public string? SystemIconKey
+    {
+        get => _systemIconKey;
+        set => SetProperty(ref _systemIconKey, value);
+    }
 
     public Location Location { get; } = location;
 
@@ -74,6 +80,7 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
     private readonly PinnedFolders _pins;
     private double _width;
     private bool _isVisible;
+    private SidebarItemViewModel? _trashItem;
 
     public SidebarViewModel(PaneServices services, PinnedFolders pins)
     {
@@ -92,6 +99,7 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
         _pins.Changed += OnSourcesChanged;
         _services.Volumes.VolumesChanged += OnVolumesChanged;
         _services.Settings.Changed += OnSettingsChanged;
+        _services.TrashStatus.PropertyChanged += OnTrashStatusChanged;
         Rebuild();
     }
 
@@ -197,9 +205,13 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
         }
 
         BottomItems.Clear();
+        _trashItem = null;
         if (settings.ShowTrash && _services.Trash.IsSupported)
-            BottomItems.Add(new SidebarItemViewModel(localizer[OperatingSystem.IsWindows() ? "Location.RecycleBin" : "Location.Trash"], "Trash", Location.Trash,
-                systemIconKey: SystemIconKey.Stock(SystemIconKind.RecycleBin)));
+        {
+            _trashItem = new SidebarItemViewModel(localizer[OperatingSystem.IsWindows() ? "Location.RecycleBin" : "Location.Trash"], "Trash", Location.Trash,
+                systemIconKey: _services.TrashStatus.SystemIconKey);
+            BottomItems.Add(_trashItem);
+        }
     }
 
     private async Task LoadVolumesAsync()
@@ -255,8 +267,15 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
             _services.Dispatcher.Post(Rebuild);
     }
 
+    private void OnTrashStatusChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (_trashItem is not null)
+            _trashItem.SystemIconKey = _services.TrashStatus.SystemIconKey;
+    }
+
     public void Dispose()
     {
+        _services.TrashStatus.PropertyChanged -= OnTrashStatusChanged;
         _pins.Changed -= OnSourcesChanged;
         _services.Volumes.VolumesChanged -= OnVolumesChanged;
         _services.Settings.Changed -= OnSettingsChanged;

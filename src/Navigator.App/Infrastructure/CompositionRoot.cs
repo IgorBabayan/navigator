@@ -89,6 +89,7 @@ internal static class CompositionRoot
         services.AddSingleton<INotificationCenter>(provider => provider.GetRequiredService<NotificationCenter>());
         services.AddSingleton<ThemeService>();
         services.AddSingleton<PinnedFolders>();
+        services.AddSingleton<TrashStatus>();
         services.AddSingleton<PaneServices>();
 
         // Updates

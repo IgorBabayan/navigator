@@ -367,6 +367,8 @@ public sealed class SystemIconKeyTests
 
         Assert.IsTrue(SystemIconKey.TryParse(SystemIconKey.Stock(SystemIconKind.RecycleBin), out kind, out _));
         Assert.AreEqual(SystemIconKind.RecycleBin, kind);
+        Assert.IsTrue(SystemIconKey.TryParse(SystemIconKey.Stock(SystemIconKind.RecycleBinFull), out kind, out _));
+        Assert.AreEqual(SystemIconKind.RecycleBinFull, kind);
 
         Assert.IsTrue(SystemIconKey.TryParse(SystemIconKey.ForPath(@"C:\Users\me\Downloads"), out _, out path));
         Assert.AreEqual(@"C:\Users\me\Downloads", path);

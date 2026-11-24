@@ -13,9 +13,10 @@ namespace Navigator.Platform.Trash;
 /// FOF_WANTNUKEWARNING is always set: if an item cannot be recycled (too large, network share) the shell
 /// asks before deleting permanently instead of silently destroying it.
 /// Listing/restoring reads the $Recycle.Bin\&lt;SID&gt;\$I* metadata files (formats v1 and v2) on every fixed drive.
+/// <see cref="Changed"/> watches those same folders (one <see cref="FileSystemWatcher"/> per drive, started lazily).
 /// </summary>
 [SupportedOSPlatform("windows")]
-public sealed partial class WindowsRecycleBin : ITrashService
+public sealed partial class WindowsRecycleBin : ITrashService, IDisposable
 {
     private const uint FoDelete = 0x0003;
     private const ushort FofSilent = 0x0004;
@@ -27,9 +28,138 @@ public sealed partial class WindowsRecycleBin : ITrashService
     private const uint SherbNoProgressUi = 0x2;
     private const uint SherbNoSound = 0x4;
 
+    private readonly Lock _watchGate = new();
+    private readonly List<FileSystemWatcher> _watchers = [];
+    private EventHandler? _changed;
+    private bool _watching;
+    private bool _disposed;
+
     public bool IsSupported => true;
 
     public bool CanBrowse => true;
+
+    public event EventHandler? Changed
+    {
+        add
+        {
+            lock (_watchGate)
+            {
+                _changed += value;
+                if (_watching || _disposed)
+                    return;
+                _watching = true;
+            }
+
+            // Drive probing (IsReady) can stall on removable media: never on the subscriber's (UI) thread.
+            _ = Task.Run(StartWatchers);
+        }
+        remove
+        {
+            lock (_watchGate)
+                _changed -= value;
+        }
+    }
+
+    /// <summary>Stops at the first $I metadata file found, so the cost does not grow with the size of the bin.</summary>
+    public Task<bool?> HasItemsAsync(CancellationToken cancellationToken = default)
+        => Task.Run<bool?>(() =>
+        {
+            foreach (var bin in UserBinFolders())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                try
+                {
+                    if (Directory.EnumerateFiles(bin, "$I*").Any())
+                        return true;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // An unreadable bin counts as empty, matching what ListAsync shows.
+                }
+            }
+
+            return false;
+        }, cancellationToken);
+
+    public void Dispose()
+    {
+        lock (_watchGate)
+        {
+            _disposed = true;
+            foreach (var watcher in _watchers)
+                watcher.Dispose();
+            _watchers.Clear();
+            _changed = null;
+        }
+    }
+
+    private void StartWatchers()
+    {
+        foreach (var bin in UserBinFolders())
+        {
+            FileSystemWatcher watcher;
+            try
+            {
+                // Only names matter (an item is added or removed); a small buffer is enough, and overflow is just one more ping.
+                watcher = new FileSystemWatcher(bin)
+                {
+                    NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName,
+                    IncludeSubdirectories = false,
+                    InternalBufferSize = 4096,
+                };
+                watcher.Created += OnBinChanged;
+                watcher.Deleted += OnBinChanged;
+                watcher.Renamed += OnBinChanged;
+                watcher.Error += OnBinError;
+                watcher.EnableRaisingEvents = true;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                continue;
+            }
+
+            lock (_watchGate)
+            {
+                if (_disposed)
+                {
+                    watcher.Dispose();
+                    return;
+                }
+
+                _watchers.Add(watcher);
+            }
+        }
+    }
+
+    private void OnBinChanged(object sender, FileSystemEventArgs e) => Volatile.Read(ref _changed)?.Invoke(this, EventArgs.Empty);
+
+    private void OnBinError(object sender, ErrorEventArgs e) => Volatile.Read(ref _changed)?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>The current user's existing $Recycle.Bin\&lt;SID&gt; folders on ready fixed and removable drives.</summary>
+    private static IEnumerable<string> UserBinFolders()
+    {
+        var sid = WindowsIdentity.GetCurrent().User?.Value;
+        if (sid is null)
+            yield break;
+
+        foreach (var drive in DriveInfo.GetDrives())
+        {
+            string bin;
+            try
+            {
+                if (drive.DriveType is not (DriveType.Fixed or DriveType.Removable) || !drive.IsReady)
+                    continue;
+                bin = Path.Combine(drive.RootDirectory.FullName, "$Recycle.Bin", sid);
+            }
+            catch (IOException)
+            {
+                continue;
+            }
+
+            if (Directory.Exists(bin))
+                yield return bin;
+        }
+    }
 
     public Task<TrashItem?> MoveToTrashAsync(string path, CancellationToken cancellationToken = default)
         => Task.Run<TrashItem?>(() =>

@@ -88,6 +88,7 @@ public enum SystemIconKind
     DriveOptical,
     DriveRam,
     RecycleBin,
+    RecycleBinFull,
 }
 
 /// <summary>
@@ -167,6 +168,22 @@ public interface ITrashService
     Task DeletePermanentlyAsync(TrashItem item, CancellationToken cancellationToken = default);
 
     Task EmptyAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Whether the trash holds anything, answered off the caller's thread without listing it (cheap enough to call on every
+    /// change); null where the platform cannot tell cheaply.
+    /// </summary>
+    Task<bool?> HasItemsAsync(CancellationToken cancellationToken = default) => Task.FromResult<bool?>(null);
+
+    /// <summary>
+    /// Raised (on any thread, possibly in bursts) when the trash contents may have changed, including from other apps.
+    /// Platforms that cannot observe the trash never raise it. Watching starts with the first subscriber.
+    /// </summary>
+    event EventHandler? Changed
+    {
+        add { }
+        remove { }
+    }
 }
 
 public sealed record AppHandler(string Id, string DisplayName, string? IconPath, bool IsDefault);

@@ -20,6 +20,7 @@ public sealed class PaneServices(
     IWindowService windows,
     FileOperationService operations,
     ITrashService trash,
+    TrashStatus trashStatus,
     IFileLauncher launcher,
     IKnownFolderProvider knownFolders,
     IVolumeProvider volumes,
@@ -48,6 +49,9 @@ public sealed class PaneServices(
     public FileOperationService Operations { get; } = operations;
 
     public ITrashService Trash { get; } = trash;
+
+    /// <summary>Empty/full state of the trash (icon); shared by every window.</summary>
+    public TrashStatus TrashStatus { get; } = trashStatus;
 
     public IFileLauncher Launcher { get; } = launcher;
 
