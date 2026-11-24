@@ -66,5 +66,12 @@ public sealed class PinnedFolders
         return null;
     }
 
+    /// <summary>
+    /// OS icon for a pinned folder: user folders (Desktop, Downloads, Pictures…) get their own system icon; any other
+    /// folder gets the plain stock folder icon, so a slow or disconnected location is never touched just to draw an icon.
+    /// </summary>
+    public static string SystemIconKeyFor(string path, KnownFolder? known)
+        => known is not null ? SystemIconKey.ForPath(path) : SystemIconKey.Stock(SystemIconKind.Folder);
+
     private void Save(List<string> paths) => _settings.Update("sidebar", s => s.Sidebar.PinnedFolders = paths);
 }

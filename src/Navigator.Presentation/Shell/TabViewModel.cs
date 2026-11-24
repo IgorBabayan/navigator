@@ -44,6 +44,8 @@ public sealed class TabViewModel : ObservableObject, IDisposable
             if (SetProperty(ref _activePane, value))
             {
                 previous.IsActive = false;
+                // The omnibar edits the active pane only: an address edit left open in the other pane must not reappear later.
+                previous.IsEditingAddress = false;
                 value.IsActive = true;
                 RaiseHeader();
                 ActivePaneChanged?.Invoke(this, EventArgs.Empty);

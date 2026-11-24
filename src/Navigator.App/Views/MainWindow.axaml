@@ -141,10 +141,10 @@
       <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="8,2,8,4">
         <StackPanel Orientation="Horizontal" Spacing="2">
           <Button Classes="subtle" IsEnabled="{Binding ActivePane.CanCreateItems}" ToolTip.Tip="{c:Tr Command.New}">
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <c:IconView Kind="Add" />
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+              <c:IconView Kind="Add" VerticalAlignment="Center" />
               <TextBlock Text="{c:Tr Command.New}" VerticalAlignment="Center" />
-              <c:IconView Kind="ChevronDown" Width="10" Height="10" />
+              <c:IconView Kind="ChevronDown" Width="10" Height="10" VerticalAlignment="Center" />
             </StackPanel>
             <Button.Flyout>
               <MenuFlyout Placement="BottomEdgeAlignedLeft">

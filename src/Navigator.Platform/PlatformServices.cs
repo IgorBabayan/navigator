@@ -1,4 +1,5 @@
 using Navigator.Core.Platform;
+using Navigator.Platform.Icons;
 using Navigator.Platform.Launch;
 using Navigator.Platform.Trash;
 
@@ -31,4 +32,8 @@ public static class PlatformServices
             return new LinuxFileLauncher();
         throw new PlatformNotSupportedException();
     }
+
+    /// <summary>OS-drawn icons for the sidebar and Home (Windows shell); elsewhere Navigator's own icons are kept.</summary>
+    public static ISystemIconProvider CreateSystemIcons()
+        => OperatingSystem.IsWindows() ? new WindowsShellIcons() : new UnsupportedSystemIcons();
 }

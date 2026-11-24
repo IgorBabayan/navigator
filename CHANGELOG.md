@@ -36,6 +36,20 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
 - Shutdown: `InvalidOperationException` ("type only implements IAsyncDisposable"). The service container is now
   disposed asynchronously with a bounded wait, so `FileOperationQueue` and `BackgroundWorkScheduler` shut down cleanly.
 
+- Split view: after a session restore neither pane showed the active-pane accent; the indicator is now style-based, so
+  it resolves even when the pane is created before it joins the window.
+- Omnibar: on Home (and Trash/tag views) clicking the address bar did nothing, and clicking the "Home" crumb navigated
+  to an empty path. Every location can now be replaced by typing a path; the Home crumb opens the address box.
+- Drives without a label are named like File Explorer: "Local Disk (C:)", "Removable Disk (E:)", …
+- Sidebar section headers (Pinned, Drives, Tags): expander glyph and text are vertically centered; same for Home tag chips.
+
+### Changed
+
+- Sidebar section headers have icons; on Windows the sidebar and Home use the shell's own icons for user folders
+  (Desktop, Downloads, …), drives and "This PC" (rendered once off the UI thread and cached). Other platforms keep
+  Navigator's icon set.
+- Sidebar drives no longer show a usage bar (free space is in the tooltip; Home still shows it).
+
 ### Known limitations
 
 See `docs/KNOWN_ISSUES.md`. The UI layer has not been compiled or run yet.

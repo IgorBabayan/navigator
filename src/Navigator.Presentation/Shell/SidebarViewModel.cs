@@ -9,21 +9,24 @@ using Navigator.Presentation.Services;
 
 namespace Navigator.Presentation.Shell;
 
-public sealed class SidebarItemViewModel(string name, string iconKey, Location location, string? detail = null, double usedPercent = -1, string? color = null) : ObservableObject
+public sealed class SidebarItemViewModel(string name, string iconKey, Location location, string? detail = null, string? color = null, string? systemIconKey = null) : ObservableObject
 {
     private bool _isSelected;
 
     public string Name { get; } = name;
 
+    /// <summary>Navigator's own icon; also the fallback while (or where) the OS icon is unavailable.</summary>
     public string IconKey { get; } = iconKey;
+
+    /// <summary>OS-drawn icon (<see cref="SystemIconKey"/>), or null to always use <see cref="IconKey"/>.</summary>
+    public string? SystemIconKey { get; } = systemIconKey;
 
     public Location Location { get; } = location;
 
     public string? Detail { get; } = detail;
 
-    public double UsedPercent { get; } = usedPercent;
-
-    public bool ShowUsage => UsedPercent >= 0;
+    /// <summary>Path, plus the detail line (e.g. free space of a drive) when there is one.</summary>
+    public string? ToolTip { get; } = detail is null ? location.Path : location.Path is null ? detail : location.Path + Environment.NewLine + detail;
 
     /// <summary>Tag color ("#RRGGBB") for tag entries.</summary>
     public string? Color { get; } = color;
@@ -39,13 +42,19 @@ public sealed class SidebarItemViewModel(string name, string iconKey, Location l
     }
 }
 
-public sealed class SidebarSectionViewModel(string id, string title) : ObservableObject
+public sealed class SidebarSectionViewModel(string id, string title, string iconKey, string? systemIconKey = null) : ObservableObject
 {
     private bool _isExpanded = true;
 
     public string Id { get; } = id;
 
     public string Title { get; } = title;
+
+    /// <summary>Navigator's own section icon; the fallback for <see cref="SystemIconKey"/>.</summary>
+    public string IconKey { get; } = iconKey;
+
+    /// <summary>OS-drawn section icon where the OS has a matching one (e.g. "This PC" for drives).</summary>
+    public string? SystemIconKey { get; } = systemIconKey;
 
     public ObservableCollection<SidebarItemViewModel> Items { get; } = [];
 
@@ -157,12 +166,14 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
         Sections.Clear();
         if (settings.ShowQuickAccess)
         {
-            var pinned = new SidebarSectionViewModel("pinned", localizer["Sidebar.Pinned"]) { IsExpanded = !collapsed.Contains("pinned") };
+            // Windows has no stock "pinned" icon: Navigator's pin glyph is used.
+            var pinned = new SidebarSectionViewModel("pinned", localizer["Sidebar.Pinned"], "Pin") { IsExpanded = !collapsed.Contains("pinned") };
             foreach (var path in _pins.Paths)
             {
                 var known = _pins.KnownFolderFor(path);
                 var name = known is { } folder && folder != KnownFolder.Home ? localizer["KnownFolder." + folder] : System.IO.Path.GetFileName(PathUtil.TrimTrailingSeparator(path));
-                pinned.Items.Add(new SidebarItemViewModel(string.IsNullOrEmpty(name) ? path : name, known?.ToString() ?? "Folder", Location.Folder(path)));
+                pinned.Items.Add(new SidebarItemViewModel(string.IsNullOrEmpty(name) ? path : name, known?.ToString() ?? "Folder", Location.Folder(path),
+                    systemIconKey: PinnedFolders.SystemIconKeyFor(path, known)));
             }
 
             Sections.Add(pinned);
@@ -170,15 +181,16 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
 
         if (settings.ShowDrives || settings.ShowNetwork)
         {
-            Sections.Add(new SidebarSectionViewModel("drives", localizer["Sidebar.Drives"]) { IsExpanded = !collapsed.Contains("drives") });
+            Sections.Add(new SidebarSectionViewModel("drives", localizer["Sidebar.Drives"], "Drive", SystemIconKey.Stock(SystemIconKind.Computer)) { IsExpanded = !collapsed.Contains("drives") });
             if (settings.ShowNetwork)
-                Sections.Add(new SidebarSectionViewModel("network", localizer["Sidebar.Network"]) { IsExpanded = !collapsed.Contains("network") });
+                Sections.Add(new SidebarSectionViewModel("network", localizer["Sidebar.Network"], "DriveNetwork", SystemIconKey.Stock(SystemIconKind.Network)) { IsExpanded = !collapsed.Contains("network") });
             _ = LoadVolumesAsync();
         }
 
         if (settings.ShowTags && _services.Settings.Current.Tags.Count > 0)
         {
-            var tags = new SidebarSectionViewModel("tags", localizer["Sidebar.Tags"]) { IsExpanded = !collapsed.Contains("tags") };
+            // Windows has no stock "tags" icon: Navigator's tag glyph is used.
+            var tags = new SidebarSectionViewModel("tags", localizer["Sidebar.Tags"], "Tag") { IsExpanded = !collapsed.Contains("tags") };
             foreach (var tag in _services.Settings.Current.Tags)
                 tags.Items.Add(new SidebarItemViewModel(tag.Name, "Tag", Location.Tag(tag.Id), color: tag.Color));
             Sections.Add(tags);
@@ -199,7 +211,7 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
         foreach (var volume in volumes)
         {
             var model = HomeViewModel.CreateVolumeItem(volume, _services.Localizer);
-            var item = new SidebarItemViewModel(model.Name, model.IconKey, Location.Folder(volume.RootPath), model.Detail, volume.IsReady ? model.UsedPercent : -1);
+            var item = new SidebarItemViewModel(model.Name, model.IconKey, Location.Folder(volume.RootPath), model.Detail, systemIconKey: model.SystemIconKey);
             if (volume.Kind == VolumeKind.Network)
                 network?.Items.Add(item);
             else if (_services.Settings.Current.Sidebar.ShowDrives)

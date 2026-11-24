@@ -60,6 +60,7 @@ internal static class CompositionRoot
         services.AddSingleton(_ => PlatformServices.CreateLauncher());
         services.AddSingleton<INativeNotificationService, NativeNotificationService>();
         services.AddSingleton<IFileOwnershipProvider, FileOwnershipProvider>();
+        services.AddSingleton(_ => PlatformServices.CreateSystemIcons());
 
         // Engines
         services.AddSingleton(provider =>

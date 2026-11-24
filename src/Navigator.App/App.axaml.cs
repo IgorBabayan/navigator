@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Navigator.App.Infrastructure;
 using Navigator.App.Services;
+using Navigator.Core.Platform;
 using Navigator.Core.Tags;
 using Navigator.Presentation.Settings;
 using Navigator.Presentation.Updates;
@@ -31,6 +32,7 @@ public sealed partial class App : Application
         {
             _services = CompositionRoot.Build();
             _services.GetRequiredService<ThemeService>().Initialize();
+            Navigator.App.Controls.SystemIcons.Initialize(_services.GetRequiredService<ISystemIconProvider>());
 
             var windows = _services.GetRequiredService<WindowService>();
             desktop.ShutdownMode = ShutdownMode.OnLastWindowClose;

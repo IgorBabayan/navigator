@@ -7,10 +7,22 @@
              x:Class="Navigator.App.Views.PaneView"
              x:DataType="panes:PaneViewModel"
              Focusable="True">
+  <UserControl.Styles>
+    <!--
+      Brushes come from styles (not a local value set in code), so the accent resolves through the normal
+      resource lookup even when the pane is created before it joins the visual tree (session restore),
+      and follows accent/theme changes without extra code.
+    -->
+    <Style Selector="Border#PaneHeader">
+      <Setter Property="BorderBrush" Value="{DynamicResource Brush.Stroke}" />
+    </Style>
+    <Style Selector="Border#PaneHeader.active">
+      <Setter Property="BorderBrush" Value="{DynamicResource Accent.Brush}" />
+    </Style>
+  </UserControl.Styles>
   <Grid RowDefinitions="Auto,Auto,Auto,*">
     <!-- Split view: each pane shows its own location; the active one is underlined with the accent. -->
-    <Border x:Name="PaneHeader" Grid.Row="0" IsVisible="False" Padding="16,8" BorderThickness="0,0,0,2"
-            BorderBrush="{DynamicResource Brush.Stroke}">
+    <Border x:Name="PaneHeader" Grid.Row="0" IsVisible="False" Padding="16,8" BorderThickness="0,0,0,2">
       <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
     </Border>
 

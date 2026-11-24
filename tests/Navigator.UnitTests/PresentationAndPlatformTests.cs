@@ -147,6 +147,15 @@ public sealed class PresentationTests
     }
 
     [TestMethod]
+    public void WindowsVolumeName_UsesLabelOrDriveType()
+    {
+        var localizer = new Localizer();
+        Assert.AreEqual("Local Disk (C:)", HomeViewModel.WindowsVolumeName(new Navigator.Core.Platform.VolumeInfo(@"C:\", string.Empty, Navigator.Core.Platform.VolumeKind.Fixed, "NTFS", 100, 50, true), localizer));
+        Assert.AreEqual("Games (D:)", HomeViewModel.WindowsVolumeName(new Navigator.Core.Platform.VolumeInfo(@"D:\", "Games", Navigator.Core.Platform.VolumeKind.Fixed, "NTFS", 100, 50, true), localizer));
+        Assert.AreEqual("Removable Disk (E:)", HomeViewModel.WindowsVolumeName(new Navigator.Core.Platform.VolumeInfo(@"E:\", " ", Navigator.Core.Platform.VolumeKind.Removable, "FAT32", 0, 0, false), localizer));
+    }
+
+    [TestMethod]
     public void EveryCommandHasAName()
     {
         var localizer = new Localizer();

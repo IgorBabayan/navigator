@@ -22,6 +22,7 @@ All builds are self-contained (.NET runtime included) and ReadyToRun-compiled; n
 | Reveal in system manager | `explorer /select,` | `dbus-send` FileManager1 → `xdg-open` parent | `open -R` |
 | Notifications | in-app toast | `notify-send` (libnotify) | `osascript display notification` |
 | File owner | — | `stat -c %U` | `stat -f %Su` |
+| Sidebar/Home icons | shell stock icons + known-folder icons (`SHGetStockIconInfo`, `SHGetFileInfoW`, `SHGetImageList`) on a background STA thread | Navigator icon set | Navigator icon set |
 | Window chrome | extended client area, native caption buttons, Mica/Acrylic | extended client area where the WM supports it, native decorations otherwise | traffic lights inset into the title bar |
 | Data directories | `%APPDATA%\Navigator` (settings), `%LOCALAPPDATA%\Navigator\Cache` and `\Logs` | `$XDG_CONFIG_HOME/navigator`, `$XDG_CACHE_HOME/navigator`, `$XDG_STATE_HOME/navigator/logs` | `~/Library/Application Support/Navigator`, `~/Library/Caches/Navigator`, `~/Library/Logs/Navigator` |
 

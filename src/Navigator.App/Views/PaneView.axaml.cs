@@ -120,8 +120,7 @@ public sealed partial class PaneView : UserControl
             header.ShowSort(_pane.Sort);
     }
 
-    private void UpdateActiveIndicator()
-        => PaneHeader.BorderBrush = _pane?.IsActive == true && this.TryFindResource("Accent.Brush", out var accent) ? accent as Avalonia.Media.IBrush : null;
+    private void UpdateActiveIndicator() => PaneHeader.Classes.Set("active", _pane?.IsActive == true);
 
     public void FocusFilter()
     {

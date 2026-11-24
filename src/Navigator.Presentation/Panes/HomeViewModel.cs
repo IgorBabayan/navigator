@@ -10,13 +10,16 @@ using Navigator.Presentation.Shell;
 
 namespace Navigator.Presentation.Panes;
 
-public sealed class QuickAccessCardViewModel(string name, string path, string iconKey)
+public sealed class QuickAccessCardViewModel(string name, string path, string iconKey, string? systemIconKey = null)
 {
     public string Name { get; } = name;
 
     public string Path { get; } = path;
 
     public string IconKey { get; } = iconKey;
+
+    /// <summary>OS-drawn folder icon (<see cref="SystemIconKey"/>); <see cref="IconKey"/> is the fallback.</summary>
+    public string? SystemIconKey { get; } = systemIconKey;
 }
 
 public sealed class VolumeItemViewModel(VolumeInfo volume, string name, string detail)
@@ -38,6 +41,16 @@ public sealed class VolumeItemViewModel(VolumeInfo volume, string name, string d
         VolumeKind.Optical => "DriveOptical",
         _ => "Drive",
     };
+
+    /// <summary>Stock OS drive icon by kind: no disk is touched to draw it (a sleeping or disconnected drive never stalls).</summary>
+    public string SystemIconKey => Core.Platform.SystemIconKey.Stock(Volume.Kind switch
+    {
+        VolumeKind.Removable => SystemIconKind.DriveRemovable,
+        VolumeKind.Network => SystemIconKind.DriveNetwork,
+        VolumeKind.Optical => SystemIconKind.DriveOptical,
+        VolumeKind.Ram => SystemIconKind.DriveRam,
+        _ => SystemIconKind.DriveFixed,
+    });
 }
 
 public sealed class RecentFileViewModel(string path, ItemCategory category)
@@ -112,7 +125,7 @@ public sealed class HomeViewModel : ObservableObject
         {
             var known = _pins.KnownFolderFor(path);
             var name = known is { } folder && folder != KnownFolder.Home ? localizer["KnownFolder." + folder] : System.IO.Path.GetFileName(path);
-            QuickAccess.Add(new QuickAccessCardViewModel(string.IsNullOrEmpty(name) ? path : name, path, known?.ToString() ?? "Folder"));
+            QuickAccess.Add(new QuickAccessCardViewModel(string.IsNullOrEmpty(name) ? path : name, path, known?.ToString() ?? "Folder", PinnedFolders.SystemIconKeyFor(path, known)));
         }
 
         Tags.Clear();
@@ -134,13 +147,30 @@ public sealed class HomeViewModel : ObservableObject
 
     internal static VolumeItemViewModel CreateVolumeItem(VolumeInfo volume, Localization.Localizer localizer)
     {
-        var name = string.IsNullOrEmpty(volume.Label)
-            ? (volume.RootPath is "/" ? localizer["Drive.FileSystem"] : volume.RootPath)
-            : OperatingSystem.IsWindows() ? $"{volume.Label} ({volume.RootPath.TrimEnd('\\')})" : volume.Label;
+        var name = OperatingSystem.IsWindows()
+            ? WindowsVolumeName(volume, localizer)
+            : string.IsNullOrEmpty(volume.Label) ? (volume.RootPath is "/" ? localizer["Drive.FileSystem"] : volume.RootPath) : volume.Label;
         var detail = volume.IsReady && volume.TotalBytes > 0
             ? localizer.Format("Drive.FreeOf", ByteSize.Format(volume.FreeBytes, localizer.Culture), ByteSize.Format(volume.TotalBytes, localizer.Culture))
             : localizer["Drive.NotReady"];
         return new VolumeItemViewModel(volume, name, detail);
+    }
+
+    /// <summary>File Explorer style: "Games (D:)", or the drive type for unlabeled drives — "Local Disk (C:)".</summary>
+    internal static string WindowsVolumeName(VolumeInfo volume, Localization.Localizer localizer)
+    {
+        var letter = volume.RootPath.TrimEnd('\\', '/');
+        var label = string.IsNullOrWhiteSpace(volume.Label)
+            ? localizer[volume.Kind switch
+            {
+                VolumeKind.Removable => "Drive.Removable",
+                VolumeKind.Network => "Drive.Network",
+                VolumeKind.Optical => "Drive.Optical",
+                VolumeKind.Ram => "Drive.Ram",
+                _ => "Drive.LocalDisk",
+            }]
+            : volume.Label;
+        return letter.Length == 0 ? label : $"{label} ({letter})";
     }
 
     private async Task OpenRecentAsync(RecentFileViewModel? item)

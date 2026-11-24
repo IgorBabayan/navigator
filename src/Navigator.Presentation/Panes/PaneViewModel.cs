@@ -88,7 +88,7 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         GoUpCommand = new RelayCommand(GoUp, () => ParentPath is not null);
         RefreshCommand = new RelayCommand(Refresh);
         NavigateToAddressCommand = new AsyncRelayCommand(NavigateToAddressAsync);
-        NavigateToBreadcrumbCommand = new RelayCommand<BreadcrumbViewModel>(b => { if (b is not null) Navigate(Location.Folder(b.Path)); });
+        NavigateToBreadcrumbCommand = new RelayCommand<BreadcrumbViewModel>(NavigateToBreadcrumb);
         SetLayoutCommand = new RelayCommand<FolderLayout>(l => Layout = l);
         SortByCommand = new RelayCommand<SortColumn>(SortBy);
         SetGroupByCommand = new RelayCommand<GroupBy>(g => GroupBy = g);
@@ -560,6 +560,20 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         }
 
         await _services.Dialogs.ShowMessageAsync(_services.Localizer["Error.PathNotFoundTitle"], _services.Localizer.Format("Error.PathNotFound", input)).ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// A crumb with a path navigates there. Home, Trash and Tag views have a single path-less crumb: clicking it
+    /// switches the omnibar to the editable address box instead of navigating to an empty path.
+    /// </summary>
+    private void NavigateToBreadcrumb(BreadcrumbViewModel? crumb)
+    {
+        if (crumb is null)
+            return;
+        if (string.IsNullOrEmpty(crumb.Path))
+            IsEditingAddress = true;
+        else
+            Navigate(Location.Folder(crumb.Path));
     }
 
     private void UpdateBreadcrumbs()

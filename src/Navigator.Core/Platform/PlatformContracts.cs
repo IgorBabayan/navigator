@@ -76,6 +76,68 @@ public interface IVolumeProvider
     event EventHandler? VolumesChanged;
 }
 
+/// <summary>Stock icons the operating system draws itself (Windows shell stock icons).</summary>
+public enum SystemIconKind
+{
+    Folder,
+    Computer,
+    Network,
+    DriveFixed,
+    DriveRemovable,
+    DriveNetwork,
+    DriveOptical,
+    DriveRam,
+}
+
+/// <summary>
+/// String keys naming a system icon, so view models can ask for one without referencing any UI or OS type:
+/// "stock:&lt;SystemIconKind&gt;" for a stock icon, "path:&lt;folder&gt;" for the icon the OS shows for that folder
+/// (e.g. the Downloads or Pictures icon on Windows).
+/// </summary>
+public static class SystemIconKey
+{
+    private const string StockPrefix = "stock:";
+    private const string PathPrefix = "path:";
+
+    private static readonly string[] StockKeys = Enum.GetNames<SystemIconKind>().Select(name => StockPrefix + name).ToArray();
+
+    public static string Stock(SystemIconKind kind) => StockKeys[(int)kind];
+
+    public static string ForPath(string path) => PathPrefix + path;
+
+    public static bool TryParse(string? key, out SystemIconKind kind, out string? path)
+    {
+        kind = default;
+        path = null;
+        if (string.IsNullOrEmpty(key))
+            return false;
+        if (key.StartsWith(PathPrefix, StringComparison.Ordinal))
+        {
+            path = key[PathPrefix.Length..];
+            return path.Length > 0;
+        }
+
+        return key.StartsWith(StockPrefix, StringComparison.Ordinal)
+               && Enum.TryParse(key.AsSpan(StockPrefix.Length), ignoreCase: false, out kind)
+               && Enum.IsDefined(kind);
+    }
+}
+
+/// <summary>A decoded system icon: 32-bit BGRA pixels, straight (not premultiplied) alpha, rows packed (stride = Width * 4).</summary>
+public sealed record SystemIconImage(int Width, int Height, byte[] Pixels);
+
+/// <summary>Icons drawn by the operating system. Where unsupported, callers keep Navigator's own icons.</summary>
+public interface ISystemIconProvider
+{
+    bool IsSupported { get; }
+
+    /// <summary>
+    /// Renders the icon named by a <see cref="SystemIconKey"/> at (or just above) <paramref name="pixelSize"/>.
+    /// Never blocks the caller; returns null when the icon is unavailable.
+    /// </summary>
+    Task<SystemIconImage?> GetIconAsync(string key, int pixelSize, CancellationToken cancellationToken = default);
+}
+
 /// <summary>An item currently in the Recycle Bin / Trash.</summary>
 public sealed record TrashItem(
     string Id,

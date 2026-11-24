@@ -354,3 +354,28 @@ public sealed class FormattingTests
         Assert.AreEqual(Path.Combine("/p", "config"), portable.ConfigDirectory);
     }
 }
+
+[TestClass]
+public sealed class SystemIconKeyTests
+{
+    [TestMethod]
+    public void StockAndPathKeys_RoundTrip()
+    {
+        Assert.IsTrue(SystemIconKey.TryParse(SystemIconKey.Stock(SystemIconKind.DriveFixed), out var kind, out var path));
+        Assert.AreEqual(SystemIconKind.DriveFixed, kind);
+        Assert.IsNull(path);
+
+        Assert.IsTrue(SystemIconKey.TryParse(SystemIconKey.ForPath(@"C:\Users\me\Downloads"), out _, out path));
+        Assert.AreEqual(@"C:\Users\me\Downloads", path);
+    }
+
+    [TestMethod]
+    public void InvalidKeys_AreRejected()
+    {
+        Assert.IsFalse(SystemIconKey.TryParse(null, out _, out _));
+        Assert.IsFalse(SystemIconKey.TryParse("path:", out _, out _));
+        Assert.IsFalse(SystemIconKey.TryParse("stock:NoSuchIcon", out _, out _));
+        Assert.IsFalse(SystemIconKey.TryParse("stock:999", out _, out _));
+        Assert.IsFalse(SystemIconKey.TryParse("Folder", out _, out _));
+    }
+}

@@ -59,6 +59,13 @@ public sealed partial class MainWindow : Window
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => PaletteBox.Focus());
         };
 
+        // The address box can also be opened by the view model (clicking the Home/Trash/Tag crumb): focus it whenever it appears.
+        AddressBox.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == IsVisibleProperty && AddressBox.IsVisible)
+                FocusAddressBox();
+        };
+
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
         TitleBar.PointerPressed += OnTitleBarPointerPressed;
         TitleBar.DoubleTapped += (_, _) => ToggleMaximize();
@@ -191,17 +198,23 @@ public sealed partial class MainWindow : Window
             EnterAddressEdit();
     }
 
+    /// <summary>Every location can be replaced by typing a path, including Home, Trash, tags and search results.</summary>
     private void EnterAddressEdit()
     {
-        if (Shell.ActivePane is not { IsFolder: true } pane)
+        if (Shell.ActivePane is not { } pane)
             return;
         pane.IsEditingAddress = true;
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        FocusAddressBox();
+    }
+
+    private void FocusAddressBox()
+        => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
+            if (!AddressBox.IsVisible)
+                return;
             AddressBox.Focus();
             AddressBox.SelectAll();
         });
-    }
 
     private void OnAddressKeyDown(object? sender, KeyEventArgs e)
     {

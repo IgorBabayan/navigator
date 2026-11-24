@@ -8,7 +8,7 @@
   <UserControl.DataTemplates>
     <DataTemplate x:DataType="vm:SidebarItemViewModel">
       <Border Classes="hoverable" Classes.selected="{Binding IsSelected}" Height="{StaticResource Size.SidebarItem}" Margin="0,1"
-              ToolTip.Tip="{Binding Path}" PointerPressed="OnItemPressed" PointerReleased="OnItemReleased">
+              ToolTip.Tip="{Binding ToolTip}" PointerPressed="OnItemPressed" PointerReleased="OnItemReleased">
         <Border.ContextMenu>
           <ContextMenu>
             <MenuItem Header="{c:Tr Command.OpenInNewTab}" Command="{Binding $parent[v:SidebarView].Model.OpenInNewTabCommand}" CommandParameter="{Binding}" />
@@ -21,14 +21,12 @@
         </Border.ContextMenu>
         <Grid ColumnDefinitions="Auto,*" Margin="{StaticResource Space.SidebarItem}">
           <Border Classes="pill" Margin="-12,0,0,0" />
-          <Panel Width="18" Height="18" Margin="4,0,12,0">
-            <c:IconView Kind="{Binding IconKey}" Width="18" Height="18" IsVisible="{Binding !IsTag}" />
+          <Panel Width="18" Height="18" Margin="4,0,12,0" VerticalAlignment="Center">
+            <c:IconView Kind="{Binding IconKey}" SystemIcon="{Binding SystemIconKey}" Width="18" Height="18" IsVisible="{Binding !IsTag}" />
             <Ellipse Width="10" Height="10" IsVisible="{Binding IsTag}" Fill="{Binding Color, Converter={x:Static c:HexToBrushConverter.Instance}}" />
           </Panel>
-          <StackPanel Grid.Column="1" VerticalAlignment="Center">
-            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-            <ProgressBar Value="{Binding UsedPercent}" IsVisible="{Binding ShowUsage}" Height="2" MinHeight="2" Margin="0,3,4,0" />
-          </StackPanel>
+          <!-- Name only: drive usage lives in the tooltip and on Home (no per-item progress bar in the sidebar). -->
+          <TextBlock Grid.Column="1" Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
         </Grid>
       </Border>
     </DataTemplate>
@@ -41,11 +39,12 @@
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="vm:SidebarSectionViewModel">
             <StackPanel Margin="0,8,0,0">
-              <Button Classes="subtle" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="8,2" MinHeight="28"
+              <Button Classes="subtle" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" VerticalContentAlignment="Center" Padding="8,2" MinHeight="28"
                       Command="{Binding $parent[v:SidebarView].Model.ToggleSectionCommand}" CommandParameter="{Binding}">
-                <StackPanel Orientation="Horizontal" Spacing="6">
-                  <TextBlock Classes="caption" Text="{Binding Title}" FontWeight="SemiBold" />
-                  <c:IconView Kind="{Binding IsExpanded, Converter={x:Static v:ExpandGlyphConverter.Instance}}" Width="10" Height="10" Opacity="0.7" />
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                  <c:IconView Kind="{Binding IconKey}" SystemIcon="{Binding SystemIconKey}" Width="14" Height="14" VerticalAlignment="Center" Opacity="0.85" />
+                  <TextBlock Classes="caption" Text="{Binding Title}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                  <c:IconView Kind="{Binding IsExpanded, Converter={x:Static v:ExpandGlyphConverter.Instance}}" Width="10" Height="10" VerticalAlignment="Center" Opacity="0.7" />
                 </StackPanel>
               </Button>
               <ItemsControl ItemsSource="{Binding Items}" IsVisible="{Binding IsExpanded}" />
