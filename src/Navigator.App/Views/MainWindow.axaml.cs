@@ -27,6 +27,9 @@ public sealed partial class MainWindow : Window
     private PaneViewModel? _mouseNavigationPane;
     private string? _addressBeforeBrowsing;
     private int _crumbMenuVersion;
+    private MenuFlyout? _crumbMenu;
+    private Button? _lastClosedCrumbMenuOwner;
+    private long _lastCrumbMenuClosedAt;
 
     public MainWindow()
         : this(ActivatorUtilities.CreateInstance<ShellViewModel>(App.Services), App.Services.GetRequiredService<PaneServices>())
@@ -391,15 +394,15 @@ public sealed partial class MainWindow : Window
     /// <summary>The chevron after a segment lists its sub-folders; the one on the current path is shown bold.</summary>
     private async void OnCrumbChevronClick(object? sender, RoutedEventArgs e)
     {
-        if (sender is not Button { Flyout: MenuFlyout menu, DataContext: BreadcrumbViewModel crumb } button || Shell.ActivePane is not { } pane)
+        if (sender is not Button { DataContext: BreadcrumbViewModel crumb } button || Shell.ActivePane is not { } pane)
             return;
-        await FillLocationMenuAsync(menu, button, pane, [], () => pane.GetBreadcrumbChildrenAsync(crumb)).ConfigureAwait(true);
+        await ShowLocationMenuAsync(button, pane, [], () => pane.GetBreadcrumbChildrenAsync(crumb)).ConfigureAwait(true);
     }
 
     /// <summary>The leading button lists the segments scrolled out of view (nearest first), then the root locations.</summary>
     private async void OnRootChevronClick(object? sender, RoutedEventArgs e)
     {
-        if (sender is not Button { Flyout: MenuFlyout menu } button || Shell.ActivePane is not { } pane)
+        if (sender is not Button button || Shell.ActivePane is not { } pane)
             return;
 
         var hidden = new List<BreadcrumbChild>();
@@ -410,50 +413,93 @@ public sealed partial class MainWindow : Window
         }
 
         hidden.Reverse();
-        await FillLocationMenuAsync(menu, button, pane, hidden, () => pane.GetRootLocationsAsync()).ConfigureAwait(true);
+        await ShowLocationMenuAsync(button, pane, hidden, () => pane.GetRootLocationsAsync()).ConfigureAwait(true);
     }
 
-    private async Task FillLocationMenuAsync(MenuFlyout menu, Button button, PaneViewModel pane, IReadOnlyList<BreadcrumbChild> leading, Func<Task<IReadOnlyList<BreadcrumbChild>>> load)
+    /// <summary>
+    /// Builds a location menu and opens it under <paramref name="button"/>. The menu is opened explicitly rather than
+    /// through <c>Button.Flyout</c>: a button opens its flyout before raising Click, and an empty MenuFlyout does not
+    /// open at all. Fast listings are shown complete; slow ones (network folders) open with a "Loading…" row that is
+    /// replaced when the listing arrives. Clicking the same chevron while its menu is open closes it.
+    /// </summary>
+    private async Task ShowLocationMenuAsync(Button button, PaneViewModel pane, IReadOnlyList<BreadcrumbChild> leading, Func<Task<IReadOnlyList<BreadcrumbChild>>> load)
     {
+        // The press that dismissed this button's own menu must not reopen it (toggle behaviour).
+        if (ReferenceEquals(_lastClosedCrumbMenuOwner, button) && Environment.TickCount64 - _lastCrumbMenuClosedAt < 300)
+        {
+            _lastClosedCrumbMenuOwner = null;
+            return;
+        }
+
+        _crumbMenu?.Hide();
         var version = ++_crumbMenuVersion;
         var localizer = _services.Localizer;
-        menu.Items.Clear();
+        var menu = new MenuFlyout { Placement = PlacementMode.BottomEdgeAlignedLeft };
+        menu.FlyoutPresenterClasses.Add("crumbs");
         foreach (var child in leading)
             menu.Items.Add(CreateLocationItem(menu, pane, child));
         if (leading.Count > 0)
             menu.Items.Add(new Separator());
-        var loading = new MenuItem { Header = localizer["Omnibar.Loading"], IsEnabled = false };
-        menu.Items.Add(loading);
 
-        var icon = button.FindDescendantOfType<IconView>();
-        if (icon?.Kind == "ChevronRight")
+        var loadTask = LoadLocationsAsync(load);
+        await Task.WhenAny(loadTask, Task.Delay(150)).ConfigureAwait(true);
+        if (version != _crumbMenuVersion)
+            return; // another chevron was clicked meanwhile
+
+        MenuItem? loading = null;
+        if (loadTask.IsCompleted)
         {
-            icon.Kind = "ChevronDown";
-            void Restore(object? s, EventArgs a)
-            {
-                icon.Kind = "ChevronRight";
-                menu.Closed -= Restore;
-            }
-
-            menu.Closed += Restore;
+            AddLocationItems(menu, pane, await loadTask.ConfigureAwait(true));
+        }
+        else
+        {
+            loading = new MenuItem { Header = localizer["Omnibar.Loading"], IsEnabled = false };
+            menu.Items.Add(loading);
         }
 
-        IReadOnlyList<BreadcrumbChild> children;
+        var icon = button.FindDescendantOfType<IconView>();
+        var restoreKind = icon?.Kind;
+        if (icon is not null && restoreKind == "ChevronRight")
+            icon.Kind = "ChevronDown";
+
+        menu.Closed += (_, _) =>
+        {
+            if (icon is not null && restoreKind is not null)
+                icon.Kind = restoreKind;
+            _lastClosedCrumbMenuOwner = button;
+            _lastCrumbMenuClosedAt = Environment.TickCount64;
+            if (ReferenceEquals(_crumbMenu, menu))
+                _crumbMenu = null;
+        };
+
+        _crumbMenu = menu;
+        menu.ShowAt(button);
+
+        if (loading is null)
+            return;
+        var children = await loadTask.ConfigureAwait(true);
+        if (version != _crumbMenuVersion || !ReferenceEquals(_crumbMenu, menu))
+            return;
+        menu.Items.Remove(loading);
+        AddLocationItems(menu, pane, children);
+    }
+
+    private static async Task<IReadOnlyList<BreadcrumbChild>> LoadLocationsAsync(Func<Task<IReadOnlyList<BreadcrumbChild>>> load)
+    {
         try
         {
-            children = await load().ConfigureAwait(true);
+            return await load().ConfigureAwait(true);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
         {
-            children = [];
+            return [];
         }
+    }
 
-        if (version != _crumbMenuVersion)
-            return; // another chevron was opened meanwhile
-
-        menu.Items.Remove(loading);
+    private void AddLocationItems(MenuFlyout menu, PaneViewModel pane, IReadOnlyList<BreadcrumbChild> children)
+    {
         if (children.Count == 0)
-            menu.Items.Add(new MenuItem { Header = localizer["Omnibar.NoSubfolders"], IsEnabled = false });
+            menu.Items.Add(new MenuItem { Header = _services.Localizer["Omnibar.NoSubfolders"], IsEnabled = false });
         foreach (var child in children)
             menu.Items.Add(CreateLocationItem(menu, pane, child));
     }

@@ -124,9 +124,6 @@
                     <c:IconView x:Name="RootChevronIcon" Kind="ChevronRight" Width="12" Height="12" />
                     <TextBlock x:Name="OverflowGlyph" Text="«" IsVisible="False" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="2,-2,2,0" />
                   </Panel>
-                  <Button.Flyout>
-                    <MenuFlyout Placement="BottomEdgeAlignedLeft" FlyoutPresenterClasses="crumbs" />
-                  </Button.Flyout>
                 </Button>
                 <ScrollViewer x:Name="CrumbScroller" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" ScrollChanged="OnCrumbScrollChanged">
                   <ItemsControl x:Name="CrumbItems" ItemsSource="{Binding ActivePane.Breadcrumbs}">
@@ -149,9 +146,6 @@
                           </Button>
                           <Button Classes="subtle crumbchevron" IsVisible="{Binding CanExpand}" Click="OnCrumbChevronClick">
                             <c:IconView Kind="ChevronRight" Width="12" Height="12" />
-                            <Button.Flyout>
-                              <MenuFlyout Placement="BottomEdgeAlignedLeft" FlyoutPresenterClasses="crumbs" />
-                            </Button.Flyout>
                           </Button>
                         </StackPanel>
                       </DataTemplate>
