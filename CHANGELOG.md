@@ -85,6 +85,9 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
 
 - The global "open Navigator" shortcut now brings Navigator in front of other apps on Windows (it was blocked by
   the foreground lock). Its description says when it can also open Navigator (background mode).
+- The global shortcut now also gets past the foreground lock when the app in front refused the first attempt (a no-op
+  input claims the right to switch, with a task-switcher fallback). Settings → Keyboard shortcuts shows on the
+  "Open Navigator from any app" row whether the shortcut is active, taken by another app, or why it cannot work.
 - Rows and tiles no longer blink while scrolling: a recycled container switched its hover/selection state with a fade
   from the previous item's state. `RowSurface` turns transitions off while virtualization assigns a new item.
 - Clearing the search box while search results are shown returns to the searched folder (a Back step when it

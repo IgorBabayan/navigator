@@ -268,6 +268,8 @@
                         <TextBlock Classes="description" IsVisible="{Binding IsModified}" Text="{Binding DefaultGesturesCaption}" />
                         <TextBlock Classes="error" Text="{c:Tr Settings.ShortcutConflict}" IsVisible="{Binding HasConflict}" />
                         <TextBlock Classes="error" Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap" />
+                        <TextBlock Classes="description" Text="{Binding GlobalStatus}" IsVisible="{Binding ShowGlobalStatus}" TextWrapping="Wrap" />
+                        <TextBlock Classes="error" Text="{Binding GlobalStatus}" IsVisible="{Binding HasGlobalProblem}" TextWrapping="Wrap" />
                       </StackPanel>
                       <Panel Grid.Column="1" VerticalAlignment="Center">
                         <TextBox Text="{Binding Gestures, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" PlaceholderText="{c:Tr Settings.ShortcutNotAssigned}"
