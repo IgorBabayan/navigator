@@ -198,7 +198,8 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
 
         BottomItems.Clear();
         if (settings.ShowTrash && _services.Trash.IsSupported)
-            BottomItems.Add(new SidebarItemViewModel(localizer[OperatingSystem.IsWindows() ? "Location.RecycleBin" : "Location.Trash"], "Trash", Location.Trash));
+            BottomItems.Add(new SidebarItemViewModel(localizer[OperatingSystem.IsWindows() ? "Location.RecycleBin" : "Location.Trash"], "Trash", Location.Trash,
+                systemIconKey: SystemIconKey.Stock(SystemIconKind.RecycleBin)));
     }
 
     private async Task LoadVolumesAsync()

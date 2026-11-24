@@ -87,6 +87,7 @@ public enum SystemIconKind
     DriveNetwork,
     DriveOptical,
     DriveRam,
+    RecycleBin,
 }
 
 /// <summary>

@@ -62,7 +62,7 @@
                   </ContextMenu>
                 </Border.ContextMenu>
                 <Grid ColumnDefinitions="Auto,*,Auto">
-                  <c:IconView Kind="{Binding IconKey}" Width="16" Height="16" Margin="0,0,8,0" />
+                  <c:IconView Kind="{Binding IconKey}" SystemIcon="{Binding SystemIconKey}" Width="16" Height="16" Margin="0,0,8,0" />
                   <TextBlock Grid.Column="1" Text="{Binding Header}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="{DynamicResource Font.Caption}" />
                   <Button Grid.Column="2" Classes="subtle icon tabclose" Width="24" Height="24" MinHeight="24" MinWidth="24" Margin="4,0,0,0"
                           IsVisible="{Binding !IsPinned}"

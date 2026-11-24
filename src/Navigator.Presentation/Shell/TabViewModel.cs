@@ -9,6 +9,8 @@ namespace Navigator.Presentation.Shell;
 /// <summary>A tab: one pane, or two side by side in split (dual pane) view, each with its own history.</summary>
 public sealed class TabViewModel : ObservableObject, IDisposable
 {
+    private static readonly string TrashSystemIconKey = Core.Platform.SystemIconKey.Stock(Core.Platform.SystemIconKind.RecycleBin);
+
     private readonly PaneServices _services;
     private readonly PinnedFolders _pins;
     private PaneViewModel? _secondary;
@@ -77,6 +79,9 @@ public sealed class TabViewModel : ObservableObject, IDisposable
         _ => "Folder",
     };
 
+    /// <summary>OS-drawn icon for locations that have one (Recycle Bin); null keeps <see cref="IconKey"/> at no cost.</summary>
+    public string? SystemIconKey => ActivePane.Location.Kind == LocationKind.Trash ? TrashSystemIconKey : null;
+
     public string ToolTip => ActivePane.Location.Path ?? Header;
 
     public event EventHandler<Location>? OpenInNewTabRequested;
@@ -131,6 +136,7 @@ public sealed class TabViewModel : ObservableObject, IDisposable
     {
         OnPropertyChanged(nameof(Header));
         OnPropertyChanged(nameof(IconKey));
+        OnPropertyChanged(nameof(SystemIconKey));
         OnPropertyChanged(nameof(ToolTip));
     }
 
