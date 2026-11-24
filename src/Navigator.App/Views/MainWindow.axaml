@@ -8,7 +8,6 @@
         xmlns:sort="using:Navigator.Core.Sorting"
         x:Class="Navigator.App.Views.MainWindow"
         x:DataType="vm:ShellViewModel"
-        Title="{Binding WindowTitle}"
         Icon="/Assets/navigator.ico"
         Width="1180" Height="740" MinWidth="560" MinHeight="380"
         WindowStartupLocation="CenterScreen"

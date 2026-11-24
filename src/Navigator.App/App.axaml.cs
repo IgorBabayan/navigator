@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
@@ -40,7 +41,8 @@ public sealed partial class App : Application
             Dispatcher.UIThread.Post(() =>
             {
                 var logger = _services.GetRequiredService<ILogger<App>>();
-                logger.LogInformation("First frame after {Milliseconds} ms", (int)StartupTimer.Elapsed.TotalMilliseconds);
+                if (logger.IsEnabled(LogLevel.Information))
+                    logger.LogInformation("First frame after {Milliseconds} ms", (int)StartupTimer.Elapsed.TotalMilliseconds);
                 update.StartBackgroundChecks();
             }, DispatcherPriority.Background);
         }

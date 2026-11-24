@@ -17,7 +17,7 @@ dotnet test tests/Navigator.IntegrationTests -c Release
 dotnet test Navigator.slnx -c Release --filter "FullyQualifiedName~Settings"   # subset
 ```
 
-CI (`ci.yml`) runs both suites on ubuntu-22.04, windows-latest and macos-latest, uploads TRX results, and
+CI (`ci.yml`, triggered by pull requests into `release` or manually) runs both suites on ubuntu-22.04, windows-latest and macos-latest, uploads TRX results, and
 publishes all six RIDs as a smoke test. `release.yml` repeats the tests before building packages.
 
 ## Results so far (honest record)

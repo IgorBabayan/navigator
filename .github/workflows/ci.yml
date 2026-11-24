@@ -1,11 +1,11 @@
 name: CI
 
 # Validation only: never publishes anything. See docs/RELEASE.md for the release pipeline.
+# Runs only for pull requests into `release` (the gate before a release is published) and on manual
+# dispatch. Pushes and pull requests to `development` do not trigger builds.
 on:
   pull_request:
-    branches: [development, release]
-  push:
-    branches: [development]
+    branches: [release]
   workflow_dispatch:
 
 permissions:

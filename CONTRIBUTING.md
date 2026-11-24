@@ -21,7 +21,7 @@ See `docs/SOURCE_ORIGINALITY.md`.
    dotnet test tests/Navigator.UnitTests -c Release
    dotnet test tests/Navigator.IntegrationTests -c Release
    ```
-4. Update `docs/FEATURE_PARITY.md`, `docs/PROGRESS.md`, `docs/KNOWN_ISSUES.md` and `CHANGELOG.md`
+4. CI does not run on `development`; run the commands above before every push. Update `docs/FEATURE_PARITY.md`, `docs/PROGRESS.md`, `docs/KNOWN_ISSUES.md` and `CHANGELOG.md`
    (under **Unreleased**) when behavior changes. Do not edit `README.md`.
 5. Releases happen when `development` is merged into `release` (`docs/RELEASE.md`). Add `release:minor`
    or `release:major` to that PR when the series should change.

@@ -23,7 +23,7 @@ public sealed class SettingsService : IDisposable
         var result = store.Load();
         Current = result.Settings;
         LoadStatus = result.Status;
-        if (result.Status is SettingsLoadStatus.ResetAfterCorruption or SettingsLoadStatus.RecoveredFromBackup)
+        if (result.Status is SettingsLoadStatus.ResetAfterCorruption or SettingsLoadStatus.RecoveredFromBackup && _logger.IsEnabled(LogLevel.Warning))
             _logger.LogWarning("Settings file was unreadable ({Status}); a copy was kept at {Copy}", result.Status, result.PreservedCopyPath);
     }
 

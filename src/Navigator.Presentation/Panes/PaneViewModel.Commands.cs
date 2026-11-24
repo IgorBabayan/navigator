@@ -595,7 +595,8 @@ public sealed partial class PaneViewModel
     {
         if (operation.State == FileOperationState.Failed && operation.Failure is { } failure)
         {
-            _logger.LogError(failure, "File operation {Kind} failed", operation.Kind);
+            if (_logger.IsEnabled(LogLevel.Error))
+                _logger.LogError(failure, "File operation {Kind} failed", operation.Kind);
             _services.Notifications.Show(new InAppNotification(_services.Localizer["Notify.OperationFailed"], failure.Message, NotificationSeverity.Error));
         }
         else if (operation.State == FileOperationState.CompletedWithErrors)

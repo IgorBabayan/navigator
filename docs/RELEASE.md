@@ -6,8 +6,8 @@ Releases are produced only by `.github/workflows/release.yml`. Nobody builds rel
 
 | Branch | Purpose |
 |---|---|
-| `development` | Integration branch; all feature/bugfix branches merge here. CI (`ci.yml`) runs on every push/PR. |
-| `release` | Every merged pull request into `release` produces one GitHub Release. |
+| `development` | Integration branch; all feature/bugfix branches merge here. No workflow runs on pushes or PRs here (build locally; `ci.yml` can be started manually). |
+| `release` | Pull requests into `release` run CI (`ci.yml`) as the pre-release gate; every merged pull request produces one GitHub Release. |
 | `feature/*`, `bugfix/*`, `hotfix/*` | Work branches. Hotfixes may target `release` directly and are merged back into `development`. |
 
 ## Triggers
@@ -78,7 +78,7 @@ dotnet run --project tools/Navigator.ReleaseTool -- keygen
 # prints the private key (store as secret) and the public key (store as variable)
 ```
 
-Recommended branch protection for `release` and `development`: require PRs, require the `CI` checks,
+Recommended branch protection for `release`: require PRs, require the `CI` checks,
 disallow force pushes and deletion; restrict who can push tags matching `v*` to the workflow (GitHub
 rulesets) so versions cannot be reserved by hand.
 

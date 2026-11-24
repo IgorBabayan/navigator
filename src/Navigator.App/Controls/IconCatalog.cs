@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using Avalonia.Media;
+using Avalonia.Media.Immutable;
 
 namespace Navigator.App.Controls;
 
