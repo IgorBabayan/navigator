@@ -135,7 +135,8 @@ public static class PathUtil
     /// <summary>Validates a single file or folder name for the current platform.</summary>
     public static NameValidationResult ValidateName(string? name) => ValidateName(name, IsWindows);
 
-    internal static NameValidationResult ValidateName(string? name, bool windowsRules)
+    /// <summary>Validates a name with Windows rules or POSIX rules (remote servers use the latter).</summary>
+    public static NameValidationResult ValidateName(string? name, bool windowsRules)
     {
         if (string.IsNullOrWhiteSpace(name))
             return NameValidationResult.Empty;

@@ -14,6 +14,8 @@
     <ProjectReference Include="..\..\src\Navigator.Updater\Navigator.Updater.csproj" />
     <ProjectReference Include="..\..\src\Navigator.Presentation\Navigator.Presentation.csproj" />
     <ProjectReference Include="..\..\tools\Navigator.ReleaseTool\Navigator.ReleaseTool.csproj" />
+    <ProjectReference Include="..\..\src\Navigator.Plugins\Navigator.Plugins.csproj" />
+    <ProjectReference Include="..\..\plugins\Navigator.Plugin.Ftp\Navigator.Plugin.Ftp.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Shared\*.cs" Link="Shared\%(Filename)%(Extension)" />

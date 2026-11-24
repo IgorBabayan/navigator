@@ -1,15 +1,29 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
 using Navigator.Core.IO;
 using Navigator.Core.Navigation;
 using Navigator.Core.Platform;
+using Navigator.Plugins;
 using Navigator.Presentation.Panes;
 using Navigator.Presentation.Services;
 
 namespace Navigator.Presentation.Shell;
 
-public sealed class SidebarItemViewModel(string name, string iconKey, Location location, string? detail = null, string? color = null, string? systemIconKey = null) : ObservableObject
+/// <summary>A plugin action on a sidebar section header or in an entry's context menu.</summary>
+public sealed class SidebarCommandViewModel(string title, string iconKey, bool isDestructive, IAsyncRelayCommand command)
+{
+    public string Title { get; } = title;
+
+    public string IconKey { get; } = iconKey;
+
+    public bool IsDestructive { get; } = isDestructive;
+
+    public IAsyncRelayCommand Command { get; } = command;
+}
+
+public sealed class SidebarItemViewModel(string name, string iconKey, Location location, string? detail = null, string? color = null, string? systemIconKey = null, bool isPinned = false) : ObservableObject
 {
     private bool _isSelected;
 
@@ -39,7 +53,15 @@ public sealed class SidebarItemViewModel(string name, string iconKey, Location l
 
     public bool IsTag => Color is not null;
 
+    /// <summary>A pinned folder (quick access): offers move up/down and unpin.</summary>
+    public bool IsPinned { get; } = isPinned;
+
     public string? Path => Location.Path;
+
+    /// <summary>Context menu actions contributed by a plugin (e.g. "Edit…", "Remove" for a saved server).</summary>
+    public IReadOnlyList<SidebarCommandViewModel> Commands { get; init; } = [];
+
+    public bool HasCommands => Commands.Count > 0;
 
     public bool IsSelected
     {
@@ -71,15 +93,30 @@ public sealed class SidebarSectionViewModel(string id, string title, string icon
     }
 
     public bool IsReorderable => Id == "pinned";
+
+    /// <summary>Header buttons contributed by a plugin (e.g. "Add connection").</summary>
+    public IReadOnlyList<SidebarCommandViewModel> Commands { get; init; } = [];
+
+    public bool HasCommands => Commands.Count > 0;
+
+    /// <summary>The plugin section this view model shows, or null for Navigator's own sections.</summary>
+    internal IPluginSidebarSection? Source { get; init; }
 }
 
-/// <summary>Navigation sidebar: Home, pinned folders, drives, network, tags, trash. Shared look, per-window instance.</summary>
+/// <summary>
+/// Navigation sidebar: Home, pinned folders, drives, plugin sections (Network, SSH, FTP…), tags, trash.
+/// Shared look, per-window instance. Plugin entries are fetched off the UI thread and each section refreshes on its own.
+/// </summary>
 public sealed class SidebarViewModel : ObservableObject, IDisposable
 {
     private readonly PaneServices _services;
     private readonly PinnedFolders _pins;
+    private readonly List<IPluginSidebarSection> _subscribedSections = [];
+    private readonly HashSet<IPluginSidebarSection> _pendingSectionReloads = [];
     private double _width;
     private bool _isVisible;
+    private int _generation;
+    private bool _disposed;
     private SidebarItemViewModel? _trashItem;
 
     public SidebarViewModel(PaneServices services, PinnedFolders pins)
@@ -100,6 +137,7 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
         _services.Volumes.VolumesChanged += OnVolumesChanged;
         _services.Settings.Changed += OnSettingsChanged;
         _services.TrashStatus.PropertyChanged += OnTrashStatusChanged;
+        _services.Plugins.Changed += OnPluginsChanged;
         Rebuild();
     }
 
@@ -189,7 +227,7 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
                 var known = _pins.KnownFolderFor(path);
                 var name = known is { } folder && folder != KnownFolder.Home ? localizer["KnownFolder." + folder] : System.IO.Path.GetFileName(PathUtil.TrimTrailingSeparator(path));
                 pinned.Items.Add(new SidebarItemViewModel(string.IsNullOrEmpty(name) ? path : name, known?.ToString() ?? "Folder", Location.Folder(path),
-                    systemIconKey: PinnedFolders.SystemIconKeyFor(path, known)));
+                    systemIconKey: PinnedFolders.SystemIconKeyFor(path, known), isPinned: true));
             }
 
             // The trash lives in quick access, after the pinned folders (it is not reorderable or unpinnable).
@@ -199,13 +237,13 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
             Sections.Add(pinned);
         }
 
-        if (settings.ShowDrives || settings.ShowNetwork)
+        if (settings.ShowDrives)
         {
             Sections.Add(new SidebarSectionViewModel("drives", localizer["Sidebar.Drives"], "Drive", SystemIconKey.Stock(SystemIconKind.Computer)) { IsExpanded = !collapsed.Contains("drives") });
-            if (settings.ShowNetwork)
-                Sections.Add(new SidebarSectionViewModel("network", localizer["Sidebar.Network"], "DriveNetwork", SystemIconKey.Stock(SystemIconKind.Network)) { IsExpanded = !collapsed.Contains("network") });
             _ = LoadVolumesAsync();
         }
+
+        RebuildPluginSections(collapsed);
 
         if (settings.ShowTags && _services.Settings.Current.Tags.Count > 0)
         {
@@ -222,25 +260,171 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(HasBottomItems));
     }
 
+    /// <summary>Local drives. Network volumes belong to the Network plugin's section.</summary>
     private async Task LoadVolumesAsync()
     {
         var volumes = await Task.Run(_services.Volumes.GetVolumes).ConfigureAwait(true);
-        var drives = Sections.FirstOrDefault(s => s.Id == "drives");
-        var network = Sections.FirstOrDefault(s => s.Id == "network");
-        drives?.Items.Clear();
-        network?.Items.Clear();
+        if (_disposed || Sections.FirstOrDefault(s => s.Id == "drives") is not { } drives)
+            return;
+        drives.Items.Clear();
         foreach (var volume in volumes)
         {
-            var model = HomeViewModel.CreateVolumeItem(volume, _services.Localizer);
-            var item = new SidebarItemViewModel(model.Name, model.IconKey, Location.Folder(volume.RootPath), model.Detail, systemIconKey: model.SystemIconKey);
             if (volume.Kind == VolumeKind.Network)
-                network?.Items.Add(item);
-            else if (_services.Settings.Current.Sidebar.ShowDrives)
-                drives?.Items.Add(item);
+                continue;
+            var model = HomeViewModel.CreateVolumeItem(volume, _services.Localizer);
+            drives.Items.Add(new SidebarItemViewModel(model.Name, model.IconKey, Location.Folder(volume.RootPath), model.Detail, systemIconKey: model.SystemIconKey));
+        }
+    }
+
+    // ── Plugin sections ───────────────────────────────────────
+
+    private void RebuildPluginSections(HashSet<string> collapsed)
+    {
+        _generation++;
+        foreach (var source in _subscribedSections)
+            source.Changed -= OnPluginSectionChanged;
+        _subscribedSections.Clear();
+        _pendingSectionReloads.Clear();
+
+        var settings = _services.Settings.Current.Sidebar;
+        foreach (var source in _services.Plugins.SidebarSections)
+        {
+            // The Network section keeps its own switch in Settings → Sidebar.
+            if (source.Id == "network" && !settings.ShowNetwork)
+                continue;
+
+            source.Changed += OnPluginSectionChanged;
+            _subscribedSections.Add(source);
+            var section = CreatePluginSection(source, collapsed.Contains(source.Id));
+            if (source.ShowWhenEmpty)
+                InsertPluginSection(section);
+            _ = LoadPluginSectionAsync(section, _generation);
+        }
+    }
+
+    private SidebarSectionViewModel CreatePluginSection(IPluginSidebarSection source, bool isCollapsed)
+    {
+        string title;
+        IReadOnlyList<PluginCommand> commands;
+        try
+        {
+            title = source.Title;
+            commands = source.Commands;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            title = source.Id;
+            commands = [];
+            LogPluginFailure(ex, source);
         }
 
-        if (network is not null && network.Items.Count == 0)
-            Sections.Remove(network);
+        return new SidebarSectionViewModel(source.Id, title, source.IconKey, source.SystemIconKey)
+        {
+            IsExpanded = !isCollapsed,
+            Source = source,
+            Commands = [.. commands.Select(c => CreateCommand(source, c, null))],
+        };
+    }
+
+    private async Task LoadPluginSectionAsync(SidebarSectionViewModel section, int generation)
+    {
+        var source = section.Source!;
+        IReadOnlyList<PluginSidebarEntry> entries;
+        try
+        {
+            entries = await Task.Run(() => source.GetEntriesAsync(CancellationToken.None).AsTask()).ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            LogPluginFailure(ex, source);
+            entries = [];
+        }
+
+        if (_disposed || generation != _generation)
+            return;
+
+        section.Items.Clear();
+        foreach (var entry in entries)
+        {
+            section.Items.Add(new SidebarItemViewModel(entry.Name, entry.IconKey, entry.Location, entry.Detail, systemIconKey: entry.SystemIconKey)
+            {
+                Commands = [.. entry.Commands.Select(c => CreateCommand(source, c, entry))],
+            });
+        }
+
+        if (entries.Count == 0 && !source.ShowWhenEmpty)
+            Sections.Remove(section);
+        else if (!Sections.Contains(section))
+            InsertPluginSection(section);
+    }
+
+    /// <summary>Plugin sections sit after Drives and before Tags, ordered by <see cref="IPluginSidebarSection.Order"/>.</summary>
+    private void InsertPluginSection(SidebarSectionViewModel section)
+    {
+        var order = section.Source!.Order;
+        var index = Sections.Count;
+        for (var i = 0; i < Sections.Count; i++)
+        {
+            var existing = Sections[i];
+            if (existing.Id == "tags" || (existing.Source is { } other && other.Order > order))
+            {
+                index = i;
+                break;
+            }
+        }
+
+        Sections.Insert(index, section);
+    }
+
+    private SidebarCommandViewModel CreateCommand(IPluginSidebarSection source, PluginCommand command, PluginSidebarEntry? entry)
+        => new(command.Title, command.IconKey, command.IsDestructive, new AsyncRelayCommand(async () =>
+        {
+            try
+            {
+                await source.ExecuteAsync(command.Id, entry, CancellationToken.None).ConfigureAwait(true);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                LogPluginFailure(ex, source);
+                await _services.Dialogs.ShowMessageAsync(_services.Localizer["Plugin.CommandFailed"], ex.Message).ConfigureAwait(true);
+            }
+        }));
+
+    /// <summary>A section's entries changed: reload just that section (coalesced per section).</summary>
+    private void OnPluginSectionChanged(object? sender, EventArgs e)
+    {
+        if (sender is not IPluginSidebarSection source)
+            return;
+        _services.Dispatcher.Post(() =>
+        {
+            if (_disposed || !_pendingSectionReloads.Add(source))
+                return;
+            _services.Dispatcher.Post(() =>
+            {
+                _pendingSectionReloads.Remove(source);
+                if (_disposed || !_subscribedSections.Contains(source))
+                    return;
+                var collapsed = _services.Settings.Current.Sidebar.CollapsedSections.Contains(source.Id);
+                var current = Sections.FirstOrDefault(s => ReferenceEquals(s.Source, source));
+                var section = CreatePluginSection(source, collapsed);
+                if (current is not null)
+                    Sections[Sections.IndexOf(current)] = section;
+                else if (source.ShowWhenEmpty)
+                    InsertPluginSection(section);
+                _ = LoadPluginSectionAsync(section, _generation);
+            });
+        });
+    }
+
+    private void OnPluginsChanged(object? sender, EventArgs e) => _services.Dispatcher.Post(() =>
+    {
+        if (!_disposed)
+            Rebuild();
+    });
+
+    private void LogPluginFailure(Exception ex, IPluginSidebarSection source)
+    {
+        _services.LoggerFactory.CreateLogger<SidebarViewModel>().LogWarning(ex, "Plugin sidebar section {Section} failed", source.Id);
     }
 
     private void Move(SidebarItemViewModel? item, int delta)
@@ -295,6 +479,11 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        _disposed = true;
+        foreach (var source in _subscribedSections)
+            source.Changed -= OnPluginSectionChanged;
+        _subscribedSections.Clear();
+        _services.Plugins.Changed -= OnPluginsChanged;
         _services.TrashStatus.PropertyChanged -= OnTrashStatusChanged;
         _pins.Changed -= OnSourcesChanged;
         _services.Volumes.VolumesChanged -= OnVolumesChanged;

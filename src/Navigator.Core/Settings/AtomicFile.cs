@@ -10,6 +10,9 @@ namespace Navigator.Core.Settings;
 public static class AtomicFile
 {
     public static void WriteAllText(string path, string content, bool keepBackup = true)
+        => WriteAllBytes(path, Encoding.UTF8.GetBytes(content), keepBackup);
+
+    public static void WriteAllBytes(string path, ReadOnlySpan<byte> content, bool keepBackup = true)
     {
         var directory = Path.GetDirectoryName(Path.GetFullPath(path))!;
         Directory.CreateDirectory(directory);
@@ -19,8 +22,7 @@ public static class AtomicFile
         {
             using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             {
-                var bytes = Encoding.UTF8.GetBytes(content);
-                stream.Write(bytes);
+                stream.Write(content);
                 stream.Flush(flushToDisk: true);
             }
 

@@ -8,6 +8,15 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
 
 ### Added
 
+- Plugin system with a plugin shop (Settings → Plugins, or the plug button in the title bar): install, update and
+  remove plugins from a signed catalog published with each release, or install a `.navplugin` file after a warning.
+  Plugins load after the first frame, each isolated from the app and from other plugins. See `docs/PLUGINS.md`.
+- Network plugin: the sidebar's Network section, built into the app and permanent.
+- SSH plugin (separate package): browse SFTP servers in panes; saved connections in the sidebar; password and private
+  key sign-in; server keys trusted on first use; open, download, upload, new folder, rename, delete.
+- FTP plugin (separate package): FTP and FTPS (explicit TLS) servers, anonymous sign-in, self-signed certificates
+  trusted per server after a warning; same file actions as SSH.
+- Releases publish `navigator-plugin-*.navplugin` packages and `plugin-catalog.json` (+ `.sig`).
 - Solution foundation: .NET 10, Avalonia 12, central package management, analyzers, CI and release workflows.
 - Core engines: batched directory enumeration, natural sorting, grouping, filtering, navigation history,
   LRU cache, prioritized background scheduler, directory monitoring with coalescing, recursive name and

@@ -8,10 +8,21 @@ namespace Navigator.Core.Platform;
 /// <item>macOS: ~/Library/Application Support/Navigator, ~/Library/Caches/Navigator, ~/Library/Logs/Navigator</item>
 /// </list>
 /// Setting NAVIGATOR_DATA_DIR redirects everything below one folder (portable mode, tests).
+/// Installed plugins live in a machine-local data folder (never the roaming profile): %LOCALAPPDATA%\Navigator\Plugins,
+/// $XDG_DATA_HOME/navigator/plugins, ~/Library/Application Support/Navigator/Plugins.
 /// </summary>
 public sealed record AppDirectories(string ConfigDirectory, string CacheDirectory, string LogDirectory)
 {
     public const string OverrideVariable = "NAVIGATOR_DATA_DIR";
+
+    private readonly string? _pluginDirectory;
+
+    /// <summary>Installed plugins (one sub-folder per plugin id) and their state file.</summary>
+    public string PluginDirectory
+    {
+        get => _pluginDirectory ?? Path.Combine(ConfigDirectory, "plugins");
+        init => _pluginDirectory = value;
+    }
 
     public string SettingsFile => Path.Combine(ConfigDirectory, "settings.json");
 
@@ -28,7 +39,7 @@ public sealed record AppDirectories(string ConfigDirectory, string CacheDirector
     internal static AppDirectories Resolve(Func<string, string?> env, OperatingSystemKind os, string home)
     {
         if (env(OverrideVariable) is { Length: > 0 } root)
-            return new AppDirectories(Path.Combine(root, "config"), Path.Combine(root, "cache"), Path.Combine(root, "logs"));
+            return new AppDirectories(Path.Combine(root, "config"), Path.Combine(root, "cache"), Path.Combine(root, "logs")) { PluginDirectory = Path.Combine(root, "plugins") };
 
         switch (os)
         {
@@ -39,7 +50,10 @@ public sealed record AppDirectories(string ConfigDirectory, string CacheDirector
                 return new AppDirectories(
                     Path.Combine(roaming, "Navigator"),
                     Path.Combine(local, "Navigator", "Cache"),
-                    Path.Combine(local, "Navigator", "Logs"));
+                    Path.Combine(local, "Navigator", "Logs"))
+                {
+                    PluginDirectory = Path.Combine(local, "Navigator", "Plugins"),
+                };
             }
 
             case OperatingSystemKind.MacOS:
@@ -48,7 +62,10 @@ public sealed record AppDirectories(string ConfigDirectory, string CacheDirector
                 return new AppDirectories(
                     Path.Combine(library, "Application Support", "Navigator"),
                     Path.Combine(library, "Caches", "Navigator"),
-                    Path.Combine(library, "Logs", "Navigator"));
+                    Path.Combine(library, "Logs", "Navigator"))
+                {
+                    PluginDirectory = Path.Combine(library, "Application Support", "Navigator", "Plugins"),
+                };
             }
 
             default:
@@ -56,10 +73,14 @@ public sealed record AppDirectories(string ConfigDirectory, string CacheDirector
                 var config = Absolute(env("XDG_CONFIG_HOME")) ?? Path.Combine(home, ".config");
                 var cache = Absolute(env("XDG_CACHE_HOME")) ?? Path.Combine(home, ".cache");
                 var state = Absolute(env("XDG_STATE_HOME")) ?? Path.Combine(home, ".local", "state");
+                var data = Absolute(env("XDG_DATA_HOME")) ?? Path.Combine(home, ".local", "share");
                 return new AppDirectories(
                     Path.Combine(config, "navigator"),
                     Path.Combine(cache, "navigator"),
-                    Path.Combine(state, "navigator", "logs"));
+                    Path.Combine(state, "navigator", "logs"))
+                {
+                    PluginDirectory = Path.Combine(data, "navigator", "plugins"),
+                };
             }
         }
     }

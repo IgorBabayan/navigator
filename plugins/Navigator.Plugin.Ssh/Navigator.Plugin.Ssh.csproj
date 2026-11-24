@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    SSH plugin: browse servers over SFTP. Installed from the plugin shop; NOT part of the app build.
+    `dotnet publish -c Release` produces artifacts/plugins/navigator-plugin-ssh-{version}.navplugin.
+  -->
+  <PropertyGroup>
+    <RootNamespace>Navigator.Plugin.Ssh</RootNamespace>
+    <NavigatorPluginId>ssh</NavigatorPluginId>
+    <NavigatorPluginVersion>1.0.0</NavigatorPluginVersion>
+    <NavigatorPluginName>SSH</NavigatorPluginName>
+    <NavigatorPluginDescription>Browse, upload and download files on SSH servers (SFTP). Password and private key sign-in.</NavigatorPluginDescription>
+    <NavigatorPluginAuthor>Navigator</NavigatorPluginAuthor>
+    <NavigatorPluginEntryType>Navigator.Plugin.Ssh.SshPlugin</NavigatorPluginEntryType>
+    <NavigatorPluginIconKey>ServerSsh</NavigatorPluginIconKey>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SSH.NET" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The host provides the contract (and Navigator.Core) at run time: never copied into the package. -->
+    <ProjectReference Include="..\..\src\Navigator.Plugins.Abstractions\Navigator.Plugins.Abstractions.csproj" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Strings\*.json" LogicalName="Strings.%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

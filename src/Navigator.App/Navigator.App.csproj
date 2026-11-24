@@ -38,6 +38,9 @@
     <ProjectReference Include="..\Navigator.Platform\Navigator.Platform.csproj" />
     <ProjectReference Include="..\Navigator.Updater\Navigator.Updater.csproj" />
     <ProjectReference Include="..\Navigator.Presentation\Navigator.Presentation.csproj" />
+    <ProjectReference Include="..\Navigator.Plugins\Navigator.Plugins.csproj" />
+    <!-- The only plugin that ships inside the app. SSH, FTP and other plugins are separate packages (plugin shop). -->
+    <ProjectReference Include="..\..\plugins\Navigator.Plugin.Network\Navigator.Plugin.Network.csproj" />
   </ItemGroup>
 
   <!-- Release builds get the update source and signing key from CI (see docs/UPDATER.md). -->

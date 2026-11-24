@@ -49,7 +49,7 @@ public sealed class PreviewViewModel : ObservableObject, IDisposable
     public PreviewViewModel(PaneServices services)
     {
         _services = services;
-        ComputeHashCommand = new AsyncRelayCommand(ComputeHashAsync, () => _pane?.Selection.SelectedItems is [{ IsDirectory: false }]);
+        ComputeHashCommand = new AsyncRelayCommand(ComputeHashAsync, () => _pane?.Selection.SelectedItems is [{ IsDirectory: false, Entry.IsRemote: false }]);
     }
 
     public bool IsEnabled
@@ -205,6 +205,13 @@ public sealed class PreviewViewModel : ObservableObject, IDisposable
         IsLoading = true;
         Properties = BuildProperties(item, folderSize: null);
 
+        if (item.Entry.IsRemote)
+        {
+            // Plugin files are not read for previews (that would download them); metadata only.
+            Kind = item.IsDirectory ? PreviewKind.Folder : PreviewKind.Metadata;
+            return;
+        }
+
         if (item.IsDirectory)
         {
             Kind = PreviewKind.Folder;
@@ -254,7 +261,7 @@ public sealed class PreviewViewModel : ObservableObject, IDisposable
         var rows = new List<PropertyRow>
         {
             new(localizer["Property.Type"], item.TypeText),
-            new(localizer["Property.Location"], Path.GetDirectoryName(item.FullPath) ?? string.Empty),
+            new(localizer["Property.Location"], (item.Entry.IsRemote ? Navigator.Core.Navigation.RemoteUri.GetParent(item.FullPath) : Path.GetDirectoryName(item.FullPath)) ?? string.Empty),
         };
 
         if (!item.IsDirectory)
@@ -267,7 +274,7 @@ public sealed class PreviewViewModel : ObservableObject, IDisposable
 
         rows.Add(new PropertyRow(localizer["Property.Modified"], item.ModifiedText));
         rows.Add(new PropertyRow(localizer["Property.Created"], item.CreatedText));
-        if (!OperatingSystem.IsWindows())
+        if (!OperatingSystem.IsWindows() && !item.Entry.IsRemote)
         {
             try
             {
@@ -283,7 +290,7 @@ public sealed class PreviewViewModel : ObservableObject, IDisposable
 
     private async Task ComputeHashAsync()
     {
-        if (_pane?.Selection.SelectedItems is not [{ IsDirectory: false } item])
+        if (_pane?.Selection.SelectedItems is not [{ IsDirectory: false } item] || item.Entry.IsRemote)
             return;
         Sha256 = _services.Localizer["Property.Computing"];
         try

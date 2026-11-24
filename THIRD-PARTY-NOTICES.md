@@ -14,6 +14,8 @@ obtained as NuGet packages (not vendored). Release packages include the runtime 
 | Avalonia.Headless | 12.1.3 | MIT | no (tests) | https://github.com/AvaloniaUI/Avalonia |
 | MSTest | 3.10.0 | MIT | no (tests) | https://github.com/microsoft/testfx |
 | BenchmarkDotNet | 0.15.2 | MIT | no (benchmarks) | https://github.com/dotnet/BenchmarkDotNet |
+| SSH.NET | 2026.0.1 | MIT | only in the SSH plugin package (`.navplugin`), not in the app | https://github.com/sshnet/SSH.NET |
+| BouncyCastle.Cryptography (dependency of SSH.NET) | 2.7.0 | MIT | only in the SSH plugin package | https://github.com/bcgit/bc-csharp |
 
 Build-time tools (not shipped): Inno Setup (Inno Setup License), appimagetool (MIT), Apple Xcode tools.
 The AppImage runtime embedded by appimagetool is MIT-licensed (https://github.com/AppImage/type2-runtime).

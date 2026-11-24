@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The plugin contract: everything a plugin may use from Navigator. BCL only (+ Navigator.Core for shared models).
+    Plugins reference this project with Private=false; the host provides the assembly at run time, so one
+    copy is loaded and types match across the plugin boundary. Breaking changes bump PluginApi.Major.
+  -->
+  <PropertyGroup>
+    <RootNamespace>Navigator.Plugins</RootNamespace>
+    <IsTrimmable>true</IsTrimmable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Navigator.Core\Navigator.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Navigator.UnitTests" />
+  </ItemGroup>
+</Project>

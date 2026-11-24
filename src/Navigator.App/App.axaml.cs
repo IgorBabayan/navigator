@@ -52,11 +52,20 @@ public sealed partial class App : Application
                 if (logger.IsEnabled(LogLevel.Information))
                     logger.LogInformation("First frame after {Milliseconds} ms", (int)StartupTimer.Elapsed.TotalMilliseconds);
                 update.StartBackgroundChecks();
+                StartPlugins(_services, logger);
                 _services.GetRequiredService<GlobalHotkeyController>().Start();
             }, DispatcherPriority.Background);
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    /// <summary>Loads installed plugins on a worker thread; a failure is logged and never reaches the UI.</summary>
+    private static void StartPlugins(ServiceProvider services, ILogger logger)
+    {
+        services.GetRequiredService<Navigator.Plugins.PluginHost>().StartAsync().ContinueWith(
+            task => logger.LogError(task.Exception, "Installed plugins could not be loaded"),
+            CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
     }
 
     /// <summary>Flushes state and releases services. Safe to call more than once.</summary>

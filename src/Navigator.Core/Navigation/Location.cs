@@ -18,6 +18,9 @@ public enum LocationKind
 
     /// <summary>All items with a tag; <see cref="Location.Query"/> is the tag id.</summary>
     Tag,
+
+    /// <summary>A folder served by a plugin file system ("sftp://user@host/path"); <see cref="Location.Path"/> is the URI.</summary>
+    Remote,
 }
 
 /// <summary>An address a tab or pane can show. Immutable and value-equal (respecting path case rules).</summary>
@@ -33,24 +36,35 @@ public sealed record Location(LocationKind Kind, string? Path = null, string? Qu
 
     public static Location Tag(string tagId) => new(LocationKind.Tag, Query: tagId);
 
+    /// <summary>A plugin-served folder. The URI is normalized (no trailing slash except for the root).</summary>
+    public static Location Remote(string uri) => new(LocationKind.Remote, RemoteUri.Normalize(uri));
+
+    /// <summary>A local folder, or a remote one when <paramref name="path"/> is a plugin URI ("sftp://…").</summary>
+    public static Location FromPath(string path) => RemoteUri.IsRemote(path) ? Remote(path) : Folder(path);
+
     public bool IsFolder => Kind == LocationKind.Folder;
+
+    public bool IsRemote => Kind == LocationKind.Remote;
 
     public bool Equals(Location? other)
         => other is not null
            && Kind == other.Kind
-           && PathUtil.AreEqual(Path, other.Path)
+           && (Kind == LocationKind.Remote ? string.Equals(Path, other.Path, StringComparison.Ordinal) : PathUtil.AreEqual(Path, other.Path))
            && string.Equals(Query, other.Query, StringComparison.Ordinal);
 
     public override int GetHashCode()
-        => HashCode.Combine(Kind, Path is null ? 0 : PathUtil.Comparer.GetHashCode(PathUtil.TrimTrailingSeparator(Path)), Query);
+        => HashCode.Combine(Kind, Path is null ? 0
+            : Kind == LocationKind.Remote ? StringComparer.Ordinal.GetHashCode(Path)
+            : PathUtil.Comparer.GetHashCode(PathUtil.TrimTrailingSeparator(Path)), Query);
 
-    /// <summary>Stable textual form used in session files: "folder:/home/me", "home:", "search:/root|query".</summary>
+    /// <summary>Stable textual form used in session files: "folder:/home/me", "home:", "search:/root|query", "remote:sftp://host/dir".</summary>
     public string Serialize() => Kind switch
     {
         LocationKind.Folder => "folder:" + Path,
         // Both parts are escaped: '|' is legal in Unix paths and in search text.
         LocationKind.Search => "search:" + Uri.EscapeDataString(Path ?? string.Empty) + "|" + Uri.EscapeDataString(Query ?? string.Empty),
         LocationKind.Tag => "tag:" + Query,
+        LocationKind.Remote => "remote:" + Path,
         LocationKind.Trash => "trash:",
         _ => "home:",
     };
@@ -72,6 +86,7 @@ public sealed record Location(LocationKind Kind, string? Path = null, string? Qu
             "trash" => Trash,
             "folder" when rest.Length > 0 => Folder(rest),
             "tag" when rest.Length > 0 => Tag(rest),
+            "remote" when RemoteUri.IsRemote(rest) => Remote(rest),
             "search" when rest.IndexOf('|', StringComparison.Ordinal) is var bar and > 0
                 => Search(Uri.UnescapeDataString(rest[..bar]), Uri.UnescapeDataString(rest[(bar + 1)..])),
             _ => null,

@@ -147,7 +147,8 @@ public sealed class FileItemViewModel : ObservableObject
     /// </summary>
     public async void RequestThumbnail(Services.IThumbnailProvider provider, int pixelSize)
     {
-        if (_thumbnail is not null || _thumbnailRequest is not null || !provider.CanCreateThumbnail(Entry))
+        // Remote entries would have to be downloaded first: they keep their type icon.
+        if (_thumbnail is not null || _thumbnailRequest is not null || Entry.IsRemote || !provider.CanCreateThumbnail(Entry))
             return;
 
         var request = new CancellationTokenSource();

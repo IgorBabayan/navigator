@@ -1,0 +1,17 @@
+{
+  "Ssh.ChangedHostKeyMessage": "The identity of {0} has CHANGED since you last connected.\n\nThis happens when the server was reinstalled, but it can also mean that someone is intercepting the connection.\n\nNew {1} key fingerprint:\n{2}\n\nReplace the saved key only if you know why it changed.",
+  "Ssh.ChangedHostKeyTitle": "Server identity changed",
+  "Ssh.KeyFileMissing": "The private key file {0} was not found.",
+  "Ssh.KeyFileUnreadable": "The private key file {0} could not be read: {1}",
+  "Ssh.Passphrase": "Passphrase",
+  "Ssh.PassphraseTitle": "Passphrase for {0}",
+  "Ssh.Password": "Password",
+  "Ssh.PasswordTitle": "Sign in to {0}",
+  "Ssh.ReplaceKey": "Replace key and connect",
+  "Ssh.Title": "SSH",
+  "Ssh.Trust": "Trust and connect",
+  "Ssh.UnknownHostMessage": "Navigator has not connected to {0} before.\n\nCheck that the {1} key fingerprint matches the server's:\n{2}\n\nThe key is remembered; you are asked again only if it changes.",
+  "Ssh.UnknownHostTitle": "Unknown server",
+  "Ssh.UserName": "User name",
+  "Ssh.UserNameTitle": "User name for {0}"
+}

@@ -10,6 +10,9 @@ using Navigator.Core.Scheduling;
 using Navigator.Core.Settings;
 using Navigator.Core.Tags;
 using Navigator.Platform;
+using Navigator.Plugin.Network;
+using Navigator.Plugins;
+using Navigator.Presentation.Plugins;
 using Navigator.Presentation.Localization;
 using Navigator.Presentation.Services;
 using Navigator.Presentation.Settings;
@@ -55,7 +58,10 @@ internal static class CompositionRoot
         services.AddSingleton<IPlatformInfo, PlatformInfo>();
         services.AddSingleton<IKnownFolderProvider, KnownFolderProvider>();
         services.AddSingleton<VolumeProvider>();
-        services.AddSingleton<IVolumeProvider>(provider => provider.GetRequiredService<VolumeProvider>());
+        // One shared volume snapshot for Home, the sidebar's Drives section and the Network plugin:
+        // a sidebar rebuild queries the drives once, not once per section.
+        services.AddSingleton(provider => new VolumeSnapshotCache(provider.GetRequiredService<VolumeProvider>()));
+        services.AddSingleton<IVolumeProvider>(provider => provider.GetRequiredService<VolumeSnapshotCache>());
         services.AddSingleton<IVolumeLocator, VolumeLocator>();
         services.AddSingleton(_ => PlatformServices.CreateTrash());
         services.AddSingleton(_ => PlatformServices.CreateLauncher());
@@ -94,6 +100,7 @@ internal static class CompositionRoot
         services.AddSingleton<PerformanceMonitor>();
         services.AddSingleton<PinnedFolders>();
         services.AddSingleton<TrashStatus>();
+        services.AddSingleton<RemoteFileService>();
         services.AddSingleton<PaneServices>();
         services.AddSingleton<GlobalHotkeyController>();
         services.AddSingleton<IGlobalHotkeyStatus>(provider => provider.GetRequiredService<GlobalHotkeyController>());
@@ -106,6 +113,37 @@ internal static class CompositionRoot
             provider.GetRequiredService<IPlatformInfo>(),
             directories.UpdateDirectory));
         services.AddSingleton<UpdateViewModel>();
+
+        // Plugins. Built-in plugins (only Network) are compiled in and registered without assembly scanning;
+        // installed ones (SSH, FTP… from the plugin shop) are loaded by PluginHost.StartAsync after the first frame.
+        services.AddSingleton<PluginUi>();
+        services.AddSingleton<PluginHostServices>();
+        services.AddSingleton(provider => new PluginHost(
+            directories.PluginDirectory,
+            provider.GetRequiredService<PluginHostServices>(),
+            [
+                new BuiltInPlugin(
+                    new PluginManifest
+                    {
+                        Id = NetworkPlugin.Id,
+                        Name = NetworkPlugin.Name,
+                        Description = NetworkPlugin.Description,
+                        Author = "Navigator",
+                        Version = provider.GetRequiredService<UpdateConfiguration>().CurrentVersion.ToString(),
+                        ApiVersion = PluginApi.Version,
+                        IconKey = NetworkPlugin.IconKey,
+                    },
+                    static () => new NetworkPlugin()),
+            ]));
+        services.AddSingleton(provider =>
+        {
+            // Created only when the plugin shop is opened: no HTTP client exists before that.
+            var configuration = provider.GetRequiredService<UpdateConfiguration>();
+            var options = PluginStoreOptions.Create(configuration.Repository, configuration.PublicKey,
+                Path.Combine(directories.CacheDirectory, "plugin-downloads"), Environment.GetEnvironmentVariable);
+            return new PluginStoreClient(UpdateService.CreateHttpClient(configuration.CurrentVersion), options);
+        });
+        services.AddTransient<PluginsViewModel>();
 
         // Per window (ShellViewModel is created by WindowService via ActivatorUtilities so the root provider does not track it)
         services.AddTransient<SettingsViewModel>();

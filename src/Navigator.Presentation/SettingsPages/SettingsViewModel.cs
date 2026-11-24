@@ -215,7 +215,8 @@ public sealed class SettingsViewModel : ObservableObject
     private KeyBindingRowViewModel? _recordingRow;
     private IReadOnlyList<Option<string>>? _fontFamilies;
 
-    public SettingsViewModel(SettingsService settings, Localizer localizer, IDialogService dialogs, IFileLauncher launcher, TagStore tags, AppDirectories directories, UpdateViewModel update, IThumbnailProvider thumbnails, IGlobalHotkeyStatus globalHotkey)
+    public SettingsViewModel(SettingsService settings, Localizer localizer, IDialogService dialogs, IFileLauncher launcher, TagStore tags, AppDirectories directories, UpdateViewModel update, IThumbnailProvider thumbnails, IGlobalHotkeyStatus globalHotkey,
+        Plugins.PluginsViewModel plugins)
     {
         _settings = settings;
         _globalHotkey = globalHotkey;
@@ -227,6 +228,7 @@ public sealed class SettingsViewModel : ObservableObject
         _tags = tags;
         _directories = directories;
         Update = update;
+        Plugins = plugins;
 
         Pages =
         [
@@ -239,6 +241,7 @@ public sealed class SettingsViewModel : ObservableObject
             new("tags", localizer["Settings.Tags"], "Tag"),
             new("keyboard", localizer["Settings.Keyboard"], "Keyboard"),
             new("performance", localizer["Settings.Performance"], "Speed"),
+            new("plugins", localizer["Settings.Plugins"], "Plugin"),
             new("updates", localizer["Settings.Updates"], "Update"),
             new("advanced", localizer["Settings.Advanced"], "Advanced"),
             new("about", localizer["Settings.About"], "Info"),
@@ -300,6 +303,9 @@ public sealed class SettingsViewModel : ObservableObject
 
     public UpdateViewModel Update { get; }
 
+    /// <summary>Settings → Plugins: the plugin shop (installed plugins, catalog, install / update / remove).</summary>
+    public Plugins.PluginsViewModel Plugins { get; }
+
     public IReadOnlyList<SettingsPage> Pages { get; }
 
     public SettingsPage SelectedPage
@@ -312,6 +318,8 @@ public sealed class SettingsViewModel : ObservableObject
             CancelKeyBindingRecording();
             if (value?.Id == "appearance")
                 EnsureFontFamilies();
+            else if (value?.Id == "plugins")
+                Plugins.EnsureCatalog(); // the catalog is downloaded only when the shop is opened
         }
     }
 
@@ -725,7 +733,11 @@ public sealed class SettingsViewModel : ObservableObject
     public IRelayCommand ChangeGlobalShortcutCommand { get; }
 
     /// <summary>Stops listening to app-wide services; called when the settings window closes (it is created per window).</summary>
-    public void Detach() => _globalHotkey.Changed -= OnGlobalHotkeyChanged;
+    public void Detach()
+    {
+        _globalHotkey.Changed -= OnGlobalHotkeyChanged;
+        Plugins.Dispose();
+    }
 
     private void OnGlobalHotkeyChanged(object? sender, EventArgs e)
     {

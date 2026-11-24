@@ -3,8 +3,16 @@
     <Project Path="src/Navigator.Core/Navigator.Core.csproj" />
     <Project Path="src/Navigator.Platform/Navigator.Platform.csproj" />
     <Project Path="src/Navigator.Updater/Navigator.Updater.csproj" />
+    <Project Path="src/Navigator.Plugins.Abstractions/Navigator.Plugins.Abstractions.csproj" />
+    <Project Path="src/Navigator.Plugins/Navigator.Plugins.csproj" />
     <Project Path="src/Navigator.Presentation/Navigator.Presentation.csproj" />
     <Project Path="src/Navigator.App/Navigator.App.csproj" />
+  </Folder>
+  <!-- Plugins: Network is built into the app; SSH and FTP are separate packages for the plugin shop (docs/PLUGINS.md). -->
+  <Folder Name="/plugins/">
+    <Project Path="plugins/Navigator.Plugin.Network/Navigator.Plugin.Network.csproj" />
+    <Project Path="plugins/Navigator.Plugin.Ssh/Navigator.Plugin.Ssh.csproj" />
+    <Project Path="plugins/Navigator.Plugin.Ftp/Navigator.Plugin.Ftp.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Navigator.UnitTests/Navigator.UnitTests.csproj" />
@@ -18,6 +26,8 @@
   <Folder Name="/solution items/">
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
+    <File Path="plugins/Directory.Build.props" />
+    <File Path="plugins/Directory.Build.targets" />
     <File Path="global.json" />
     <File Path="version.json" />
     <File Path=".editorconfig" />

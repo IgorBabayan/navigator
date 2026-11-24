@@ -116,6 +116,8 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(IsTrash));
                 OnPropertyChanged(nameof(IsSearch));
                 OnPropertyChanged(nameof(IsFolder));
+                OnPropertyChanged(nameof(IsRemote));
+                OnPropertyChanged(nameof(CanCreateFolders));
                 OnPropertyChanged(nameof(IsBrowsingList));
                 OnPropertyChanged(nameof(Title));
                 OnPropertyChanged(nameof(CurrentDirectory));
@@ -139,7 +141,14 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
 
     public bool CanCreateItems => IsFolder;
 
-    public string? ParentPath => IsFolder && _location.Path is { } path ? Path.GetDirectoryName(path) : IsSearch ? _location.Path : null;
+    /// <summary>The "New" menu is available: local folders, and server folders (new folder only).</summary>
+    public bool CanCreateFolders => IsFolder || IsRemote;
+
+    public string? ParentPath => _location.Path is not { } path ? null
+        : IsFolder ? Path.GetDirectoryName(path)
+        : IsRemote ? RemoteUri.GetParent(path)
+        : IsSearch ? path
+        : null;
 
     public string Title => _location.Kind switch
     {
@@ -147,6 +156,7 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         LocationKind.Trash => _services.Localizer[OperatingSystem.IsWindows() ? "Location.RecycleBin" : "Location.Trash"],
         LocationKind.Search => _services.Localizer.Format("Location.SearchResults", _location.Query),
         LocationKind.Tag => _services.Settings.Current.Tags.FirstOrDefault(t => t.Id == _location.Query)?.Name ?? _services.Localizer["Location.Tag"],
+        LocationKind.Remote => RemoteUri.GetName(_location.Path!),
         _ => FolderDisplayName(_location.Path!),
     };
 
@@ -322,7 +332,7 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         if (ParentPath is { } parent)
         {
             var child = _location.Path;
-            Navigate(Location.Folder(parent));
+            Navigate(Location.FromPath(parent));
             if (child is not null)
                 _reselectAfterLoad = [child];
         }
@@ -391,6 +401,9 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
                 case LocationKind.Tag:
                     await LoadTagAsync(_location.Query!, token).ConfigureAwait(true);
                     break;
+                case LocationKind.Remote:
+                    await LoadRemoteAsync(_location.Path!, token).ConfigureAwait(true);
+                    break;
             }
 
             LastLoadMilliseconds = stopwatch.ElapsedMilliseconds;
@@ -409,6 +422,14 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
                 EnumerationErrorKind.NotADirectory => _services.Localizer["Error.NotAFolder"],
                 _ => ex.InnerException?.Message ?? ex.Message,
             };
+        }
+        catch (Navigator.Plugins.RemoteFileSystemException ex)
+        {
+            ErrorText = RemoteErrorText(ex);
+        }
+        catch (NoRemoteFileSystemException ex)
+        {
+            ErrorText = _services.Localizer.Format("Remote.NoPlugin", ex.Scheme);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -663,7 +684,7 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         if (string.IsNullOrEmpty(crumb.Path))
             IsEditingAddress = true;
         else
-            Navigate(Location.Folder(crumb.Path));
+            Navigate(Location.FromPath(crumb.Path));
     }
 
     /// <summary>
@@ -694,6 +715,12 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
 
             if (IsSearch)
                 Breadcrumbs.Add(new BreadcrumbViewModel(Title, path, isLast: true));
+        }
+        else if (_location.Kind == LocationKind.Remote && _location.Path is { } remote)
+        {
+            var segments = RemoteUri.GetSegments(remote);
+            for (var i = 0; i < segments.Count; i++)
+                Breadcrumbs.Add(new BreadcrumbViewModel(segments[i].Name, segments[i].Address, i == segments.Count - 1));
         }
         else
         {
@@ -767,6 +794,8 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         CancelAddressSuggestions();
         StopMonitoring();
         RememberListing();
+        _remoteWork.Cancel();
+        _remoteWork.Dispose();
         foreach (var item in _ordered)
             item.CancelThumbnail();
     }

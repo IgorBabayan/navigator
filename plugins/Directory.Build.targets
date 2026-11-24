@@ -1,0 +1,57 @@
+<Project>
+  <!--
+    Packaged plugins (NavigatorPluginId set):
+      * plugin.json is generated next to the assembly on every build, from the project's NavigatorPlugin* properties
+        and $(NavigatorPluginVersion), so the version has exactly one source;
+      * `dotnet publish -c Release` additionally writes artifacts/plugins/navigator-plugin-{id}-{version}.navplugin:
+        a ZIP of the publish folder without the assemblies the host provides (Navigator.*), which are loaded from the
+        app so that contract types match across the plugin boundary.
+  -->
+  <PropertyGroup Condition="'$(NavigatorPluginId)' != ''">
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <Version>$(NavigatorPluginVersion)</Version>
+    <AssemblyVersion>$([System.Text.RegularExpressions.Regex]::Match('$(NavigatorPluginVersion)', '^\d+\.\d+\.\d+').Value).0</AssemblyVersion>
+    <FileVersion>$(AssemblyVersion)</FileVersion>
+    <InformationalVersion>$(NavigatorPluginVersion)</InformationalVersion>
+    <NavigatorPluginPackageName>navigator-plugin-$(NavigatorPluginId)-$(NavigatorPluginVersion).navplugin</NavigatorPluginPackageName>
+  </PropertyGroup>
+
+  <Target Name="NavigatorWritePluginManifest" AfterTargets="CopyFilesToOutputDirectory" Condition="'$(NavigatorPluginId)' != ''">
+    <PropertyGroup>
+      <_NavigatorPluginJson>{
+  "id": "$(NavigatorPluginId)",
+  "name": "$(NavigatorPluginName)",
+  "description": "$(NavigatorPluginDescription)",
+  "author": "$(NavigatorPluginAuthor)",
+  "version": "$(NavigatorPluginVersion)",
+  "apiVersion": "$(NavigatorPluginApiVersion)",
+  "assembly": "$(AssemblyName).dll",
+  "entryType": "$(NavigatorPluginEntryType)",
+  "iconKey": "$(NavigatorPluginIconKey)",
+  "homepage": "$(RepositoryUrl)"
+}</_NavigatorPluginJson>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(OutDir)plugin.json" Lines="$([MSBuild]::Escape('$(_NavigatorPluginJson)'))" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <ItemGroup>
+      <FileWrites Include="$(OutDir)plugin.json" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="NavigatorPackPlugin" AfterTargets="Publish" Condition="'$(NavigatorPluginId)' != ''">
+    <PropertyGroup>
+      <_NavigatorPluginStaging>$(IntermediateOutputPath)navplugin\</_NavigatorPluginStaging>
+    </PropertyGroup>
+    <ItemGroup>
+      <_NavigatorPluginFiles Include="$(PublishDir)**\*" Exclude="$(PublishDir)**\*.pdb" />
+      <!-- Provided by the host at run time. -->
+      <_NavigatorPluginFiles Remove="$(PublishDir)Navigator.*.dll" />
+      <_NavigatorPluginFiles Include="$(PublishDir)$(AssemblyName).dll" />
+    </ItemGroup>
+    <RemoveDir Directories="$(_NavigatorPluginStaging)" />
+    <Copy SourceFiles="$(OutDir)plugin.json" DestinationFolder="$(_NavigatorPluginStaging)" />
+    <Copy SourceFiles="@(_NavigatorPluginFiles)" DestinationFiles="@(_NavigatorPluginFiles->'$(_NavigatorPluginStaging)%(RecursiveDir)%(Filename)%(Extension)')" />
+    <MakeDir Directories="$(NavigatorPluginOutput)" />
+    <ZipDirectory SourceDirectory="$(_NavigatorPluginStaging)" DestinationFile="$(NavigatorPluginOutput)$(NavigatorPluginPackageName)" Overwrite="true" />
+    <Message Importance="high" Text="Plugin package: $(NavigatorPluginOutput)$(NavigatorPluginPackageName)" />
+  </Target>
+</Project>

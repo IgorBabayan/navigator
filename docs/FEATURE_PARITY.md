@@ -43,7 +43,10 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Home, pinned folders (pin/unpin/reorder) | 🟦 | 🟦 | ✓ | ✓ | ✓ | `PinnedFolders` |
 | Default pins = known folders | 🟨 | 🟦 | 🟦 | ✅ | 🟦 | XDG `user-dirs.dirs` parsing tested; Windows shell API and macOS paths untested |
 | Drives with capacity bar, live mount/unmount | ✅ | 🟦 | 🟦 | ✅ | 🟦 | Linux filtering tested; change detection via mount-root watchers + 3 s fingerprint while visible |
-| Network locations | 🟨 | 🟦 | 🟦 | 🟦 | 🟦 | only mounted network volumes; no browsing of SMB/NFS shares |
+| Network locations | 🟨 | 🟦 | 🟦 | 🟦 | 🟦 | built-in Network plugin; only mounted network volumes; no browsing of SMB/NFS shares |
+| SSH / SFTP servers (plugin) | ✅ | 🟦 | ✓ | ✓ | ✓ | SSH plugin; saved connections, password/key sign-in, host key TOFU; tested against OpenSSH and AsyncSSH |
+| FTP / FTPS servers (plugin) | ✅ | 🟦 | ✓ | ✓ | ✓ | FTP plugin; explicit TLS, anonymous; tested against vsftpd and pyftpdlib |
+| Plugin shop (install/update/remove) | ✅ | 🟦 | ✓ | ✓ | ✓ | Settings → Plugins; signed catalog; built-in Network cannot be removed |
 | Tags section | 🟦 | 🟦 | ✓ | ✓ | ✓ | |
 | Recycle Bin / Trash entry | ✅ | 🟦 | ✓ | ✓ | ✓ | |
 | Collapsible sections, resizable width | 🟦 | 🟦 | ✓ | ✓ | ✓ | |

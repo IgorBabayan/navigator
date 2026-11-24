@@ -1,0 +1,16 @@
+<Project>
+  <!--
+    Shared settings for plugin projects. Imports the repository-wide settings first.
+
+    A *packaged* plugin (SSH, FTP…) sets NavigatorPluginId and the other NavigatorPlugin* properties in its project
+    file. It is built as its own package (.navplugin), versioned independently of the app, and is never referenced
+    by Navigator.App: the app ships only the built-in Network plugin. See docs/PLUGINS.md.
+  -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)..'))" />
+
+  <PropertyGroup>
+    <!-- Must equal Navigator.Plugins.PluginApi.Major.Minor (a unit test checks it). -->
+    <NavigatorPluginApiVersion>1.0</NavigatorPluginApiVersion>
+    <NavigatorPluginOutput>$(MSBuildThisFileDirectory)..\artifacts\plugins\</NavigatorPluginOutput>
+  </PropertyGroup>
+</Project>

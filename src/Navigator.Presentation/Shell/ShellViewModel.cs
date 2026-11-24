@@ -60,6 +60,7 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
         TogglePreviewCommand = new RelayCommand(() => IsPreviewVisible = !IsPreviewVisible);
         ToggleHiddenItemsCommand = new RelayCommand(ToggleHiddenItems);
         OpenSettingsCommand = new RelayCommand(() => _services.Windows.OpenSettings());
+        OpenPluginShopCommand = new RelayCommand(() => _services.Windows.OpenSettings("plugins"));
         NewWindowCommand = new RelayCommand(() => _services.Windows.OpenNewWindow());
         GoHomeCommand = new RelayCommand(() => ActivePane?.Navigate(Location.Home));
         UndoCommand = new AsyncRelayCommand(UndoAsync, () => _services.Operations.Undo.CanUndo);
@@ -178,6 +179,9 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
     public IRelayCommand ToggleHiddenItemsCommand { get; }
 
     public IRelayCommand OpenSettingsCommand { get; }
+
+    /// <summary>Settings → Plugins (install, update and remove plugins).</summary>
+    public IRelayCommand OpenPluginShopCommand { get; }
 
     public IRelayCommand NewWindowCommand { get; }
 
@@ -372,6 +376,7 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
             case "edit.undo": UndoCommand.Execute(null); break;
             case "edit.redo": RedoCommand.Execute(null); break;
             case "app.settings": OpenSettingsCommand.Execute(null); break;
+            case "app.pluginShop": OpenPluginShopCommand.Execute(null); break;
             default:
                 ViewCommandRequested?.Invoke(this, id);
                 break;
