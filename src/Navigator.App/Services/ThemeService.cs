@@ -1,0 +1,162 @@
+using Avalonia;
+using Avalonia.Animation;
+using Avalonia.Animation.Easings;
+using Avalonia.Media;
+using Avalonia.Styling;
+using Microsoft.Extensions.Logging;
+using Navigator.App.Infrastructure;
+using Navigator.Core.Settings;
+using Navigator.Presentation.Settings;
+
+namespace Navigator.App.Services;
+
+/// <summary>
+/// Applies appearance settings at runtime, without restarting: theme variant, accent color, density,
+/// typography scale, motion level and the window backdrop. Everything is expressed as application resources
+/// (design tokens) consumed through DynamicResource, so a change re-styles the whole UI in one pass.
+/// </summary>
+internal sealed class ThemeService(SettingsService settings)
+{
+    private static readonly Easing Standard = new SplineEasing(0.1, 0.9, 0.2, 1.0);
+    private static readonly Easing Decelerate = new SplineEasing(0.0, 0.0, 0.0, 1.0);
+
+    public event EventHandler? BackdropChanged;
+
+    public AppearanceSettings Appearance => settings.Current.Appearance;
+
+    public AnimationLevel Motion => settings.Current.Appearance.Animations;
+
+    public void Initialize()
+    {
+        ApplyAll();
+        settings.Changed += (_, section) =>
+        {
+            if (section is "appearance" or "*")
+                Avalonia.Threading.Dispatcher.UIThread.Post(ApplyAll);
+            if (section is "advanced" or "*")
+                ApplyLogLevel();
+        };
+    }
+
+    private void ApplyAll()
+    {
+        var app = Application.Current!;
+        var appearance = settings.Current.Appearance;
+
+        app.RequestedThemeVariant = appearance.Theme switch
+        {
+            ThemeMode.Light => ThemeVariant.Light,
+            ThemeMode.Dark => ThemeVariant.Dark,
+            _ => ThemeVariant.Default,
+        };
+
+        ApplyAccent(app, appearance.AccentColor);
+        ApplyDensity(app, appearance.Density, appearance.FontScale);
+        ApplyMotion(app, appearance.Animations);
+        ApplyLogLevel();
+
+        app.Resources["Window.CustomBackground"] = appearance.BackgroundColor is { } background && Color.TryParse(background, out var color)
+            ? new SolidColorBrush(color)
+            : null;
+        app.Resources["Window.TintOpacity"] = 1.0 - (appearance.Transparency * 0.6);
+        BackdropChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void ApplyLogLevel()
+        => LogLevelSwitch.Minimum = settings.Current.Advanced.LogLevel switch
+        {
+            LogVerbosity.Error => LogLevel.Error,
+            LogVerbosity.Warning => LogLevel.Warning,
+            LogVerbosity.Debug => LogLevel.Debug,
+            _ => LogLevel.Information,
+        };
+
+    private static void ApplyAccent(Application app, string? accent)
+    {
+        string[] keys = ["SystemAccentColor", "SystemAccentColorLight1", "SystemAccentColorLight2", "SystemAccentColorLight3", "SystemAccentColorDark1", "SystemAccentColorDark2", "SystemAccentColorDark3"];
+        if (accent is null || !Color.TryParse(accent, out var color))
+        {
+            // Follow the operating system accent (Fluent reads it from the platform).
+            var system = app.PlatformSettings?.GetColorValues().AccentColor1;
+            foreach (var key in keys)
+                app.Resources.Remove(key);
+            color = system ?? Color.Parse("#0078D4");
+        }
+        else
+        {
+            app.Resources["SystemAccentColor"] = color;
+            app.Resources["SystemAccentColorLight1"] = Mix(color, Colors.White, 0.2);
+            app.Resources["SystemAccentColorLight2"] = Mix(color, Colors.White, 0.4);
+            app.Resources["SystemAccentColorLight3"] = Mix(color, Colors.White, 0.6);
+            app.Resources["SystemAccentColorDark1"] = Mix(color, Colors.Black, 0.2);
+            app.Resources["SystemAccentColorDark2"] = Mix(color, Colors.Black, 0.4);
+            app.Resources["SystemAccentColorDark3"] = Mix(color, Colors.Black, 0.6);
+        }
+
+        app.Resources["Accent.Brush"] = new SolidColorBrush(color);
+        app.Resources["Accent.SubtleBrush"] = new SolidColorBrush(color, 0.16);
+        app.Resources["Accent.SelectionBrush"] = new SolidColorBrush(color, 0.24);
+        app.Resources["Accent.ForegroundBrush"] = new SolidColorBrush(Luminance(color) > 0.55 ? Colors.Black : Colors.White);
+    }
+
+    private static void ApplyDensity(Application app, InterfaceDensity density, double fontScale)
+    {
+        var (row, control, tab) = density switch
+        {
+            InterfaceDensity.Compact => (26.0, 28.0, 32.0),
+            InterfaceDensity.Comfortable => (40.0, 36.0, 40.0),
+            _ => (32.0, 32.0, 36.0),
+        };
+
+        app.Resources["Size.Row"] = row;
+        app.Resources["Size.Control"] = control;
+        app.Resources["Size.Tab"] = tab;
+        app.Resources["Font.Body"] = Math.Round(14 * fontScale, 1);
+        app.Resources["Font.Caption"] = Math.Round(12 * fontScale, 1);
+        app.Resources["Font.Subtitle"] = Math.Round(16 * fontScale, 1);
+        app.Resources["Font.Title"] = Math.Round(20 * fontScale, 1);
+        app.Resources["Font.Display"] = Math.Round(28 * fontScale, 1);
+    }
+
+    /// <summary>
+    /// Transitions are shared resources: Off swaps in empty collections, Reduced keeps only short opacity fades
+    /// (no movement) — the accessibility "reduce motion" contract. Only compositor-friendly properties
+    /// (opacity, transforms, brushes) are ever animated, never layout sizes.
+    /// </summary>
+    private static void ApplyMotion(Application app, AnimationLevel level)
+    {
+        var fast = TimeSpan.FromMilliseconds(level == AnimationLevel.Reduced ? 80 : 120);
+        var normal = TimeSpan.FromMilliseconds(level == AnimationLevel.Reduced ? 100 : 187);
+        var slow = TimeSpan.FromMilliseconds(level == AnimationLevel.Reduced ? 120 : 250);
+        var enabled = level != AnimationLevel.Off;
+        var movement = level == AnimationLevel.Full;
+
+        app.Resources["Motion.Enabled"] = enabled;
+        app.Resources["Motion.Movement"] = movement;
+        app.Resources["Motion.Duration.Fast"] = enabled ? fast : TimeSpan.Zero;
+        app.Resources["Motion.Duration.Normal"] = enabled ? normal : TimeSpan.Zero;
+        app.Resources["Motion.Duration.Slow"] = enabled ? slow : TimeSpan.Zero;
+
+        app.Resources["Motion.Hover"] = enabled
+            ? new Transitions { new BrushTransition { Property = Avalonia.Controls.Border.BackgroundProperty, Duration = fast, Easing = Standard } }
+            : new Transitions();
+        app.Resources["Motion.Fade"] = enabled
+            ? new Transitions { new DoubleTransition { Property = Visual.OpacityProperty, Duration = normal, Easing = Decelerate } }
+            : new Transitions();
+        app.Resources["Motion.FadeAndMove"] = movement
+            ? new Transitions
+            {
+                new DoubleTransition { Property = Visual.OpacityProperty, Duration = normal, Easing = Decelerate },
+                new TransformOperationsTransition { Property = Visual.RenderTransformProperty, Duration = slow, Easing = Decelerate },
+            }
+            : (Transitions)app.Resources["Motion.Fade"]!;
+        app.Resources["Motion.Indicator"] = movement
+            ? new Transitions { new TransformOperationsTransition { Property = Visual.RenderTransformProperty, Duration = normal, Easing = Standard } }
+            : new Transitions();
+    }
+
+    private static Color Mix(Color a, Color b, double amount)
+        => Color.FromArgb(a.A, (byte)(a.R + ((b.R - a.R) * amount)), (byte)(a.G + ((b.G - a.G) * amount)), (byte)(a.B + ((b.B - a.B) * amount)));
+
+    private static double Luminance(Color c) => ((0.299 * c.R) + (0.587 * c.G) + (0.114 * c.B)) / 255.0;
+}

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- GitHub Releases based self-update (design adapted from ED Assistant, see docs/UPDATER.md). BCL only. -->
+  <PropertyGroup>
+    <RootNamespace>Navigator.Updater</RootNamespace>
+    <IsTrimmable>true</IsTrimmable>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Navigator.Core\Navigator.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Navigator.UnitTests" />
+    <InternalsVisibleTo Include="Navigator.IntegrationTests" />
+  </ItemGroup>
+</Project>

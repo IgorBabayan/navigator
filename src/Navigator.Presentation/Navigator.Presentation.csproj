@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- View models and UI-facing application services. No Avalonia reference: everything here is unit-testable. -->
+  <PropertyGroup>
+    <RootNamespace>Navigator.Presentation</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Navigator.Core\Navigator.Core.csproj" />
+    <ProjectReference Include="..\Navigator.Updater\Navigator.Updater.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- One JSON dictionary per language; adding a language needs no code change. -->
+    <EmbeddedResource Include="Localization\Strings\*.json" LogicalName="Navigator.Presentation.Localization.Strings.%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Navigator.UnitTests" />
+  </ItemGroup>
+</Project>

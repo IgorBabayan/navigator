@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>Navigator.UnitTests</RootNamespace>
+    <NoWarn>$(NoWarn);CA1707;CA1515;CA1861;CA2201</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="MSTest" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Navigator.Core\Navigator.Core.csproj" />
+    <ProjectReference Include="..\..\src\Navigator.Platform\Navigator.Platform.csproj" />
+    <ProjectReference Include="..\..\src\Navigator.Updater\Navigator.Updater.csproj" />
+    <ProjectReference Include="..\..\src\Navigator.Presentation\Navigator.Presentation.csproj" />
+    <ProjectReference Include="..\..\tools\Navigator.ReleaseTool\Navigator.ReleaseTool.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Shared\*.cs" Link="Shared\%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

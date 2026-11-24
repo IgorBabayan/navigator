@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Navigator
+GenericName=File Manager
+GenericName[uk]=Файловий менеджер
+Comment=Fast, modern file manager
+Comment[uk]=Швидкий сучасний файловий менеджер
+Exec=Navigator %U
+Icon=io.github.igorbabayan.Navigator
+Terminal=false
+Categories=System;FileTools;FileManager;Utility;
+MimeType=inode/directory;
+Keywords=files;folders;explorer;browser;
+StartupWMClass=navigator
+X-AppImage-Version=@VERSION@

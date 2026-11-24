@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Used by .github/workflows/release.yml: version computation, checksums, update manifest signing and verification. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Navigator.ReleaseTool</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Navigator.Core\Navigator.Core.csproj" />
+    <ProjectReference Include="..\..\src\Navigator.Updater\Navigator.Updater.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Navigator.UnitTests" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Windows, Linux and macOS implementations of the Core platform interfaces.
+    One assembly on purpose: fewer assembly loads at startup; each implementation is guarded with
+    OperatingSystem.IsXxx() and [SupportedOSPlatform] and selected at runtime by PlatformServices.
+  -->
+  <PropertyGroup>
+    <RootNamespace>Navigator.Platform</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsTrimmable>true</IsTrimmable>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Navigator.Core\Navigator.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Navigator.UnitTests" />
+    <InternalsVisibleTo Include="Navigator.IntegrationTests" />
+  </ItemGroup>
+</Project>

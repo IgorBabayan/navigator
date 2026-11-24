@@ -1,0 +1,32 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:Navigator.App.Controls"
+             xmlns:v="using:Navigator.App.Views"
+             xmlns:items="using:Navigator.Presentation.Items"
+             x:Class="Navigator.App.Views.Rows.TileRow"
+             x:DataType="items:TileRowViewModel">
+  <!-- A row of icon tiles. Rows are virtualized by the pane; a row holds only as many tiles as fit the width. -->
+  <ItemsControl ItemsSource="{Binding Items}" Margin="8,2">
+    <ItemsControl.ItemsPanel>
+      <ItemsPanelTemplate>
+        <StackPanel Orientation="Horizontal" />
+      </ItemsPanelTemplate>
+    </ItemsControl.ItemsPanel>
+    <ItemsControl.ItemTemplate>
+      <DataTemplate x:DataType="items:FileItemViewModel">
+        <Border Classes="item" Classes.selected="{Binding IsSelected}" Width="{Binding $parent[v:PaneView].Pane.TileWidth}" Padding="6,8" ToolTip.Tip="{Binding FullPath}"
+                AttachedToVisualTree="OnTileAttached" DetachedFromVisualTree="OnTileDetached">
+          <StackPanel Spacing="6" Opacity="{Binding ContentOpacity}">
+            <Panel Width="{Binding $parent[v:PaneView].Pane.TileIconSize}" Height="{Binding $parent[v:PaneView].Pane.TileIconSize}" HorizontalAlignment="Center">
+              <c:IconView Kind="{Binding IconKey}" Width="{Binding $parent[v:PaneView].Pane.TileIconSize}" Height="{Binding $parent[v:PaneView].Pane.TileIconSize}" IsVisible="{Binding !HasThumbnail}" />
+              <Border CornerRadius="4" ClipToBounds="True" IsVisible="{Binding HasThumbnail}">
+                <Image Source="{Binding Thumbnail, Converter={x:Static v:ImageConverter.Instance}}" Stretch="Uniform" />
+              </Border>
+            </Panel>
+            <TextBlock Text="{Binding DisplayName}" TextAlignment="Center" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" FontSize="{DynamicResource Font.Caption}" />
+          </StackPanel>
+        </Border>
+      </DataTemplate>
+    </ItemsControl.ItemTemplate>
+  </ItemsControl>
+</UserControl>

@@ -1,0 +1,15 @@
+# Normalize text files in the repository; keep LF where tools on Linux/macOS runners require it,
+# even when the repository is checked out on Windows with core.autocrlf=true.
+* text=auto
+*.sh text eol=lf
+*.py text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.desktop text eol=lf
+*.plist text eol=lf
+*.entitlements text eol=lf
+*.iss text eol=crlf
+*.ps1 text eol=crlf
+
+*.png binary
+*.ico binary

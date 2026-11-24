@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Platform-neutral domain logic and engines. Base class library only: no UI, no NuGet dependencies. -->
+  <PropertyGroup>
+    <RootNamespace>Navigator.Core</RootNamespace>
+    <IsTrimmable>true</IsTrimmable>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Navigator.UnitTests" />
+    <InternalsVisibleTo Include="Navigator.IntegrationTests" />
+    <InternalsVisibleTo Include="Navigator.Benchmarks" />
+  </ItemGroup>
+</Project>

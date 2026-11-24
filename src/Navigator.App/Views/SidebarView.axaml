@@ -1,0 +1,59 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:Navigator.App.Controls"
+             xmlns:v="using:Navigator.App.Views"
+             xmlns:vm="using:Navigator.Presentation.Shell"
+             x:Class="Navigator.App.Views.SidebarView"
+             x:DataType="vm:SidebarViewModel">
+  <UserControl.DataTemplates>
+    <DataTemplate x:DataType="vm:SidebarItemViewModel">
+      <Border Classes="hoverable" Classes.selected="{Binding IsSelected}" Height="{StaticResource Size.SidebarItem}" Margin="0,1"
+              ToolTip.Tip="{Binding ToolTip}" PointerPressed="OnItemPressed" PointerReleased="OnItemReleased">
+        <Border.ContextMenu>
+          <ContextMenu>
+            <MenuItem Header="{c:Tr Command.OpenInNewTab}" Command="{Binding $parent[v:SidebarView].Model.OpenInNewTabCommand}" CommandParameter="{Binding}" />
+            <MenuItem Header="{c:Tr Command.OpenInNewWindow}" Command="{Binding $parent[v:SidebarView].Model.OpenInNewWindowCommand}" CommandParameter="{Binding}" />
+            <Separator />
+            <MenuItem Header="{c:Tr Command.MoveUp}" Command="{Binding $parent[v:SidebarView].Model.MoveUpCommand}" CommandParameter="{Binding}" />
+            <MenuItem Header="{c:Tr Command.MoveDown}" Command="{Binding $parent[v:SidebarView].Model.MoveDownCommand}" CommandParameter="{Binding}" />
+            <MenuItem Header="{c:Tr Command.UnpinFromSidebar}" Command="{Binding $parent[v:SidebarView].Model.UnpinCommand}" CommandParameter="{Binding}" />
+          </ContextMenu>
+        </Border.ContextMenu>
+        <Grid ColumnDefinitions="Auto,*" Margin="{StaticResource Space.SidebarItem}">
+          <Border Classes="pill" Margin="-12,0,0,0" />
+          <Panel Width="18" Height="18" Margin="4,0,12,0" VerticalAlignment="Center">
+            <c:IconView Kind="{Binding IconKey}" SystemIcon="{Binding SystemIconKey}" Width="18" Height="18" IsVisible="{Binding !IsTag}" />
+            <Ellipse Width="10" Height="10" IsVisible="{Binding IsTag}" Fill="{Binding Color, Converter={x:Static c:HexToBrushConverter.Instance}}" />
+          </Panel>
+          <!-- Name only: drive usage lives in the tooltip and on Home (no per-item progress bar in the sidebar). -->
+          <TextBlock Grid.Column="1" Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+        </Grid>
+      </Border>
+    </DataTemplate>
+  </UserControl.DataTemplates>
+
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Margin="8,4,8,8">
+      <ItemsControl ItemsSource="{Binding TopItems}" />
+      <ItemsControl ItemsSource="{Binding Sections}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:SidebarSectionViewModel">
+            <StackPanel Margin="0,8,0,0">
+              <Button Classes="subtle" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" VerticalContentAlignment="Center" Padding="8,2" MinHeight="28"
+                      Command="{Binding $parent[v:SidebarView].Model.ToggleSectionCommand}" CommandParameter="{Binding}">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                  <c:IconView Kind="{Binding IconKey}" SystemIcon="{Binding SystemIconKey}" Width="14" Height="14" VerticalAlignment="Center" Opacity="0.85" />
+                  <TextBlock Classes="caption" Text="{Binding Title}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                  <c:IconView Kind="{Binding IsExpanded, Converter={x:Static v:ExpandGlyphConverter.Instance}}" Width="10" Height="10" VerticalAlignment="Center" Opacity="0.7" />
+                </StackPanel>
+              </Button>
+              <ItemsControl ItemsSource="{Binding Items}" IsVisible="{Binding IsExpanded}" />
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <Border Height="1" Margin="8,8" Background="{DynamicResource Brush.Stroke}" />
+      <ItemsControl ItemsSource="{Binding BottomItems}" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

@@ -1,0 +1,293 @@
+name: Release
+
+# Every pull request merged into `release` publishes a new GitHub Release (docs/RELEASE.md).
+# Safety properties:
+#   * Only merged PRs (or a manual run on the release branch) can release; closed-unmerged PRs never do.
+#   * The exact merge commit is built; the tag points at that commit; all packages come from it.
+#   * Versions are reserved by atomically pushing the tag (a duplicate push fails), so concurrent
+#     runs can never produce the same version. Re-running a run reuses the tag already on its commit.
+#   * There is no workflow-level concurrency group (it would discard pending runs). Each commit has its
+#     own group, so retries of one commit serialize while different merges all proceed.
+#   * Releases are created as drafts, every asset is verified, and only then published.
+#   * "Latest" is reconciled to the highest stable version, so a slow, older run can never take it over.
+on:
+  pull_request:
+    branches: [release]
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump (auto = from PR labels / patch)
+        type: choice
+        options: [auto, patch, minor, major]
+        default: auto
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: "1"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  APP: Navigator
+
+jobs:
+  prepare:
+    name: Validate event and reserve version
+    if: >-
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/release')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # pushes the version tag
+    concurrency:
+      group: release-prepare-${{ github.event.pull_request.merge_commit_sha || github.sha }}
+      cancel-in-progress: false
+    outputs:
+      commit: ${{ steps.commit.outputs.commit }}
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - name: Resolve the release commit
+        id: commit
+        env:
+          EVENT: ${{ github.event_name }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          DISPATCH_SHA: ${{ github.sha }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then COMMIT="$MERGE_SHA"; else COMMIT="$DISPATCH_SHA"; fi
+          if ! [[ "$COMMIT" =~ ^[0-9a-f]{40}$ ]]; then echo "::error::Invalid release commit '$COMMIT'"; exit 1; fi
+          echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
+          echo "Release commit: $COMMIT"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.commit.outputs.commit }}
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Verify the commit belongs to the release branch
+        env:
+          COMMIT: ${{ steps.commit.outputs.commit }}
+        run: |
+          git fetch --no-tags origin release
+          git merge-base --is-ancestor "$COMMIT" origin/release || { echo "::error::$COMMIT is not on the release branch"; exit 1; }
+
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+
+      - name: Reserve a unique version (atomic tag push)
+        id: version
+        env:
+          COMMIT: ${{ steps.commit.outputs.commit }}
+          # Labels arrive as JSON data through the environment, never interpolated into the script.
+          LABELS_JSON: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          BUMP_INPUT: ${{ inputs.bump }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          dotnet build tools/Navigator.ReleaseTool -c Release -o .tool > /dev/null
+
+          existing=$(git tag --points-at "$COMMIT" --list 'v*' | head -n 1 || true)
+          if [ -n "$existing" ]; then
+            echo "Commit already released as $existing (workflow retry): reusing it."
+            echo "tag=$existing" >> "$GITHUB_OUTPUT"
+            echo "version=${existing#v}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          labels=$(echo "${LABELS_JSON:-[]}" | jq -r 'if type == "array" then join(",") else "" end')
+          bump="${BUMP_INPUT:-auto}"; [ "$bump" = "auto" ] && bump=""
+
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            git fetch --force --tags origin > /dev/null 2>&1
+            git tag --list 'v*' > tags.txt
+            version=$(dotnet .tool/Navigator.ReleaseTool.dll next-version --version-file version.json --tags-file tags.txt --bump "$bump" --labels "$labels")
+            tag="v$version"
+            git tag -a "$tag" "$COMMIT" -m "Navigator $version"
+            if git push origin "refs/tags/$tag"; then
+              echo "Reserved $tag for $COMMIT"
+              echo "tag=$tag" >> "$GITHUB_OUTPUT"
+              echo "version=$version" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "$tag was taken by a concurrent release; retrying ($attempt)"
+            git tag -d "$tag" > /dev/null
+            sleep $((attempt * 2))
+          done
+          echo "::error::Could not reserve a release version"; exit 1
+
+  test:
+    name: Tests
+    needs: prepare
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.prepare.outputs.commit }}
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - run: dotnet test tests/Navigator.UnitTests/Navigator.UnitTests.csproj -c Release
+      - run: dotnet test tests/Navigator.IntegrationTests/Navigator.IntegrationTests.csproj -c Release
+
+  build:
+    name: Package ${{ matrix.rid }}
+    needs: [prepare, test]
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { rid: win-x64, os: windows-latest, arch: x64 }
+          - { rid: win-arm64, os: windows-latest, arch: arm64 }
+          - { rid: linux-x64, os: ubuntu-22.04, arch: x86_64 }
+          - { rid: linux-arm64, os: ubuntu-22.04-arm, arch: aarch64 }
+          - { rid: osx-arm64, os: macos-latest, arch: arm64 }
+          - { rid: osx-x64, os: macos-latest, arch: x64 }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      RID: ${{ matrix.rid }}
+      HAS_WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.prepare.outputs.commit }}
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+
+      - name: Publish (self-contained)
+        shell: bash
+        env:
+          UPDATE_PUBLIC_KEY: ${{ vars.NAVIGATOR_UPDATE_PUBLIC_KEY }}
+        run: >
+          dotnet publish src/Navigator.App/Navigator.App.csproj -c Release -r "$RID" --self-contained true
+          -p:AppVersion="$VERSION" -p:UpdateRepository="${{ github.repository }}" -p:UpdatePublicKey="$UPDATE_PUBLIC_KEY"
+          -p:ContinuousIntegrationBuild=true -o "publish/$RID"
+
+      - name: Package (Windows)
+        if: startsWith(matrix.rid, 'win-')
+        shell: pwsh
+        run: ./installer/windows/package.ps1 -Version $env:VERSION -Rid $env:RID -PublishDir "publish/$env:RID" -OutputDir dist
+
+      - name: Sign (Windows, when configured)
+        if: startsWith(matrix.rid, 'win-') && env.HAS_WINDOWS_CERTIFICATE == 'true'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: ./installer/windows/sign.ps1 -Directory dist
+
+      - name: Package (Linux)
+        if: startsWith(matrix.rid, 'linux-')
+        env:
+          APPIMAGETOOL_SHA256: ${{ matrix.arch == 'x86_64' && vars.APPIMAGETOOL_SHA256_X86_64 || vars.APPIMAGETOOL_SHA256_AARCH64 }}
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq libfuse2 file > /dev/null
+          bash ./installer/linux/package.sh "$VERSION" "$RID" "${{ matrix.arch }}" "publish/$RID" dist
+
+      - name: Package (macOS)
+        if: startsWith(matrix.rid, 'osx-')
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: bash ./installer/macos/package.sh "$VERSION" "$RID" "publish/$RID" dist
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: packages-${{ matrix.rid }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish GitHub Release
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: release-publish-${{ needs.prepare.outputs.tag }}
+      cancel-in-progress: false
+    env:
+      TAG: ${{ needs.prepare.outputs.tag }}
+      VERSION: ${{ needs.prepare.outputs.version }}
+      COMMIT: ${{ needs.prepare.outputs.commit }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.prepare.outputs.commit }}
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: packages-*
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums, manifest and signature
+        env:
+          NAVIGATOR_UPDATE_SIGNING_KEY: ${{ secrets.NAVIGATOR_UPDATE_SIGNING_KEY }}
+          UPDATE_PUBLIC_KEY: ${{ vars.NAVIGATOR_UPDATE_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          dotnet build tools/Navigator.ReleaseTool -c Release -o .tool > /dev/null
+          tool() { dotnet .tool/Navigator.ReleaseTool.dll "$@"; }
+          printf 'Navigator %s\n\nBuilt from %s.\n' "$VERSION" "$COMMIT" > notes.md
+          tool manifest --version "$VERSION" --commit "$COMMIT" --channel stable --assets dist --notes notes.md --out dist/update-manifest.json
+          tool sign --manifest dist/update-manifest.json --out dist/update-manifest.json.sig
+          [ -s dist/update-manifest.json.sig ] || rm -f dist/update-manifest.json.sig
+          tool checksums --assets dist --out dist/SHA256SUMS.txt
+          verify_args=(--manifest dist/update-manifest.json --assets dist --require win-x64,win-arm64,linux-x64,linux-arm64,osx-arm64,osx-x64)
+          if [ -n "${UPDATE_PUBLIC_KEY:-}" ]; then verify_args+=(--public-key "$UPDATE_PUBLIC_KEY" --signature dist/update-manifest.json.sig); fi
+          tool verify "${verify_args[@]}"
+          (cd dist && sha256sum -c SHA256SUMS.txt)
+          ls -la dist
+
+      - name: Create draft release (idempotent)
+        run: |
+          set -euo pipefail
+          if state=$(gh release view "$TAG" --json isDraft --jq '.isDraft' 2>/dev/null); then
+            if [ "$state" = "false" ]; then
+              echo "$TAG is already published; verifying it instead of overwriting."
+              echo "ALREADY_PUBLISHED=1" >> "$GITHUB_ENV"
+              exit 0
+            fi
+            echo "Removing an incomplete draft of $TAG left by a failed run."
+            gh release delete "$TAG" --yes
+          fi
+          gh release create "$TAG" --draft --verify-tag --title "Navigator $VERSION" --notes-file notes.md --generate-notes
+          gh release upload "$TAG" dist/*
+
+      - name: Verify uploaded assets
+        run: |
+          set -euo pipefail
+          gh release view "$TAG" --json assets --jq '.assets[] | "\(.name) \(.size)"' | sort > uploaded.txt
+          (cd dist && for f in *; do echo "$f $(stat -c %s "$f")"; done) | sort > expected.txt
+          diff -u expected.txt uploaded.txt || { echo "::error::Uploaded assets differ from the built packages"; exit 1; }
+
+      - name: Publish
+        if: env.ALREADY_PUBLISHED != '1'
+        run: gh release edit "$TAG" --draft=false --latest=false
+
+      - name: Mark the highest stable version as Latest
+        run: |
+          set -euo pipefail
+          dotnet build tools/Navigator.ReleaseTool -c Release -o .tool > /dev/null
+          gh release list --limit 200 --json tagName,isDraft,isPrerelease --jq '.[] | select(.isDraft == false and .isPrerelease == false) | .tagName' > published.txt
+          highest=$(sort -V published.txt | tail -n 1)
+          if [ "$(dotnet .tool/Navigator.ReleaseTool.dll is-newest --version "${highest#v}" --tags-file published.txt)" = "true" ]; then
+            gh release edit "$highest" --latest
+            echo "Latest: $highest"
+          fi

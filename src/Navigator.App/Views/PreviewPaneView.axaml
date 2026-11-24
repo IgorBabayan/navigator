@@ -1,0 +1,44 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:Navigator.App.Controls"
+             xmlns:v="using:Navigator.App.Views"
+             xmlns:d="using:Navigator.Presentation.Details"
+             x:Class="Navigator.App.Views.PreviewPaneView"
+             x:DataType="d:PreviewViewModel">
+  <Border Classes="layer" BorderThickness="1,1,0,0" CornerRadius="0" Margin="4,0,0,0" c:Motion.Enter="True">
+    <ScrollViewer>
+      <StackPanel Margin="20" Spacing="12">
+        <Panel Height="200">
+          <c:IconView Kind="{Binding IconKey}" Width="96" Height="96" IsVisible="{Binding !IsImage}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          <Image Source="{Binding Image, Converter={x:Static v:ImageConverter.Instance}}" IsVisible="{Binding IsImage}" Stretch="Uniform" />
+        </Panel>
+        <TextBlock Classes="subtitle" Text="{Binding Title}" TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center" />
+        <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsLoading}" />
+
+        <Border Classes="card" Padding="12" IsVisible="{Binding IsText}" MaxHeight="320">
+          <ScrollViewer>
+            <SelectableTextBlock Text="{Binding Text}" FontFamily="Cascadia Mono, Consolas, Menlo, DejaVu Sans Mono, monospace" FontSize="{DynamicResource Font.Caption}" TextWrapping="Wrap" />
+          </ScrollViewer>
+        </Border>
+
+        <ItemsControl ItemsSource="{Binding Properties}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="d:PropertyRow">
+              <StackPanel Margin="0,4">
+                <TextBlock Classes="caption" Text="{Binding Label}" />
+                <SelectableTextBlock Text="{Binding Value}" TextWrapping="Wrap" />
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <StackPanel Spacing="4">
+          <Button Classes="subtle" HorizontalAlignment="Left" Content="{c:Tr Preview.ComputeSha256}" Command="{Binding ComputeHashCommand}" />
+          <SelectableTextBlock Text="{Binding Sha256}" TextWrapping="Wrap" FontSize="{DynamicResource Font.Caption}" />
+        </StackPanel>
+
+        <TextBlock Classes="caption" Text="{c:Tr Preview.NothingSelected}" IsVisible="{Binding HasNothing}" HorizontalAlignment="Center" />
+      </StackPanel>
+    </ScrollViewer>
+  </Border>
+</UserControl>
