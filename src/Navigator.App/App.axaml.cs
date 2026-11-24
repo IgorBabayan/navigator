@@ -15,6 +15,9 @@ namespace Navigator.App;
 
 public sealed partial class App : Application
 {
+    /// <summary>Upper bound for cancelled file operations and background workers to wind down when the app exits.</summary>
+    private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(5);
+
     private ServiceProvider? _services;
     private bool _shutDown;
 
@@ -64,7 +67,33 @@ public sealed partial class App : Application
         }
         finally
         {
-            _services.Dispose();
+            DisposeServices(_services);
+        }
+    }
+
+    /// <summary>
+    /// Some singletons (<c>FileOperationQueue</c>, <c>BackgroundWorkScheduler</c>) are only <see cref="IAsyncDisposable"/>,
+    /// so the container must be disposed asynchronously. The UI loop has already stopped here, so the dispatcher's
+    /// synchronization context is cleared first (a continuation posted to it would never run), and the wait is bounded:
+    /// operations are cancelled before the wait and copies are atomic, so an exit never leaves partial files.
+    /// </summary>
+    private static void DisposeServices(ServiceProvider services)
+    {
+        var context = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(null);
+        try
+        {
+            var disposal = services.DisposeAsync().AsTask();
+            if (disposal.Wait(ShutdownTimeout))
+                disposal.GetAwaiter().GetResult();
+        }
+        catch (AggregateException ex) when (ex.InnerExceptions.Count == 1)
+        {
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw(ex.InnerExceptions[0]);
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(context);
         }
     }
 }

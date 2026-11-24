@@ -33,6 +33,8 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
 - Shutdown: `ObjectDisposedException` from `PreviewViewModel.Dispose`. Window shells were resolved as tracked
   transients from the root container, so they were disposed on window close and again at shutdown (and every closed
   window's shell stayed alive until exit). Shells are now created untracked, and `Dispose` is idempotent.
+- Shutdown: `InvalidOperationException` ("type only implements IAsyncDisposable"). The service container is now
+  disposed asynchronously with a bounded wait, so `FileOperationQueue` and `BackgroundWorkScheduler` shut down cleanly.
 
 ### Known limitations
 
