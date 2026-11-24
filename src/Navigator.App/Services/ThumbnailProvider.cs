@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using Avalonia.Media.Imaging;
 using Navigator.Core.Caching;
 using Navigator.Core.IO;
@@ -88,7 +89,7 @@ internal sealed class ThumbnailProvider : IThumbnailProvider, IDisposable
         {
             try
             {
-                _disk.Store(key, stream => bitmap.Save(stream));
+                _disk.Store(key, stream => bitmap.Save(stream, new PngBitmapEncoderOptions {  CompressionLevel = CompressionLevel.Fastest }));
             }
             catch (Exception ex) when (ex is InvalidOperationException or NotSupportedException or ArgumentException)
             {

@@ -441,7 +441,7 @@ public sealed partial class MainWindow : Window
     /// open at all. Fast listings are shown complete; slow ones (network folders) open with a "Loading…" row that is
     /// replaced when the listing arrives. Clicking the same chevron while its menu is open closes it.
     /// </summary>
-    private async Task ShowLocationMenuAsync(Button button, PaneViewModel pane, IReadOnlyList<BreadcrumbChild> leading, Func<Task<IReadOnlyList<BreadcrumbChild>>> load)
+    private async Task ShowLocationMenuAsync(Button button, PaneViewModel pane, List<BreadcrumbChild> leading, Func<Task<IReadOnlyList<BreadcrumbChild>>> load)
     {
         // The press that dismissed this button's own menu must not reopen it (toggle behaviour).
         if (ReferenceEquals(_lastClosedCrumbMenuOwner, button) && Environment.TickCount64 - _lastCrumbMenuClosedAt < 300)
