@@ -5,7 +5,6 @@ using Navigator.Core.Hashing;
 using Navigator.Core.IO;
 using Navigator.Core.Monitoring;
 using Navigator.Core.Operations;
-using Navigator.Core.Platform;
 using Navigator.Core.Search;
 using Navigator.Core.Settings;
 using Navigator.Platform.Trash;
@@ -182,8 +181,6 @@ public sealed class SearchTests
 [TestClass]
 public sealed class ArchiveTests
 {
-    private static OperationContextHarness Harness() => new();
-
     [TestMethod]
     public async Task Zip_CreateAndExtract_RoundTrips()
     {
@@ -192,13 +189,13 @@ public sealed class ArchiveTests
         temp.CreateFile("src/sub/b.txt", "beta");
         var zip = temp.Combine("out.zip");
 
-        await Harness().Run(c => ArchiveService.CreateZipAsync([temp.Combine("src")], zip, CompressionLevel.Fastest, c));
+        await OperationContextHarness.Run(c => ArchiveService.CreateZipAsync([temp.Combine("src")], zip, CompressionLevel.Fastest, c));
         Assert.IsTrue(File.Exists(zip));
 
         var destination = ArchiveService.ChooseSmartDestination(zip, temp.Path);
         Assert.IsTrue(PathUtil.AreEqual(temp.Path, destination), "single top-level folder extracts in place");
         var extractTo = temp.CreateDirectory("extracted");
-        await Harness().Run(c => ArchiveService.ExtractAsync(zip, extractTo, c));
+        await OperationContextHarness.Run(c => ArchiveService.ExtractAsync(zip, extractTo, c));
         Assert.AreEqual("beta", File.ReadAllText(Path.Combine(extractTo, "src", "sub", "b.txt")));
     }
 
@@ -216,7 +213,7 @@ public sealed class ArchiveTests
         }
 
         var destination = temp.CreateDirectory("x/y");
-        var operation = await Harness().Run(c => ArchiveService.ExtractAsync(zip, destination, c));
+        var operation = await OperationContextHarness.Run(c => ArchiveService.ExtractAsync(zip, destination, c));
         Assert.IsFalse(File.Exists(temp.Combine("escaped.txt")));
         Assert.IsFalse(File.Exists(temp.Combine("x", "escaped.txt")));
         Assert.IsTrue(File.Exists(Path.Combine(destination, "fine.txt")));
@@ -238,9 +235,9 @@ public sealed class ArchiveTests
     }
 
     /// <summary>Runs an operation body through a real queue so contexts, progress and errors behave as in the app.</summary>
-    private sealed class OperationContextHarness
+    private static class OperationContextHarness
     {
-        public async Task<FileOperation> Run(Func<OperationContext, Task> body)
+        public static async Task<FileOperation> Run(Func<OperationContext, Task> body)
         {
             await using var queue = new FileOperationQueue();
             var operation = queue.Enqueue(FileOperationKind.ExtractArchive, [], null, PolicyInteraction.SkipConflictsAndErrors, body);
@@ -289,7 +286,7 @@ public sealed class StorageTests
 
         using var temp = new TempDirectory();
         var trashRoot = temp.Combine("home", ".local", "share", "Trash");
-        ITrashService trash = new FreedesktopTrash(trashRoot, 1000, new FakeVolumeLocator(sameVolume: true), () => []);
+        var trash = new FreedesktopTrash(trashRoot, 1000, new FakeVolumeLocator(sameVolume: true), () => []);
         var file = temp.CreateFile("work/My Report.txt", "hello");
         var duplicate = temp.CreateFile("other/My Report.txt", "second");
 
