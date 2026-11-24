@@ -102,7 +102,7 @@
           </StackPanel>
 
           <!-- Omnibar: breadcrumb (default) or editable path -->
-          <Border Grid.Column="1" Classes="card" Padding="4,0" Height="{DynamicResource Size.Control}" Margin="4,0" PointerPressed="OnOmnibarPointerPressed">
+          <Border Grid.Column="1" Classes="card omnibar-host" Classes.editing="{Binding ActivePane.IsEditingAddress}" Padding="4,0" Height="{DynamicResource Size.Control}" Margin="4,0" PointerPressed="OnOmnibarPointerPressed">
             <Panel>
               <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" IsVisible="{Binding !ActivePane.IsEditingAddress}">
                 <ItemsControl ItemsSource="{Binding ActivePane.Breadcrumbs}">
@@ -122,7 +122,7 @@
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>
               </ScrollViewer>
-              <TextBox x:Name="AddressBox" Classes="omnibar" BorderThickness="0" Background="Transparent"
+              <TextBox x:Name="AddressBox" Classes="omnibar address" BorderThickness="0" Background="Transparent" Margin="-4,0"
                        IsVisible="{Binding ActivePane.IsEditingAddress}" Text="{Binding ActivePane.AddressText}"
                        KeyDown="OnAddressKeyDown" LostFocus="OnAddressLostFocus" />
             </Panel>

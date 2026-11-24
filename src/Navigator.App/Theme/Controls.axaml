@@ -106,6 +106,15 @@
     <Setter Property="Background" Value="{DynamicResource Brush.Card}" />
     <Setter Property="BorderBrush" Value="{DynamicResource Brush.Stroke}" />
   </Style>
+  <!-- Editable address box: fills the omnibar card edge-to-edge so its focus border follows the card's rounded outline -->
+  <Style Selector="TextBox.address">
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="CornerRadius" Value="{StaticResource Radius.CardInner}" />
+  </Style>
+  <!-- While editing, the address box's focus border replaces the card stroke (no double outline) -->
+  <Style Selector="Border.omnibar-host.editing">
+    <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
 
   <!-- ── Flyouts, menus, tooltips ─────────────────────────── -->
   <Style Selector="MenuFlyoutPresenter, ContextMenu">

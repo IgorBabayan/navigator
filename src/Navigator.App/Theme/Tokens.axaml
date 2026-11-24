@@ -88,6 +88,8 @@
   <!-- Corner radii -->
   <CornerRadius x:Key="Radius.Control">4</CornerRadius>
   <CornerRadius x:Key="Radius.Card">8</CornerRadius>
+  <!-- Radius.Card minus its 1px border: keeps controls nested edge-to-edge in a card concentric with it -->
+  <CornerRadius x:Key="Radius.CardInner">7</CornerRadius>
   <CornerRadius x:Key="Radius.Overlay">8</CornerRadius>
   <CornerRadius x:Key="Radius.Tab">8,8,0,0</CornerRadius>
   <CornerRadius x:Key="Radius.Layer">8,0,0,0</CornerRadius>
