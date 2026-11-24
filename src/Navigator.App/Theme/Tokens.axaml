@@ -73,6 +73,8 @@
   <x:Double x:Key="Size.Row">32</x:Double>
   <x:Double x:Key="Size.Control">32</x:Double>
   <x:Double x:Key="Size.Tab">36</x:Double>
+  <x:Double x:Key="Size.TabWidth">240</x:Double>
+  <x:Double x:Key="Size.TabMinWidth">100</x:Double>
   <x:Double x:Key="Size.TitleBar">44</x:Double>
   <x:Double x:Key="Size.Icon">16</x:Double>
   <x:Double x:Key="Size.RowIcon">18</x:Double>

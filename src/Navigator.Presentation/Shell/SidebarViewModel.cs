@@ -107,7 +107,10 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<SidebarSectionViewModel> Sections { get; } = [];
 
+    /// <summary>Items below the sections: only the trash, and only while the quick access section is hidden.</summary>
     public ObservableCollection<SidebarItemViewModel> BottomItems { get; } = [];
+
+    public bool HasBottomItems => BottomItems.Count > 0;
 
     public double Width
     {
@@ -171,6 +174,11 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
         TopItems.Clear();
         TopItems.Add(new SidebarItemViewModel(localizer["Location.Home"], "Home", Location.Home));
 
+        _trashItem = settings.ShowTrash && _services.Trash.IsSupported
+            ? new SidebarItemViewModel(localizer[OperatingSystem.IsWindows() ? "Location.RecycleBin" : "Location.Trash"], "Trash", Location.Trash,
+                systemIconKey: _services.TrashStatus.SystemIconKey)
+            : null;
+
         Sections.Clear();
         if (settings.ShowQuickAccess)
         {
@@ -183,6 +191,10 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
                 pinned.Items.Add(new SidebarItemViewModel(string.IsNullOrEmpty(name) ? path : name, known?.ToString() ?? "Folder", Location.Folder(path),
                     systemIconKey: PinnedFolders.SystemIconKeyFor(path, known)));
             }
+
+            // The trash lives in quick access, after the pinned folders (it is not reorderable or unpinnable).
+            if (_trashItem is not null)
+                pinned.Items.Add(_trashItem);
 
             Sections.Add(pinned);
         }
@@ -205,13 +217,9 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
         }
 
         BottomItems.Clear();
-        _trashItem = null;
-        if (settings.ShowTrash && _services.Trash.IsSupported)
-        {
-            _trashItem = new SidebarItemViewModel(localizer[OperatingSystem.IsWindows() ? "Location.RecycleBin" : "Location.Trash"], "Trash", Location.Trash,
-                systemIconKey: _services.TrashStatus.SystemIconKey);
+        if (_trashItem is not null && !settings.ShowQuickAccess)
             BottomItems.Add(_trashItem);
-        }
+        OnPropertyChanged(nameof(HasBottomItems));
     }
 
     private async Task LoadVolumesAsync()

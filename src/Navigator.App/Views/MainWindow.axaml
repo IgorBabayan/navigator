@@ -37,49 +37,53 @@
 
     <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
       <!-- ── Title bar with tabs ───────────────────────────── -->
-      <Grid x:Name="TitleBar" Grid.Row="0" Height="{StaticResource Size.TitleBar}" ColumnDefinitions="Auto,Auto,*,Auto" Background="Transparent">
+      <Grid x:Name="TitleBar" Grid.Row="0" Height="{StaticResource Size.TitleBar}" ColumnDefinitions="Auto,*,Auto" Background="Transparent">
         <Border x:Name="LeftCaptionInset" Grid.Column="0" Width="8" />
-        <ItemsControl x:Name="TabStrip" Grid.Column="1" ItemsSource="{Binding Tabs}" VerticalAlignment="Bottom">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <StackPanel Orientation="Horizontal" Spacing="2" />
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="vm:TabViewModel">
-              <Border Classes="tab" Classes.selected="{Binding IsSelected}" c:Motion.Enter="True"
-                      ToolTip.Tip="{Binding ToolTip}" PointerPressed="OnTabPointerPressed" PointerReleased="OnTabPointerReleased">
-                <Border.ContextMenu>
-                  <ContextMenu>
-                    <MenuItem Header="{c:Tr Command.NewTab}" Command="{Binding $parent[v:MainWindow].Shell.NewTabCommand}" />
-                    <MenuItem Header="{c:Tr Command.DuplicateTab}" Command="{Binding $parent[v:MainWindow].Shell.DuplicateTabCommand}" CommandParameter="{Binding}" />
-                    <MenuItem Header="{c:Tr Command.PinTab}" Command="{Binding $parent[v:MainWindow].Shell.TogglePinTabCommand}" CommandParameter="{Binding}" />
-                    <Separator />
-                    <MenuItem Header="{c:Tr Command.CloseTab}" Command="{Binding $parent[v:MainWindow].Shell.CloseTabCommand}" CommandParameter="{Binding}" />
-                    <MenuItem Header="{c:Tr Command.CloseOtherTabs}" Command="{Binding $parent[v:MainWindow].Shell.CloseOtherTabsCommand}" CommandParameter="{Binding}" />
-                    <MenuItem Header="{c:Tr Command.CloseTabsToRight}" Command="{Binding $parent[v:MainWindow].Shell.CloseTabsToRightCommand}" CommandParameter="{Binding}" />
-                    <MenuItem Header="{c:Tr Command.ReopenClosedTab}" Command="{Binding $parent[v:MainWindow].Shell.ReopenClosedTabCommand}" />
-                  </ContextMenu>
-                </Border.ContextMenu>
-                <Grid ColumnDefinitions="Auto,*,Auto">
-                  <c:IconView Kind="{Binding IconKey}" SystemIcon="{Binding SystemIconKey}" Width="16" Height="16" Margin="0,0,8,0" />
-                  <TextBlock Grid.Column="1" Text="{Binding Header}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="{DynamicResource Font.Caption}" />
-                  <Button Grid.Column="2" Classes="subtle icon tabclose" Width="24" Height="24" MinHeight="24" MinWidth="24" Margin="4,0,0,0"
-                          IsVisible="{Binding !IsPinned}"
-                          ToolTip.Tip="{c:Tr Command.CloseTab}"
-                          Command="{Binding $parent[v:MainWindow].Shell.CloseTabCommand}" CommandParameter="{Binding}">
-                    <c:IconView Kind="Close" Width="10" Height="10" />
-                  </Button>
-                </Grid>
-              </Border>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-        <Button Grid.Column="2" Classes="subtle icon" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,4,0,0"
-                ToolTip.Tip="{c:Tr Command.NewTab}" Command="{Binding NewTabCommand}">
-          <c:IconView Kind="Add" />
-        </Button>
-        <Border x:Name="RightCaptionInset" Grid.Column="3" Width="140" />
+        <!-- Tabs share one width (Size.TabWidth) and shrink equally to Size.TabMinWidth when the strip is full;
+             the new-tab button follows the last tab and the rest of the row stays a window drag area. -->
+        <DockPanel Grid.Column="1" HorizontalAlignment="Left">
+          <Button DockPanel.Dock="Right" Classes="subtle icon" VerticalAlignment="Center" Margin="4,4,0,0"
+                  ToolTip.Tip="{c:Tr Command.NewTab}" Command="{Binding NewTabCommand}">
+            <c:IconView Kind="Add" />
+          </Button>
+          <ItemsControl x:Name="TabStrip" ItemsSource="{Binding Tabs}" VerticalAlignment="Bottom" ClipToBounds="True">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <c:TabStripPanel Spacing="2" ItemWidth="{StaticResource Size.TabWidth}" MinItemWidth="{StaticResource Size.TabMinWidth}" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:TabViewModel">
+                <Border Classes="tab" Classes.selected="{Binding IsSelected}" c:Motion.Enter="True"
+                        ToolTip.Tip="{Binding ToolTip}" PointerPressed="OnTabPointerPressed" PointerReleased="OnTabPointerReleased">
+                  <Border.ContextMenu>
+                    <ContextMenu>
+                      <MenuItem Header="{c:Tr Command.NewTab}" Command="{Binding $parent[v:MainWindow].Shell.NewTabCommand}" />
+                      <MenuItem Header="{c:Tr Command.DuplicateTab}" Command="{Binding $parent[v:MainWindow].Shell.DuplicateTabCommand}" CommandParameter="{Binding}" />
+                      <MenuItem Header="{c:Tr Command.PinTab}" Command="{Binding $parent[v:MainWindow].Shell.TogglePinTabCommand}" CommandParameter="{Binding}" />
+                      <Separator />
+                      <MenuItem Header="{c:Tr Command.CloseTab}" Command="{Binding $parent[v:MainWindow].Shell.CloseTabCommand}" CommandParameter="{Binding}" />
+                      <MenuItem Header="{c:Tr Command.CloseOtherTabs}" Command="{Binding $parent[v:MainWindow].Shell.CloseOtherTabsCommand}" CommandParameter="{Binding}" />
+                      <MenuItem Header="{c:Tr Command.CloseTabsToRight}" Command="{Binding $parent[v:MainWindow].Shell.CloseTabsToRightCommand}" CommandParameter="{Binding}" />
+                      <MenuItem Header="{c:Tr Command.ReopenClosedTab}" Command="{Binding $parent[v:MainWindow].Shell.ReopenClosedTabCommand}" />
+                    </ContextMenu>
+                  </Border.ContextMenu>
+                  <Grid ColumnDefinitions="Auto,*,Auto">
+                    <c:IconView Kind="{Binding IconKey}" SystemIcon="{Binding SystemIconKey}" Width="16" Height="16" Margin="0,0,8,0" />
+                    <TextBlock Grid.Column="1" Text="{Binding Header}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="{DynamicResource Font.Caption}" />
+                    <Button Grid.Column="2" Classes="subtle icon tabclose" Width="24" Height="24" MinHeight="24" MinWidth="24" Margin="4,0,0,0"
+                            IsVisible="{Binding !IsPinned}"
+                            ToolTip.Tip="{c:Tr Command.CloseTab}"
+                            Command="{Binding $parent[v:MainWindow].Shell.CloseTabCommand}" CommandParameter="{Binding}">
+                      <c:IconView Kind="Close" Width="10" Height="10" />
+                    </Button>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </DockPanel>
+        <Border x:Name="RightCaptionInset" Grid.Column="2" Width="140" />
       </Grid>
 
       <!-- ── Navigation toolbar: back/forward/up/refresh, omnibar, search ──

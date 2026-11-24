@@ -226,8 +226,7 @@
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="CornerRadius" Value="{StaticResource Radius.Tab}" />
     <Setter Property="Height" Value="{DynamicResource Size.Tab}" />
-    <Setter Property="MinWidth" Value="72" />
-    <Setter Property="MaxWidth" Value="240" />
+    <!-- Width comes from TabStripPanel: every tab gets the same one. -->
     <Setter Property="Padding" Value="12,0,6,0" />
     <Setter Property="Transitions" Value="{DynamicResource Motion.Hover}" />
   </Style>

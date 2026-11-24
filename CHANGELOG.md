@@ -25,6 +25,12 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
 - Packaging: Windows installer + portable ZIP, Linux AppImage + tar.gz, macOS DMG + ZIP.
 - Documentation set and source-originality scanner.
 
+### Changed
+
+- Tabs all have the same width and shrink equally when the title bar fills up, instead of sizing to their titles.
+- A tab in split view shows both pane titles separated by "|" (left first).
+- The Recycle Bin / Trash moved into the sidebar's quick access (pinned) section.
+
 ### Fixed
 
 - Title bar: the default "Window" caption text no longer appears above the tabs; the window is titled "Navigator".

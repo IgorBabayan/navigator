@@ -67,7 +67,8 @@ public sealed class TabViewModel : ObservableObject, IDisposable
         set => SetProperty(ref _isSelected, value);
     }
 
-    public string Header => ActivePane.Title;
+    /// <summary>Title of the pane; in split view both titles, left first, separated by " | ".</summary>
+    public string Header => _secondary is { } secondary ? Primary.Title + " | " + secondary.Title : Primary.Title;
 
     public string IconKey => ActivePane.Location.Kind switch
     {
@@ -81,7 +82,9 @@ public sealed class TabViewModel : ObservableObject, IDisposable
     /// <summary>OS-drawn icon for locations that have one (Recycle Bin); null keeps <see cref="IconKey"/> at no cost.</summary>
     public string? SystemIconKey => ActivePane.Location.Kind == LocationKind.Trash ? _services.TrashStatus.SystemIconKey : null;
 
-    public string ToolTip => ActivePane.Location.Path ?? Header;
+    public string ToolTip => _secondary is { } secondary
+        ? PaneToolTip(Primary) + Environment.NewLine + PaneToolTip(secondary)
+        : PaneToolTip(Primary);
 
     public event EventHandler<Location>? OpenInNewTabRequested;
 
@@ -109,6 +112,7 @@ public sealed class TabViewModel : ObservableObject, IDisposable
             closing.Dispose();
             OnPropertyChanged(nameof(Secondary));
             OnPropertyChanged(nameof(IsSplit));
+            RaiseHeader();
         }
     }
 
@@ -117,19 +121,19 @@ public sealed class TabViewModel : ObservableObject, IDisposable
         _secondary = CreatePane(location);
         OnPropertyChanged(nameof(Secondary));
         OnPropertyChanged(nameof(IsSplit));
+        RaiseHeader();
     }
 
     private PaneViewModel CreatePane(Location location)
     {
         var pane = new PaneViewModel(_services, _pins, location);
         pane.OpenInNewTabRequested += (_, target) => OpenInNewTabRequested?.Invoke(this, target);
-        pane.Navigated += (sender, _) =>
-        {
-            if (sender == _activePane)
-                RaiseHeader();
-        };
+        // Either pane changes the header in split view (it shows both titles).
+        pane.Navigated += (_, _) => RaiseHeader();
         return pane;
     }
+
+    private static string PaneToolTip(PaneViewModel pane) => pane.Location.Path ?? pane.Title;
 
     private void RaiseHeader()
     {

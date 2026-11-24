@@ -28,7 +28,9 @@ Navigator's window follows the familiar Files-app layout. Everything is styled t
 - **Title bar**: client area extended into the title bar (`ExtendClientAreaToDecorationsHint`); tabs sit in
   the title bar and empty space drags the window. Caption buttons are the platform's own (right side on
   Windows/Linux, traffic lights on the left on macOS); `ConfigureCaptionInsets` reserves room for them.
-- **Tabs**: icon + title + close button, middle-click closes, drag to reorder, context menu (new, duplicate,
+- **Tabs**: icon + title + close button; every tab has the same width (`Size.TabWidth` 240 px), shrinking
+  equally to `Size.TabMinWidth` 100 px as the strip fills (`TabStripPanel`); a split-view tab shows both pane
+  titles, left first, as `Left | Right`; middle-click closes, drag to reorder, context menu (new, duplicate,
   pin, close, close others, close to the right, reopen closed); Ctrl+Shift+T reopens closed tabs
   (25 remembered); new windows via the `window.new` command.
 - **Omnibar**: shows clickable breadcrumb segments; clicking the empty area or Ctrl+L / Alt+D switches to an
@@ -36,7 +38,8 @@ Navigator's window follows the familiar Files-app layout. Everything is styled t
   folder recursively; Ctrl+Shift+F filters the current listing; Ctrl+Shift+P opens the command palette.
   (Breadcrumb chevron flyouts and path autocompletion are not implemented yet — `docs/KNOWN_ISSUES.md`.)
 - **Sidebar**: collapsible sections, resizable with a splitter (clamped to 160–480 px, persisted), toggled
-  with the sidebar command; pinned folders are reorderable by drag; drives show a usage bar; context menus
+  with the sidebar command; pinned folders are reorderable by drag; the Recycle Bin / Trash sits at the end of the
+  pinned (quick access) section, or below the sections when quick access is hidden; drives show a usage bar; context menus
   per item.
 - **Pane**: layouts **Details, List, Tiles, Small/Medium/Large/Extra-large icons**; group headers; column
   headers with sort indicator, resizable columns (48–1200 px) and a column visibility menu; rubber-band
@@ -57,7 +60,7 @@ Navigator's window follows the familiar Files-app layout. Everything is styled t
 | Group | Tokens (default = "Normal" density) |
 |---|---|
 | Typography | `Font.Caption` 12, `Font.Body` 14, `Font.Subtitle` 16, `Font.Title` 20, `Font.Display` 28; family: Segoe UI Variable / SF Pro / Inter / Cantarell / Noto Sans / Ubuntu fallback chain; scaled by the font-size setting |
-| Sizes | `Size.Row` 32, `Size.Control` 32, `Size.Tab` 36, `Size.TitleBar` 44, `Size.Icon` 16, `Size.RowIcon` 18, `Size.SidebarItem` 36 |
+| Sizes | `Size.Row` 32, `Size.Control` 32, `Size.Tab` 36, `Size.TabWidth` 240, `Size.TabMinWidth` 100, `Size.TitleBar` 44, `Size.Icon` 16, `Size.RowIcon` 18, `Size.SidebarItem` 36 |
 | Density | Compact: row 26 / control 28 / tab 32 · Normal: 32 / 32 / 36 · Comfortable: 40 / 36 / 40 |
 | Spacing | `Space.Card` 16, `Space.Page` 32,24,32,32, `Space.Toolbar` 8,4,8,4, `Space.Row` 12,0,12,0 |
 | Radius | `Radius.Control` 4, `Radius.Card` 8, `Radius.Overlay` 8, `Radius.Tab` 8,8,0,0, `Radius.Layer` 8,0,0,0, `Radius.Pill` 2 |
