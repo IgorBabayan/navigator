@@ -339,6 +339,8 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         FilterText = string.Empty;
         _entries.Clear();
         _itemsByPath.Clear();
+        // The sorted list belongs to the previous location: keeping it made the next view (e.g. Recycle Bin) show stale items.
+        _sortedAll = [];
         _ordered = [];
         Selection.SetItems([]);
         Rows.ReplaceAll([]);
@@ -438,20 +440,37 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
 
     private async Task LoadTrashAsync(CancellationToken token)
     {
-        _displayContext = CreateDisplayContext();
+        var context = CreateDisplayContext();
+        _displayContext = context;
+        var comparer = new FileEntryComparer(_sort);
         var items = await _services.Trash.ListAsync(token).ConfigureAwait(true);
+
+        // Building and sorting the models can be large for a full bin: keep it off the UI thread.
+        var models = await Task.Run(() => BuildTrashModels(items, context, comparer), token).ConfigureAwait(true);
+        token.ThrowIfCancellationRequested();
+
+        foreach (var model in models)
+        {
+            _entries[model.FullPath] = model.Entry;
+            _itemsByPath[model.FullPath] = model;
+        }
+
+        _sortedAll = models;
+        ApplyView();
+    }
+
+    private static List<FileItemViewModel> BuildTrashModels(IReadOnlyList<TrashItem> items, ItemDisplayContext context, FileEntryComparer comparer)
+    {
         var models = new List<FileItemViewModel>(items.Count);
         foreach (var item in items)
         {
-            var entry = new FileEntry(item.Name, item.StoragePath, item.IsDirectory, Math.Max(0, item.Length),
-                item.DeletedAt?.UtcDateTime ?? DateTime.MinValue, item.DeletedAt?.UtcDateTime ?? DateTime.MinValue, FileAttributes.Normal);
-            _entries[entry.FullPath] = entry;
-            models.Add(new FileItemViewModel(entry, _displayContext, item));
+            var deleted = item.DeletedAt?.UtcDateTime ?? DateTime.MinValue;
+            var entry = new FileEntry(item.Name, item.StoragePath, item.IsDirectory, Math.Max(0, item.Length), deleted, deleted, FileAttributes.Normal);
+            models.Add(new FileItemViewModel(entry, context, item));
         }
 
-        foreach (var model in models)
-            _itemsByPath[model.FullPath] = model;
-        ApplyView();
+        models.Sort((a, b) => comparer.Compare(a.Entry, b.Entry));
+        return models;
     }
 
     private async Task LoadTagAsync(string tagId, CancellationToken token)

@@ -160,13 +160,6 @@ public sealed partial class PaneViewModel
     /// <summary>Applies the name filter and tags to the sorted list, then rebuilds rows.</summary>
     private void ApplyView()
     {
-        if (IsTrash && _sortedAll.Count == 0 && _itemsByPath.Count > 0)
-        {
-            var list = _itemsByPath.Values.ToList();
-            list.Sort((a, b) => new FileEntryComparer(_sort).Compare(a.Entry, b.Entry));
-            _sortedAll = list;
-        }
-
         var filter = new NameFilter(_filterText);
         _ordered = filter.IsEmpty ? _sortedAll : [.. _sortedAll.Where(i => filter.Matches(i.Name))];
 
