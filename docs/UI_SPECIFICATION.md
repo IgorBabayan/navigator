@@ -21,7 +21,7 @@ Navigator's window follows the familiar Files-app layout. Everything is styled t
 │ Tags       │ status bar: N items · M selected · size      │               │
 │ Recycle    │                                              │               │
 ├────────────┴──────────────────────────────────────────────┴───────────────┤
-│ Operations flyout (on demand) · toasts (bottom-right)                       │
+│ Status center flyout (toolbar ring button) · toasts (bottom-right)          │
 └───────────────────────────────────────────────────────────────────────────┘
 ```
 

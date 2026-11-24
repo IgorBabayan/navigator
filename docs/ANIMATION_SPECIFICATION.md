@@ -36,7 +36,8 @@ Easing curves:
 
 | Resource | Full | Reduced | Off | Applied to |
 |---|---|---|---|---|
-| `Motion.Hover` | Background brush, Fast, Standard | same | none | `Border.hoverable`, `Border.item`, `Border.tab` (sidebar items, rows, tabs, command buttons) |
+| `Motion.Hover` | Background + border brush, Fast, Standard | same | none | `Border.hoverable`, `Border.item`, `Border.tab`, the content presenter of `Button.subtle` / `ToggleButton.subtle` (sidebar items, rows, tabs, command buttons) |
+| `Motion.Progress` | Progress value, Slow, Decelerate | same | none | `ProgressBar`, `c:ProgressRing` |
 | `Motion.Fade` | Opacity, Normal, Decelerate | same | none | flyout/overlay content |
 | `Motion.FadeAndMove` | Opacity (Normal) + translate (Slow), Decelerate | falls back to `Motion.Fade` | none | entrances via `Motion.Enter` |
 | `Motion.Indicator` | Translate, Normal, Standard | none | none | selection pill of sidebar items |
@@ -65,7 +66,12 @@ from `translateY(6px)` to `0`. Used on:
 | Toasts | entrance; auto-dismiss after the configured delay |
 | Folder navigation | no page transition: content is replaced as soon as the first batch arrives (perceived speed beats motion) |
 | Drag over a folder | `droptarget` style (brush transition) |
-| Operations progress | progress bars update in place; no animated interpolation |
+| Operations progress | progress bars and the toolbar ring ease between updates (`Motion.Progress`); status center cards enter with `Motion.Enter`; the details chevron rotates with `Motion.Indicator` |
+| Scrolling (row recycling) | no motion: `RowSurface` disables transitions while a recycled row receives its new item |
+
+Brush rule: translucent brushes keep their alpha in the color (`#AARRGGBB`), never in `Opacity`, and hoverable
+surfaces rest on `Brush.Rest` (the hover color at zero alpha). `BrushTransition` interpolates color and opacity
+separately, so a transparent → `(color, Opacity)` fade overshoots mid-way and reads as a blink.
 
 ## Reduced motion
 

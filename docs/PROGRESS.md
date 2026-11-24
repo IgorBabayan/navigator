@@ -58,3 +58,5 @@ Originality scan: 0 matching code windows against Files app sources — see `doc
 | 2026-11-24 | Signed update manifest (ECDSA P-256) | asset hashes alone do not protect against a compromised release upload |
 | 2026-11-24 | Tags stored in app data | portable across file systems; no xattr/ADS permission issues |
 | 2026-11-24 | OS icons through `ISystemIconProvider` (Windows shell image lists, flat API + vtable call, no built-in COM interop) | native look for user folders/drives while staying trimming-safe; other platforms fall back to the own icon set |
+| 2026-11-24 | Translucent brushes carry alpha in the color; rows recycle without transitions (`RowSurface`) | `BrushTransition` interpolates color and opacity separately (hover flash); recycled rows faded between items while scrolling |
+| 2026-11-24 | Status center summary values are cached per tick; cards raise only changed properties | bindings never enumerate the operation list; idle cards cost nothing |

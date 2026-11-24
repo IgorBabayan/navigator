@@ -79,7 +79,7 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Drag and drop inside Navigator (panes, tabs, sidebar) | 🟦 | 🟦 | ✓ | ✓ | ✓ | `ShouldMoveOnDrop` (same volume = move) |
 | Drag and drop to/from other apps | ⬜ | ⬜ | | | | |
 | Queue, concurrency limit, pause/resume, cancel | ✅ | 🟦 | ✓ | ✓ | ✓ | `FileOperationQueue`, `PauseGate` |
-| Progress, speed, ETA, operations flyout | 🟦 | 🟦 | ✓ | ✓ | ✓ | |
+| Progress, speed, ETA, status center (toolbar ring, cards, speed graph, dismiss/clear/cancel all) | 🟦 | 🟦 | ✓ | ✓ | ✓ | `OperationsViewModel`, `OperationsView`, `ProgressRing`, `SpeedGraph` |
 | Conflict resolution (replace/skip/keep both/merge, apply to all) | ✅ | 🟦 | ✓ | ✓ | ✓ | never silent overwrite |
 | Atomic copy via temp file, metadata preserved | ✅ | ➖ | ✓ | ✓ | ✓ | `SafeFileCopier` |
 | Cross-volume move with verify-before-delete | ✅ | ➖ | ✓ | ✓ | ✓ | `TransferExecutor` |

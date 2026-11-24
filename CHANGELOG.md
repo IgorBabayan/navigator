@@ -40,6 +40,12 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
 - Packaging: Windows installer + portable ZIP, Linux AppImage + tar.gz, macOS DMG + ZIP.
 - Documentation set and source-originality scanner.
 
+- Status center for file operations, opened from a toolbar button that appears while operations exist: a progress
+  ring shows overall progress (a badge shows the outcome once everything finished); the flyout lists every operation
+  with its kind, route ("From A to B"), state and percentage, a tone-colored progress bar, pause/resume, cancel,
+  per-card dismiss, "Cancel all" and "Clear finished", and expandable details with a live throughput graph, speed,
+  time left, item count and the current item. Replaces the status bar "File operations" button.
+
 ### Changed
 
 - Tabs all have the same width and shrink equally when the title bar fills up, instead of sizing to their titles.
@@ -49,12 +55,19 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
   accent tint, and text selection / focused text boxes use the accent with a contrasting selected-text color.
   With "Use system accent", changing the OS accent while Navigator runs updates the UI immediately.
 
+- Hover and selection fades are smooth: translucent brushes carry their alpha in the color (a fade from transparent
+  used to overshoot to ~6× the target darkness mid-way and read as a blink), command buttons fade instead of snapping,
+  hovering a selected row deepens its fill instead of dimming the whole row, and the tab close button fades in.
+- Progress bars and the progress ring ease between the 10 Hz progress updates instead of stepping.
+
 ### Removed
 
 - The "Enable experimental features" setting (it controlled nothing); the stored value is dropped on next save.
 
 ### Fixed
 
+- Rows and tiles no longer blink while scrolling: a recycled container switched its hover/selection state with a fade
+  from the previous item's state. `RowSurface` turns transitions off while virtualization assigns a new item.
 - Clearing the search box while search results are shown returns to the searched folder (a Back step when it
   came from there); Back/Forward into results shows their query in the search box again.
 - The performance overlay (Avalonia's renderer debug overlay) covered the title bar and search box and forced

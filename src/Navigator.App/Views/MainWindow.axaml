@@ -294,6 +294,22 @@
         </StackPanel>
 
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2">
+          <!-- Status center: shown while there are file operations; the ring tracks overall progress, the badge the outcome -->
+          <Button Classes="subtle icon" IsVisible="{Binding Operations.HasItems}" ToolTip.Tip="{Binding Operations.SummaryText}">
+            <Panel Width="18" Height="18">
+              <c:ProgressRing Width="18" Height="18" Thickness="2" IsVisible="{Binding Operations.HasActive}"
+                              Value="{Binding Operations.OverallProgress}" IsIndeterminate="{Binding Operations.IsOverallIndeterminate}" />
+              <c:IconView Width="18" Height="18" Kind="{Binding Operations.OverallIconKey}" IsVisible="{Binding Operations.HasOverallIcon}"
+                          Classes.tone-success="{Binding Operations.OverallTone, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Success}"
+                          Classes.tone-warning="{Binding Operations.OverallTone, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Warning}"
+                          Classes.tone-error="{Binding Operations.OverallTone, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Error}" />
+            </Panel>
+            <Button.Flyout>
+              <Flyout Placement="BottomEdgeAlignedRight">
+                <v:OperationsView DataContext="{Binding Operations}" Width="400" />
+              </Flyout>
+            </Button.Flyout>
+          </Button>
           <Button Classes="subtle" IsVisible="{Binding Update.IsUpdateAvailable}" Command="{Binding OpenSettingsCommand}" ToolTip.Tip="{Binding Update.StatusText}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <c:IconView Kind="Update" Foreground="{DynamicResource Accent.Brush}" />
@@ -329,21 +345,10 @@
       </Grid>
 
       <!-- ── Status bar ─────────────────────────────────────── -->
-      <Grid Grid.Row="4" ColumnDefinitions="Auto,Auto,*,Auto,Auto" Height="28" Margin="16,0,12,0">
+      <Grid Grid.Row="4" ColumnDefinitions="Auto,Auto,*,Auto" Height="28" Margin="16,0,12,0">
         <TextBlock Classes="caption" Text="{Binding ActivePane.StatusText}" VerticalAlignment="Center" ToolTip.Tip="{Binding ActivePane.LastLoadMilliseconds, StringFormat='{}{0} ms'}" />
         <TextBlock Grid.Column="1" Classes="caption" Margin="16,0,0,0" Text="{Binding ActivePane.SelectionText}" VerticalAlignment="Center" />
         <v:PerformanceIndicator Grid.Column="3" Margin="12,0,0,0" VerticalAlignment="Center" />
-        <Button Grid.Column="4" Classes="subtle" Padding="8,0" MinHeight="24" Margin="8,0,0,0" IsVisible="{Binding Operations.HasItems}">
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <ProgressBar Width="80" Value="{Binding Operations.OverallProgress}" IsVisible="{Binding Operations.HasActive}" VerticalAlignment="Center" />
-            <TextBlock Classes="caption" Text="{c:Tr Operations.Title}" VerticalAlignment="Center" />
-          </StackPanel>
-          <Button.Flyout>
-            <Flyout Placement="TopEdgeAlignedRight">
-              <v:OperationsView DataContext="{Binding Operations}" Width="380" />
-            </Flyout>
-          </Button.Flyout>
-        </Button>
       </Grid>
     </Grid>
 

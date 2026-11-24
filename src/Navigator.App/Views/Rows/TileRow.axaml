@@ -14,7 +14,7 @@
     </ItemsControl.ItemsPanel>
     <ItemsControl.ItemTemplate>
       <DataTemplate x:DataType="items:FileItemViewModel">
-        <Border Classes="item" Classes.selected="{Binding IsSelected}" Width="{Binding $parent[v:PaneView].Pane.TileWidth}" Padding="6,8" ToolTip.Tip="{Binding FullPath}"
+        <c:RowSurface Classes="item" Classes.selected="{Binding IsSelected}" Width="{Binding $parent[v:PaneView].Pane.TileWidth}" Padding="6,8" ToolTip.Tip="{Binding FullPath}"
                 AttachedToVisualTree="OnTileAttached" DetachedFromVisualTree="OnTileDetached">
           <Panel>
           <StackPanel Spacing="6" Opacity="{Binding ContentOpacity}">
@@ -28,7 +28,7 @@
           </StackPanel>
           <Border Classes="rowCheck" HorizontalAlignment="Left" VerticalAlignment="Top"><c:IconView Kind="Check" /></Border>
           </Panel>
-        </Border>
+        </c:RowSurface>
       </DataTemplate>
     </ItemsControl.ItemTemplate>
   </ItemsControl>
