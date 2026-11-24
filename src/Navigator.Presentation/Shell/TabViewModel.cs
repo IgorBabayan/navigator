@@ -76,6 +76,7 @@ public sealed class TabViewModel : ObservableObject, IDisposable
         LocationKind.Trash => "Trash",
         LocationKind.Search => "Search",
         LocationKind.Tag => "Tag",
+        LocationKind.Remote => "Server",
         _ => "Folder",
     };
 

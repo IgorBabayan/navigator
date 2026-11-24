@@ -18,7 +18,8 @@ public sealed class FileEntry
         long length,
         DateTime creationTimeUtc,
         DateTime lastWriteTimeUtc,
-        FileAttributes attributes)
+        FileAttributes attributes,
+        bool isRemote = false)
     {
         Name = name;
         FullPath = fullPath;
@@ -27,6 +28,7 @@ public sealed class FileEntry
         CreationTimeUtc = creationTimeUtc;
         LastWriteTimeUtc = lastWriteTimeUtc;
         Attributes = attributes;
+        IsRemote = isRemote;
     }
 
     public string Name { get; }
@@ -45,6 +47,12 @@ public sealed class FileEntry
     public FileAttributes Attributes { get; }
 
     /// <summary>
+    /// The entry belongs to a plugin file system: <see cref="FullPath"/> is a remote address ("sftp://host/dir/name"),
+    /// so local-only work (thumbnails, previews, folder sizes, shell actions) must skip it.
+    /// </summary>
+    public bool IsRemote { get; }
+
+    /// <summary>
     /// True when both snapshots describe the same entry with the same metadata (path, kind, size, times, attributes).
     /// Lets a re-enumeration keep the existing instance, so the item view model built for it is kept as well.
     /// </summary>
@@ -56,6 +64,7 @@ public sealed class FileEntry
                && LastWriteTimeUtc == other.LastWriteTimeUtc
                && CreationTimeUtc == other.CreationTimeUtc
                && Attributes == other.Attributes
+               && IsRemote == other.IsRemote
                && string.Equals(FullPath, other.FullPath, StringComparison.Ordinal)
                && string.Equals(Name, other.Name, StringComparison.Ordinal));
 

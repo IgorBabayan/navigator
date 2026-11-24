@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Built-in "Network" plugin: the sidebar's Network section (on Windows a "Network" entry that browses computers and
+    shares on the local network, like File Explorer; on every OS the mounted network shares and drives).
+    Permanent: compiled into the app (Navigator.App references this project) and registered without
+    assembly scanning, so it costs nothing extra at startup and cannot be removed from the plugin shop.
+  -->
+  <PropertyGroup>
+    <RootNamespace>Navigator.Plugin.Network</RootNamespace>
+    <IsTrimmable>true</IsTrimmable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Navigator.UnitTests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Navigator.Plugins.Abstractions\Navigator.Plugins.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

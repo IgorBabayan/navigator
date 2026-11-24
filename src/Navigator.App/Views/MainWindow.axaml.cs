@@ -105,6 +105,10 @@ public sealed partial class MainWindow : Window
         if (!IsVisible)
             Show();
         Activate();
+
+        // Activate() alone is refused by Windows' foreground lock when another app is in front (global shortcut).
+        if (OperatingSystem.IsWindows() && TryGetPlatformHandle() is { } handle)
+            Navigator.Platform.Hotkeys.WindowsForeground.BringToFront(handle.Handle);
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)

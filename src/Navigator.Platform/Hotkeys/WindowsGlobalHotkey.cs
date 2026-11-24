@@ -93,7 +93,11 @@ internal sealed partial class WindowsGlobalHotkey : IGlobalHotkeyService
             while (GetMessage(out var message, IntPtr.Zero, 0, 0) > 0)
             {
                 if (message.Message == WmHotkey && message.WParam == HotkeyId)
+                {
+                    // This thread may take the foreground right now; let the UI thread use that when it activates.
+                    WindowsForeground.AllowForThisProcess();
                     pressed();
+                }
             }
         }
         finally

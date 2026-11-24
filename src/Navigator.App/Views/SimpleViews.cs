@@ -15,6 +15,32 @@ public sealed partial class SidebarView : UserControl
 
     public SidebarViewModel? Model => DataContext as SidebarViewModel;
 
+    /// <summary>Menu items a plugin added to the previous menu; replaced each time a menu opens.</summary>
+    private static readonly object PluginItemTag = new();
+
+    /// <summary>Appends the entry's plugin actions (e.g. "Edit…", "Remove" for a saved server) to its context menu.</summary>
+    private void OnItemMenuOpening(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (sender is not ContextMenu { DataContext: SidebarItemViewModel item } menu)
+            return;
+        for (var i = menu.Items.Count - 1; i >= 0; i--)
+        {
+            if (menu.Items[i] is Control { Tag: var tag } && ReferenceEquals(tag, PluginItemTag))
+                menu.Items.RemoveAt(i);
+        }
+
+        if (!item.HasCommands)
+            return;
+        menu.Items.Add(new Separator { Tag = PluginItemTag });
+        foreach (var command in item.Commands)
+        {
+            var menuItem = new MenuItem { Header = command.Title, Command = command.Command, Tag = PluginItemTag };
+            if (command.IsDestructive)
+                menuItem.Classes.Add("destructive");
+            menu.Items.Add(menuItem);
+        }
+    }
+
     private void OnItemPressed(object? sender, PointerPressedEventArgs e)
     {
         if (sender is Control { DataContext: SidebarItemViewModel item })

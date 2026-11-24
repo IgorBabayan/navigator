@@ -64,7 +64,25 @@ public sealed record ConfirmRequest(string Title, string Message, string Primary
 
 public sealed record ConfirmResponse(DialogResult Result, bool IsChecked);
 
-public sealed record TextInputRequest(string Title, string Label, string InitialText, string PrimaryText, Func<string, string?>? Validate = null, int SelectionLength = -1);
+public sealed record TextInputRequest(string Title, string Label, string InitialText, string PrimaryText, Func<string, string?>? Validate = null, int SelectionLength = -1, bool IsSecret = false);
+
+public enum FormFieldKind
+{
+    Text,
+    Number,
+    Password,
+    FilePath,
+    Choice,
+    Toggle,
+}
+
+public sealed record FormChoice(string Id, string Text);
+
+/// <summary>One input of a <see cref="FormRequest"/>. <see cref="Validate"/> returns an error message or null.</summary>
+public sealed record FormField(string Id, string Label, FormFieldKind Kind, string Value, bool IsRequired, IReadOnlyList<FormChoice> Choices, string? Placeholder, Func<string, string?>? Validate);
+
+/// <summary>A small modal form (plugin connection settings). The result maps field ids to values.</summary>
+public sealed record FormRequest(string Title, string PrimaryText, IReadOnlyList<FormField> Fields);
 
 /// <summary>Modal dialogs. All methods are called on the UI thread.</summary>
 public interface IDialogService
@@ -72,6 +90,9 @@ public interface IDialogService
     Task<ConfirmResponse> ConfirmAsync(ConfirmRequest request);
 
     Task<string?> PromptTextAsync(TextInputRequest request);
+
+    /// <summary>Shows a form; returns the values by field id, or null when cancelled.</summary>
+    Task<IReadOnlyDictionary<string, string>?> ShowFormAsync(FormRequest request);
 
     Task<ConflictChoice> ResolveConflictAsync(ConflictInfo conflict);
 

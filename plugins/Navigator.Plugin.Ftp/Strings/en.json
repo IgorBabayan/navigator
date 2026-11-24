@@ -1,0 +1,12 @@
+{
+  "Ftp.Password": "Password",
+  "Ftp.PasswordTitle": "Sign in to {0}",
+  "Ftp.ProtocolPlain": "FTP (unencrypted)",
+  "Ftp.ProtocolSecure": "FTPS (FTP over TLS)",
+  "Ftp.Title": "FTP",
+  "Ftp.Trust": "Trust and connect",
+  "Ftp.UntrustedMessage": "The certificate of {0} is not trusted by this computer:\n\n{1}\n\nContinue only if you know this certificate belongs to the server (for example, a self-signed certificate you created). It is remembered for this server.",
+  "Ftp.UntrustedTitle": "Untrusted certificate",
+  "Ftp.UserName": "User name",
+  "Ftp.UserNameTitle": "User name for {0}"
+}

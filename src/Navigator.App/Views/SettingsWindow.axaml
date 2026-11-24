@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:c="using:Navigator.App.Controls"
         xmlns:p="using:Navigator.Presentation.SettingsPages"
+        xmlns:pl="using:Navigator.Presentation.Plugins"
         x:Class="Navigator.App.Views.SettingsWindow"
         x:DataType="p:SettingsViewModel"
         Title="{c:Tr Command.Settings}"
@@ -308,6 +309,91 @@
               <TextBlock Grid.Column="2" Text="{Binding MaxBackgroundWorkers}" VerticalAlignment="Center" HorizontalAlignment="Right" /></Grid></Border>
             <Border Classes="setting"><Grid ColumnDefinitions="*,Auto"><StackPanel VerticalAlignment="Center"><TextBlock Text="{c:Tr Settings.PerformanceOverlay}" /><TextBlock Classes="description" Text="{c:Tr Settings.PerformanceOverlayDescription}" TextWrapping="Wrap" /></StackPanel>
               <ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowPerformanceOverlay}" OnContent="" OffContent="" /></Grid></Border>
+          </StackPanel>
+
+          <!-- Plugins (plugin shop) -->
+          <StackPanel Classes="page" IsVisible="{Binding SelectedPage.Id, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=plugins}">
+            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+              <TextBlock Classes="display" Text="{c:Tr Settings.Plugins}" VerticalAlignment="Center" />
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Button Content="{c:Tr Plugins.InstallFromFile}" Command="{Binding Plugins.InstallFromFileCommand}" />
+                <Button Content="{c:Tr Plugins.Refresh}" Command="{Binding Plugins.RefreshCommand}" IsVisible="{Binding Plugins.IsShopConfigured}" />
+              </StackPanel>
+            </Grid>
+
+            <!-- Progress, result and errors of the last action -->
+            <Border Classes="setting" MinHeight="0" IsVisible="{Binding Plugins.IsBusy}">
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Text="{Binding Plugins.StatusText}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                  <Button Grid.Column="1" Classes="subtle" Content="{c:Tr Dialog.Cancel}" Command="{Binding Plugins.CancelCommand}" />
+                </Grid>
+                <ProgressBar Value="{Binding Plugins.Progress}" IsIndeterminate="{Binding Plugins.IsProgressIndeterminate}" />
+              </StackPanel>
+            </Border>
+            <TextBlock Classes="caption" Margin="4,0,0,8" Text="{Binding Plugins.StatusText}" TextWrapping="Wrap"
+                       IsVisible="{Binding !Plugins.IsBusy}" />
+            <TextBlock Classes="error" Margin="4,0,0,8" Text="{Binding Plugins.ErrorText}" TextWrapping="Wrap" IsVisible="{Binding Plugins.HasError}" />
+            <TextBlock Classes="caption" Margin="4,0,0,8" Text="{c:Tr Plugins.RestartPending}" TextWrapping="Wrap" IsVisible="{Binding Plugins.IsRestartPending}" />
+
+            <!-- Installed -->
+            <TextBlock Classes="subtitle" Text="{c:Tr Plugins.Installed}" Margin="0,8,0,8" />
+            <ItemsControl ItemsSource="{Binding Plugins.Installed}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="pl:PluginRowViewModel">
+                  <Border Classes="setting">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                      <c:IconView Kind="{Binding IconKey}" Width="24" Height="24" Margin="0,0,16,0" VerticalAlignment="Center" />
+                      <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                          <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                          <TextBlock Classes="description" Text="{Binding Version}" VerticalAlignment="Bottom" />
+                        </StackPanel>
+                        <TextBlock Classes="description" Text="{Binding Description}" />
+                        <TextBlock Classes="description" Text="{Binding StatusText}" IsVisible="{Binding HasStatus}" />
+                      </StackPanel>
+                      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <Button Classes="accent" IsVisible="{Binding HasUpdate}"
+                                Command="{Binding $parent[Window].((p:SettingsViewModel)DataContext).Plugins.UpdateCommand}" CommandParameter="{Binding}">
+                          <TextBlock Text="{Binding UpdateText}" />
+                        </Button>
+                        <Button Content="{c:Tr Plugins.Remove}" IsVisible="{Binding CanRemove}"
+                                Command="{Binding $parent[Window].((p:SettingsViewModel)DataContext).Plugins.RemoveCommand}" CommandParameter="{Binding}" />
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Available from the catalog -->
+            <TextBlock Classes="subtitle" Text="{c:Tr Plugins.Available}" Margin="0,16,0,8" />
+            <TextBlock Classes="caption" Margin="4,0,0,8" Text="{c:Tr Plugins.ShopUnavailable}" TextWrapping="Wrap" IsVisible="{Binding !Plugins.IsShopConfigured}" />
+            <TextBlock Classes="caption" Margin="4,0,0,8" Text="{c:Tr Plugins.NothingAvailable}" TextWrapping="Wrap"
+                       IsVisible="{Binding Plugins.IsCatalogEmpty}" />
+            <ItemsControl ItemsSource="{Binding Plugins.Available}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="pl:PluginRowViewModel">
+                  <Border Classes="setting">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                      <c:IconView Kind="{Binding IconKey}" Width="24" Height="24" Margin="0,0,16,0" VerticalAlignment="Center" />
+                      <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                          <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                          <TextBlock Classes="description" Text="{Binding Version}" VerticalAlignment="Bottom" />
+                        </StackPanel>
+                        <TextBlock Classes="description" Text="{Binding Description}" />
+                        <TextBlock Classes="description" Text="{Binding Author}" />
+                        <TextBlock Classes="description" Text="{Binding StatusText}" IsVisible="{Binding HasStatus}" />
+                      </StackPanel>
+                      <Button Grid.Column="2" Classes="accent" VerticalAlignment="Center" Content="{c:Tr Plugins.Install}"
+                              Command="{Binding $parent[Window].((p:SettingsViewModel)DataContext).Plugins.InstallCommand}" CommandParameter="{Binding}" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Classes="caption" Margin="4,8,0,0" Text="{Binding Plugins.CatalogSourceText}" TextWrapping="Wrap" />
           </StackPanel>
 
           <!-- Updates -->

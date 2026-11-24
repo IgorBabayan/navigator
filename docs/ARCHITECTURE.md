@@ -31,8 +31,11 @@ testable without a display and the UI framework is replaceable.
 | `Navigator.Platform` | Core | Per-OS implementations compiled into one assembly and selected at runtime (`PlatformServices`). P/Invoke is isolated in `Native/` and the per-OS classes. |
 | `Navigator.Updater` | Core | Release discovery, manifest parsing/validation, ECDSA signature verification, resumable verified download, per-installation-kind installers with rollback. |
 | `Navigator.Presentation` | Core, Platform contracts, Updater, CommunityToolkit.Mvvm, M.E.Logging.Abstractions | All view models and UI-independent services. Owns selection, row models and the localization catalog. |
-| `Navigator.App` | everything above + Avalonia | Window chrome, views, design system, UI service implementations (dispatcher, dialogs, clipboard, thumbnails, windows, theme). |
-| `tools/Navigator.ReleaseTool` | Core, Updater | Version computation, asset classification, checksums, manifest generation and signing; used by `release.yml`. |
+| `Navigator.Plugins.Abstractions` | Core | The plugin contract (`INavigatorPlugin`, `IPluginContext`, sidebar sections, `IRemoteFileSystem`, plugin dialogs, `PluginApi` version) and shared helpers for server plugins (saved connections, credential cache, connection pool). |
+| `Navigator.Plugins` | Core, Updater, Plugins.Abstractions | Plugin host: built-in plugins, isolated loading of installed packages (one `AssemblyLoadContext` each), install/update/remove, plugin shop client (signed catalog). |
+| `Navigator.App` | everything above + Avalonia + `plugins/Navigator.Plugin.Network` | Window chrome, views, design system, UI service implementations (dispatcher, dialogs, clipboard, thumbnails, windows, theme). |
+| `plugins/Navigator.Plugin.*` | Plugins.Abstractions | Network (built into the app, permanent), SSH and FTP (separate `.navplugin` packages, installed from the shop). See `docs/PLUGINS.md`. |
+| `tools/Navigator.ReleaseTool` | Core, Updater, Plugins | Version computation, asset classification, checksums, manifest and plugin catalog generation, signing; used by `release.yml`. |
 
 ## Key design decisions
 
@@ -76,6 +79,12 @@ testable without a display and the UI framework is replaceable.
    handlers + `mimeapps.list`), macOS (`NSFileManager trashItemAtURL` via `objc_msgSend`, `open`).
 10. **Updater.** See `docs/UPDATER.md`. The updater refuses to restart while operations run
     (`TryRestartToUpdate(canRestart)`), and each installation kind has its own swap strategy with rollback.
+11. **Plugins.** See `docs/PLUGINS.md`. Sidebar sections and file systems for plugin addresses (`sftp://`, `ftp://`)
+    come from plugins. The only built-in plugin (Network) is constructed directly, so plugins add nothing before the
+    first frame; installed packages load afterwards on a worker thread, each in its own `AssemblyLoadContext`.
+    Contributions are published as immutable snapshots, so readers never lock. Plugin addresses are a separate
+    `LocationKind.Remote`; the local file engine never receives one, which keeps its safety rules intact.
+    Third-party libraries a plugin needs (SSH.NET for SSH) ship only inside that plugin's package, never in the app.
 
 ## Threading model
 

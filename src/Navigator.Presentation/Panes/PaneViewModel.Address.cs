@@ -61,7 +61,7 @@ public sealed partial class PaneViewModel
         OpenBreadcrumbInNewTabCommand = new RelayCommand<BreadcrumbViewModel>(crumb =>
         {
             if (crumb is { HasPath: true })
-                OpenInNewTab(Location.Folder(crumb.Path));
+                OpenInNewTab(Location.FromPath(crumb.Path));
         });
         CopyBreadcrumbPathCommand = new AsyncRelayCommand<BreadcrumbViewModel>(crumb => CopyTextAsync(crumb?.HasPath == true ? crumb.Path : null));
     }
@@ -83,6 +83,14 @@ public sealed partial class PaneViewModel
         if (input.Length == 0)
         {
             IsEditingAddress = false;
+            return;
+        }
+
+        if (RemoteUri.IsRemote(input))
+        {
+            // Plugin addresses (sftp://, ftp://…) are not checked here: the pane shows the plugin's error, if any.
+            RememberAddress(RemoteUri.Normalize(input));
+            Navigate(Location.Remote(input));
             return;
         }
 
@@ -296,7 +304,7 @@ public sealed partial class PaneViewModel
     public async Task<IReadOnlyList<BreadcrumbChild>> GetBreadcrumbChildrenAsync(BreadcrumbViewModel crumb, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(crumb);
-        if (!crumb.HasPath)
+        if (!crumb.HasPath || RemoteUri.IsRemote(crumb.Path))
             return [];
 
         var includeHidden = _services.Settings.Current.FilesAndFolders.ShowHiddenItems;

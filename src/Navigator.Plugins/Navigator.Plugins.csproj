@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Plugin host: discovery, isolated loading (one AssemblyLoadContext per plugin), install / update / remove,
+    and the plugin shop client (signed catalog on GitHub Releases). BCL only.
+  -->
+  <PropertyGroup>
+    <RootNamespace>Navigator.Plugins</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Navigator.Core\Navigator.Core.csproj" />
+    <ProjectReference Include="..\Navigator.Updater\Navigator.Updater.csproj" />
+    <ProjectReference Include="..\Navigator.Plugins.Abstractions\Navigator.Plugins.Abstractions.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Navigator.UnitTests" />
+    <InternalsVisibleTo Include="Navigator.IntegrationTests" />
+  </ItemGroup>
+</Project>

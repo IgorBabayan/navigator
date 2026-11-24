@@ -80,14 +80,14 @@ public sealed partial class PaneViewModel
         OpenSelectedInNewWindowCommand = new RelayCommand(() =>
         {
             foreach (var folder in Selection.SelectedItems.Where(i => i.IsDirectory))
-                _services.Windows.OpenNewWindow(Location.Folder(folder.FullPath));
+                _services.Windows.OpenNewWindow(Location.FromPath(folder.FullPath));
         }, () => Selection.SelectedItems.Any(i => i.IsDirectory));
-        NewFolderCommand = new AsyncRelayCommand(() => CreateItemAsync(isDirectory: true), () => CanCreateItems);
+        NewFolderCommand = new AsyncRelayCommand(() => CreateItemAsync(isDirectory: true), () => CanCreateItems || IsRemote);
         NewFileCommand = new AsyncRelayCommand(() => CreateItemAsync(isDirectory: false), () => CanCreateItems);
-        RenameCommand = new AsyncRelayCommand(RenameAsync, () => CanModifySelection);
+        RenameCommand = new AsyncRelayCommand(RenameAsync, () => CanModifySelection || (IsRemote && Selection.Count == 1));
         DeleteCommand = new AsyncRelayCommand(() => DeleteAsync(permanently: false), () => HasSelection && !IsHome);
         DeletePermanentlyCommand = new AsyncRelayCommand(() => DeleteAsync(permanently: true), () => HasSelection && !IsHome);
-        CopyCommand = new AsyncRelayCommand(() => PutOnClipboardAsync(cut: false), () => HasSelection && !IsTrash);
+        CopyCommand = new AsyncRelayCommand(() => PutOnClipboardAsync(cut: false), () => HasSelection && !IsTrash && !IsRemote);
         CutCommand = new AsyncRelayCommand(() => PutOnClipboardAsync(cut: true), () => CanModifySelection);
         PasteCommand = new AsyncRelayCommand(PasteAsync, () => CanCreateItems);
         DuplicateCommand = new RelayCommand(Duplicate, () => CanModifySelection);
@@ -96,16 +96,17 @@ public sealed partial class PaneViewModel
         InvertSelectionCommand = new RelayCommand(Selection.Invert);
         ClearSelectionCommand = new RelayCommand(Selection.Clear);
         PropertiesCommand = new RelayCommand(ShowProperties);
-        OpenTerminalCommand = new AsyncRelayCommand(OpenTerminalAsync, () => CurrentDirectory is not null || Selection.SelectedItems.Any(i => i.IsDirectory));
-        OpenWithCommand = new AsyncRelayCommand(OpenWithAsync, () => Selection.SelectedItems.Count == 1 && !Selection.SelectedItems[0].IsDirectory);
+        OpenTerminalCommand = new AsyncRelayCommand(OpenTerminalAsync, () => !IsRemote && (CurrentDirectory is not null || Selection.SelectedItems.Any(i => i.IsDirectory)));
+        OpenWithCommand = new AsyncRelayCommand(OpenWithAsync, () => !IsRemote && Selection.SelectedItems.Count == 1 && !Selection.SelectedItems[0].IsDirectory);
         RevealInSystemCommand = new AsyncRelayCommand(RevealInSystemAsync);
         PinSelectedCommand = new RelayCommand(PinSelected);
         CompressCommand = new AsyncRelayCommand(CompressAsync, () => CanModifySelection);
-        ExtractCommand = new AsyncRelayCommand(ExtractAsync, () => Selection.SelectedItems.Any(i => ArchiveService.IsSupportedArchive(i.FullPath)));
+        ExtractCommand = new AsyncRelayCommand(ExtractAsync, () => !IsRemote && Selection.SelectedItems.Any(i => ArchiveService.IsSupportedArchive(i.FullPath)));
         RestoreCommand = new AsyncRelayCommand(RestoreAsync, () => IsTrash && HasSelection);
         EmptyTrashCommand = new AsyncRelayCommand(EmptyTrashAsync, () => IsTrash && _ordered.Count > 0);
         ToggleTagCommand = new RelayCommand<string>(ToggleTag);
         OpenInCodeEditorCommand = new AsyncRelayCommand(OpenInCodeEditorAsync, () => CurrentDirectory is not null);
+        InitializeRemoteCommands();
     }
 
     private void RaiseItemCommandState()
@@ -129,6 +130,7 @@ public sealed partial class PaneViewModel
         RestoreCommand.NotifyCanExecuteChanged();
         EmptyTrashCommand.NotifyCanExecuteChanged();
         OpenInCodeEditorCommand.NotifyCanExecuteChanged();
+        RaiseRemoteCommandState();
     }
 
     /// <summary>Double-click / Enter on an item: folders navigate, archives and files open with the default app.</summary>
@@ -139,7 +141,13 @@ public sealed partial class PaneViewModel
 
         if (item.IsDirectory)
         {
-            Navigate(Location.Folder(item.FullPath));
+            Navigate(Location.FromPath(item.FullPath));
+            return;
+        }
+
+        if (item.Entry.IsRemote)
+        {
+            await OpenRemoteFileAsync(item).ConfigureAwait(true);
             return;
         }
 
@@ -163,7 +171,7 @@ public sealed partial class PaneViewModel
         }
 
         foreach (var folder in folders)
-            OpenInNewTabRequested?.Invoke(this, Location.Folder(folder.FullPath));
+            OpenInNewTabRequested?.Invoke(this, Location.FromPath(folder.FullPath));
         foreach (var file in selected.Where(i => !i.IsDirectory).Take(16))
             await OpenItemAsync(file).ConfigureAwait(true);
     }
@@ -171,11 +179,18 @@ public sealed partial class PaneViewModel
     private void OpenSelectedInNewTab()
     {
         foreach (var folder in Selection.SelectedItems.Where(i => i.IsDirectory))
-            OpenInNewTabRequested?.Invoke(this, Location.Folder(folder.FullPath));
+            OpenInNewTabRequested?.Invoke(this, Location.FromPath(folder.FullPath));
     }
 
     private async Task CreateItemAsync(bool isDirectory)
     {
+        if (IsRemote)
+        {
+            if (isDirectory)
+                await CreateRemoteFolderAsync().ConfigureAwait(true);
+            return;
+        }
+
         if (CurrentDirectory is not { } directory)
             return;
 
@@ -216,6 +231,12 @@ public sealed partial class PaneViewModel
         var selected = Selection.SelectedItems;
         if (selected.Count == 0)
             return;
+
+        if (IsRemote)
+        {
+            await RenameRemoteAsync(selected[0]).ConfigureAwait(true);
+            return;
+        }
 
         if (selected.Count > 1)
         {
@@ -295,6 +316,12 @@ public sealed partial class PaneViewModel
         if (selected.Count == 0)
             return;
 
+        if (IsRemote)
+        {
+            await DeleteRemoteAsync(selected).ConfigureAwait(true);
+            return;
+        }
+
         var localizer = _services.Localizer;
         if (IsTrash)
         {
@@ -367,6 +394,14 @@ public sealed partial class PaneViewModel
     /// <summary>Copy/move into a folder (paste and drag-and-drop). Selects the new items when they land in this pane.</summary>
     public Task TransferIntoAsync(IReadOnlyList<string> sources, string destination, bool move)
     {
+        ArgumentNullException.ThrowIfNull(sources);
+        // The local engine must never see a plugin address: on Unix "sftp://host/x" is a valid *relative* local path.
+        // Local items dropped on a server folder are uploaded; server items are only copied out by Download.
+        if (RemoteUri.IsRemote(destination))
+            return sources.Any(RemoteUri.IsRemote) ? Task.CompletedTask : UploadPathsAsync(sources, destination);
+        if (sources.Any(RemoteUri.IsRemote))
+            return Task.CompletedTask;
+
         var operation = move
             ? _services.Operations.Move(sources, destination, _services.CreateInteraction())
             : _services.Operations.Copy(sources, destination, _services.CreateInteraction());
@@ -406,6 +441,8 @@ public sealed partial class PaneViewModel
 
     private void ShowProperties()
     {
+        if (IsRemote)
+            return;
         var paths = Selection.SelectedItems.Select(i => i.FullPath).ToList();
         if (paths.Count == 0 && CurrentDirectory is { } current)
             paths.Add(current);
@@ -415,6 +452,8 @@ public sealed partial class PaneViewModel
 
     private async Task OpenTerminalAsync()
     {
+        if (IsRemote)
+            return;
         var target = Selection.SelectedItems.FirstOrDefault(i => i.IsDirectory)?.FullPath ?? CurrentDirectory;
         if (target is not null && !await _services.Launcher.OpenTerminalAsync(target).ConfigureAwait(true))
             await _services.Dialogs.ShowMessageAsync(_services.Localizer["Error.TerminalTitle"], _services.Localizer["Error.TerminalNotFound"]).ConfigureAwait(true);
@@ -434,6 +473,8 @@ public sealed partial class PaneViewModel
 
     private async Task RevealInSystemAsync()
     {
+        if (IsRemote)
+            return;
         var selected = Selection.SelectedItems;
         var target = selected.Count > 0 ? selected[0].FullPath : CurrentDirectory;
         if (target is not null)
@@ -459,6 +500,8 @@ public sealed partial class PaneViewModel
 
     private void PinSelected()
     {
+        if (IsRemote)
+            return;
         var folders = Selection.SelectedItems.Where(i => i.IsDirectory).Select(i => i.FullPath).ToList();
         if (folders.Count == 0 && CurrentDirectory is { } current)
             folders.Add(current);
@@ -550,7 +593,7 @@ public sealed partial class PaneViewModel
 
     private void ToggleTag(string? tagId)
     {
-        if (tagId is null)
+        if (tagId is null || IsRemote)
             return;
         var paths = Selection.SelectedItems.Select(i => i.FullPath).ToList();
         if (paths.Count == 0)

@@ -60,6 +60,14 @@ prepare ─► test (ubuntu, windows, macos) ─► build (6 RIDs, parallel) ─
 No workflow-level concurrency group is used — it would cancel or discard queued releases. `prepare` is
 serialized per commit and `publish` per tag, with `cancel-in-progress: false`.
 
+### Plugin packages
+
+The publish job also builds every packaged plugin (`plugins/*` projects with `NavigatorPluginId`; the built-in Network
+plugin ships inside the app), copies the `navigator-plugin-{id}-{version}.navplugin` files into the release, writes
+`plugin-catalog.json` with `Navigator.ReleaseTool plugin-catalog` and signs it with the update key
+(`plugin-catalog.json.sig`). When the public key is configured, an unsigned catalog fails the release. The app's plugin
+shop reads the catalog of the latest release. See `docs/PLUGINS.md`.
+
 ## Required configuration (repository settings)
 
 | Name | Kind | Required | Purpose |

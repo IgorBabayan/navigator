@@ -478,6 +478,9 @@ public sealed partial class PaneView : UserControl
             return menu;
         }
 
+        if (pane.IsRemote)
+            return BuildRemoteItemMenu(pane, selected);
+
         menu.Items.Add(Item("Command.Open", "Forward", pane.OpenSelectedCommand));
         if (selected.Any(i => i.IsDirectory))
         {
@@ -535,6 +538,22 @@ public sealed partial class PaneView : UserControl
         return menu;
     }
 
+    /// <summary>Items in a server folder (plugin file system): only what a server supports, plus Download.</summary>
+    private ContextMenu BuildRemoteItemMenu(PaneViewModel pane, IReadOnlyList<FileItemViewModel> selected)
+    {
+        var menu = new ContextMenu();
+        menu.Items.Add(Item("Command.Open", "Forward", pane.OpenSelectedCommand));
+        if (selected.Any(i => i.IsDirectory))
+            menu.Items.Add(Item("Command.OpenInNewTab", "Add", pane.OpenSelectedInNewTabCommand));
+        menu.Items.Add(new Separator());
+        menu.Items.Add(Item("Remote.Download", "Download", pane.DownloadCommand));
+        menu.Items.Add(Item("Command.Rename", "Rename", pane.RenameCommand, "item.rename"));
+        menu.Items.Add(Item("Command.CopyPath", "Copy", pane.CopyPathCommand, "item.copyPath"));
+        menu.Items.Add(new Separator());
+        menu.Items.Add(Item("Command.Delete", "Delete", pane.DeleteCommand, "item.delete"));
+        return menu;
+    }
+
     private ContextMenu BuildBackgroundMenu()
     {
         var pane = _pane!;
@@ -562,6 +581,13 @@ public sealed partial class PaneView : UserControl
         menu.Items.Add(group);
         menu.Items.Add(Item("Command.Refresh", "Refresh", pane.RefreshCommand, "nav.refresh"));
         menu.Items.Add(new Separator());
+
+        if (pane.IsRemote)
+        {
+            menu.Items.Add(Item("Command.NewFolder", "Folder", pane.NewFolderCommand, "item.newFolder"));
+            menu.Items.Add(Item("Remote.Upload", "Upload", pane.UploadCommand));
+            menu.Items.Add(new Separator());
+        }
 
         if (pane.CanCreateItems)
         {

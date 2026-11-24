@@ -10,6 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Navigator.Core\Navigator.Core.csproj" />
     <ProjectReference Include="..\Navigator.Updater\Navigator.Updater.csproj" />
+    <ProjectReference Include="..\Navigator.Plugins\Navigator.Plugins.csproj" />
   </ItemGroup>
   <ItemGroup>
     <!-- One JSON dictionary per language; adding a language needs no code change. -->

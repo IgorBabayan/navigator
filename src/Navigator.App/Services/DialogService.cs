@@ -39,7 +39,7 @@ internal sealed class DialogService(WindowService windows, Localizer localizer, 
     public async Task<string?> PromptTextAsync(TextInputRequest request)
     {
         var dialog = new DialogWindow(request.Title, null);
-        var box = new TextBox { Text = request.InitialText };
+        var box = new TextBox { Text = request.InitialText, PasswordChar = request.IsSecret ? '\u2022' : '\0' };
         var error = new TextBlock { Classes = { "error" }, IsVisible = false, TextWrapping = TextWrapping.Wrap };
         dialog.AddContent(new TextBlock { Text = request.Label, Classes = { "caption" } });
         dialog.AddContent(box);
@@ -49,7 +49,8 @@ internal sealed class DialogService(WindowService windows, Localizer localizer, 
 
         void Validate()
         {
-            var message = string.IsNullOrWhiteSpace(box.Text) ? localizer["Validation.Empty"] : request.Validate?.Invoke(box.Text);
+            // A password may legitimately be empty; names may not.
+            var message = string.IsNullOrWhiteSpace(box.Text) && !request.IsSecret ? localizer["Validation.Empty"] : request.Validate?.Invoke(box.Text ?? string.Empty);
             error.Text = message;
             error.IsVisible = message is not null && !string.IsNullOrEmpty(box.Text);
             ok.IsEnabled = message is null;
@@ -66,7 +67,122 @@ internal sealed class DialogService(WindowService windows, Localizer localizer, 
         };
 
         var result = await dialog.ShowFor(Owner).ConfigureAwait(true);
-        return result == "ok" && ok.IsEnabled ? box.Text : null;
+        return result == "ok" && ok.IsEnabled ? box.Text ?? string.Empty : null;
+    }
+
+    /// <summary>
+    /// A small form built from field descriptions (plugin connection settings). Each field validates as the user types;
+    /// the primary button is enabled only when every required field is filled and every validator passes.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<string, string>?> ShowFormAsync(FormRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var dialog = new DialogWindow(request.Title, null);
+        var readers = new List<(FormField Field, Func<string> Read, TextBlock Error)>(request.Fields.Count);
+        Button? ok = null;
+        Control? first = null;
+
+        void Validate()
+        {
+            var valid = true;
+            foreach (var (field, read, error) in readers)
+            {
+                var value = read();
+                var message = field.IsRequired && string.IsNullOrWhiteSpace(value) ? localizer["Validation.Empty"] : field.Validate?.Invoke(value);
+                error.Text = message;
+                error.IsVisible = message is not null && value.Length > 0;
+                valid &= message is null;
+            }
+
+            if (ok is not null)
+                ok.IsEnabled = valid;
+        }
+
+        foreach (var field in request.Fields)
+        {
+            var error = new TextBlock { Classes = { "error" }, IsVisible = false, TextWrapping = TextWrapping.Wrap };
+            Control input;
+            Func<string> read;
+            switch (field.Kind)
+            {
+                case FormFieldKind.Toggle:
+                {
+                    var check = new CheckBox { Content = field.Label, IsChecked = string.Equals(field.Value, "true", StringComparison.OrdinalIgnoreCase) };
+                    check.IsCheckedChanged += (_, _) => Validate();
+                    input = check;
+                    read = () => check.IsChecked == true ? "true" : "false";
+                    break;
+                }
+
+                case FormFieldKind.Choice:
+                {
+                    var combo = new ComboBox
+                    {
+                        ItemsSource = field.Choices.Select(c => c.Text).ToList(),
+                        SelectedIndex = Math.Max(0, field.Choices.ToList().FindIndex(c => c.Id == field.Value)),
+                        HorizontalAlignment = HorizontalAlignment.Stretch,
+                    };
+                    combo.SelectionChanged += (_, _) => Validate();
+                    input = combo;
+                    read = () => combo.SelectedIndex >= 0 && combo.SelectedIndex < field.Choices.Count ? field.Choices[combo.SelectedIndex].Id : string.Empty;
+                    break;
+                }
+
+                case FormFieldKind.FilePath:
+                {
+                    var box = new TextBox { Text = field.Value, PlaceholderText = field.Placeholder };
+                    var browse = new Button { Content = localizer["Dialog.Browse"], Margin = new Avalonia.Thickness(8, 0, 0, 0) };
+                    browse.Click += async (_, _) =>
+                    {
+                        if (await PickFileAsync(field.Label).ConfigureAwait(true) is { } path)
+                            box.Text = path;
+                    };
+                    box.TextChanged += (_, _) => Validate();
+                    var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+                    Grid.SetColumn(browse, 1);
+                    row.Children.Add(box);
+                    row.Children.Add(browse);
+                    input = row;
+                    first ??= box;
+                    read = () => box.Text ?? string.Empty;
+                    break;
+                }
+
+                default:
+                {
+                    var box = new TextBox
+                    {
+                        Text = field.Value,
+                        PlaceholderText = field.Placeholder,
+                        PasswordChar = field.Kind == FormFieldKind.Password ? '\u2022' : '\0',
+                    };
+                    box.TextChanged += (_, _) => Validate();
+                    input = box;
+                    first ??= box;
+                    read = () => box.Text ?? string.Empty;
+                    break;
+                }
+            }
+
+            if (field.Kind != FormFieldKind.Toggle)
+                dialog.AddContent(new TextBlock { Text = field.Label, Classes = { "caption" } });
+            dialog.AddContent(input);
+            dialog.AddContent(error);
+            readers.Add((field, read, error));
+        }
+
+        ok = dialog.AddButton(request.PrimaryText, "ok", isDefault: true);
+        dialog.AddButton(localizer["Dialog.Cancel"], "cancel", isCancel: true);
+        Validate();
+        dialog.Opened += (_, _) => first?.Focus();
+
+        var result = await dialog.ShowFor(Owner).ConfigureAwait(true);
+        if (result != "ok" || !ok.IsEnabled)
+            return null;
+        var values = new Dictionary<string, string>(readers.Count, StringComparer.Ordinal);
+        foreach (var (field, read, _) in readers)
+            values[field.Id] = read();
+        return values;
     }
 
     public async Task<ConflictChoice> ResolveConflictAsync(ConflictInfo conflict)

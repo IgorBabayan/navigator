@@ -11,6 +11,7 @@ _Last updated: 2026-11-24 (branch `feature/foundation`, based on `development`).
 | Navigator.Updater | Complete | builds; unit tests pass; no real update performed |
 | Navigator.Presentation | Complete for v1 scope | builds against a CommunityToolkit.Mvvm shim; tests pass |
 | Navigator.App (Avalonia) | Written | **not compiled** (no NuGet access in the development environment) |
+| Plugins (host, SSH, FTP) | Complete for v1 scope | host + plugins build with warnings as errors; unit tests pass; end-to-end against OpenSSH, AsyncSSH, vsftpd, pyftpdlib (see `docs/PLUGINS.md`) |
 | ReleaseTool, PerfProbe | Complete | builds; release logic unit-tested; probe run |
 | CI / release workflows | Written | YAML parsed; not run on GitHub |
 | Packaging scripts | Written | `shellcheck` clean (Linux/macOS); not executed |
@@ -35,6 +36,10 @@ Originality scan: 0 matching code windows against Files app sources — see `doc
   preview pane, operations, dialogs, properties and settings windows, motion system, original icons/logo.
 - CI and release workflows; Windows/Linux/macOS packaging scripts.
 - Documentation set and `CLAUDE.md`.
+- Plugin system (`docs/PLUGINS.md`): contract + host with isolated loading, plugin shop in Settings → Plugins
+  (signed catalog, install/update/remove, install from file), built-in permanent Network plugin, SSH (SFTP) and FTP
+  (FTP/FTPS) plugins as separate packages, server folders in panes (browse, open, download, upload, new folder,
+  rename, delete), release pipeline for plugin packages and catalog.
 
 ## In progress / next (in order)
 
@@ -62,3 +67,7 @@ Originality scan: 0 matching code windows against Files app sources — see `doc
 | 2026-11-24 | Status center summary values are cached per tick; cards raise only changed properties | bindings never enumerate the operation list; idle cards cost nothing |
 | 2026-11-24 | Global "open Navigator" shortcut is a registry command flagged `IsGlobal`, registered with the OS by `IGlobalHotkeyService` (Windows RegisterHotKey on its own message thread, macOS Carbon `RegisterEventHotKey`, Linux XCB grab on its own connection; Wayland unsupported) | reuses the shortcut editor and conflict check; no polling, no Accessibility permission on macOS; XCB reports a taken key as a checked error instead of Avalonia's process-wide Xlib error handler |
 | 2026-11-24 | Background mode is opt-in (`KeepRunningInBackground`) and uses Avalonia's `TrayIcon` | a global shortcut can only open a closed app if the process stays alive; nothing is created when off |
+| 2026-11-24 | Plugins: Network built in (factory, no scanning); others as `.navplugin` packages in their own `AssemblyLoadContext`, loaded after the first frame | zero startup cost for the built-in; plugin dependencies (SSH.NET) never reach the app |
+| 2026-11-24 | Plugin updates/removals finish on the next start (non-collectible load contexts) | loaded assemblies cannot be deleted on Windows; collectible contexts are slower and unloading is fragile |
+| 2026-11-24 | Plugin shop catalog = release asset signed with the update key | one unauthenticated request, no API rate limit, same trust chain as updates |
+| 2026-11-24 | FTP implemented on the BCL; SSH uses SSH.NET (MIT) inside the plugin package only | FTP is small enough to own; SSH key exchange/ciphers (curve25519, ed25519, chacha20) are not in the BCL |

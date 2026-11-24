@@ -68,6 +68,7 @@ public static class CommandRegistry
         new("edit.undo", "Command.Undo", ["Primary+Z"], "Items"),
         new("edit.redo", "Command.Redo", ["Primary+Y", "Primary+Shift+Z"], "Items"),
         new("app.settings", "Command.Settings", ["Primary+OemComma"], "Application"),
+        new("app.pluginShop", "Command.PluginShop", [], "Application"),
         new("app.fullScreen", "Command.FullScreen", ["F11"], "Application"),
         // Ctrl+Alt alone is AltGr on many keyboard layouts (€, ł…); with Shift it rarely produces a character.
         new(ActivateAppId, "Command.ActivateApp", ["Primary+Shift+Alt+E"], "Global", IsGlobal: true),

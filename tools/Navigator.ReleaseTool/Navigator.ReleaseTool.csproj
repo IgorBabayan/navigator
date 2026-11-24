@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Used by .github/workflows/release.yml: version computation, checksums, update manifest signing and verification. -->
+  <!-- Used by .github/workflows/release.yml: version computation, checksums, update manifest and plugin catalog, signing and verification. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <RootNamespace>Navigator.ReleaseTool</RootNamespace>
@@ -8,6 +8,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Navigator.Core\Navigator.Core.csproj" />
     <ProjectReference Include="..\..\src\Navigator.Updater\Navigator.Updater.csproj" />
+    <ProjectReference Include="..\..\src\Navigator.Plugins\Navigator.Plugins.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Navigator.UnitTests" />

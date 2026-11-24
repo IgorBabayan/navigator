@@ -275,10 +275,22 @@ jobs:
           tool manifest --version "$VERSION" --commit "$COMMIT" --channel stable --assets dist --notes notes.md --out dist/update-manifest.json
           tool sign --manifest dist/update-manifest.json --out dist/update-manifest.json.sig
           [ -s dist/update-manifest.json.sig ] || rm -f dist/update-manifest.json.sig
+
+          # Plugin shop: every packaged plugin (projects with a NavigatorPluginId; the built-in Network plugin ships
+          # inside the app) becomes a .navplugin asset, listed in a catalog signed like the update manifest.
+          for project in plugins/*/*.csproj; do
+            grep -q "<NavigatorPluginId>" "$project" || continue
+            dotnet publish "$project" -c Release -p:ContinuousIntegrationBuild=true > /dev/null
+          done
+          cp artifacts/plugins/*.navplugin dist/
+          tool plugin-catalog --packages artifacts/plugins --app-version "$VERSION" --out dist/plugin-catalog.json
+          tool sign --manifest dist/plugin-catalog.json --out dist/plugin-catalog.json.sig
+          [ -s dist/plugin-catalog.json.sig ] || rm -f dist/plugin-catalog.json.sig
           tool checksums --assets dist --out dist/SHA256SUMS.txt
           verify_args=(--manifest dist/update-manifest.json --assets dist --require win-x64,win-arm64,linux-x64,linux-arm64,osx-arm64,osx-x64)
           if [ -n "${UPDATE_PUBLIC_KEY:-}" ]; then verify_args+=(--public-key "$UPDATE_PUBLIC_KEY" --signature dist/update-manifest.json.sig); fi
           tool verify "${verify_args[@]}"
+          if [ -n "${UPDATE_PUBLIC_KEY:-}" ] && [ ! -s dist/plugin-catalog.json.sig ]; then echo "::error::plugin-catalog.json is not signed"; exit 1; fi
           (cd dist && sha256sum -c SHA256SUMS.txt)
           ls -la dist
 

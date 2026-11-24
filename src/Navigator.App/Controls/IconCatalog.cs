@@ -31,6 +31,9 @@ internal static class IconCatalog
         Line("Refresh", "M19,12 A7,7 0 1 1 16.9,7 M19,4 V8 H15");
         Line("History", "M4.6,9 A8,8 0 1 1 4,12 M4,5 V9 H8 M12,8 V12 L15,14");
         Line("Add", "M12,5 V19 M5,12 H19");
+        Line("Plugin", "M9,3 V7 M15,3 V7 M6,7 H18 V11 A6,6 0 0 1 6,11 Z M12,17 V21");
+        Line("Download", "M12,4 V15 M7,10 L12,15 L17,10 M5,20 H19");
+        Line("Upload", "M12,15 V4 M7,9 L12,4 L17,9 M5,20 H19");
         Line("Close", "M6,6 L18,18 M18,6 L6,18");
         Line("ChevronRight", "M9,6 L15,12 L9,18");
         Line("ChevronDown", "M6,9 L12,15 L18,9");
@@ -130,6 +133,14 @@ internal static class IconCatalog
         map["DriveRemovable"] = new IconDefinition(Geometry.Parse("M16,16 H18"), [(drive, Brush("#60A5FA")), (driveFace, Brush("#3B82F6"))]);
         map["DriveNetwork"] = new IconDefinition(Geometry.Parse("M12,19 V22 M7,22 H17"), [(drive, Brush("#34D399")), (driveFace, Brush("#10B981"))]);
         map["DriveOptical"] = new IconDefinition(null, [(Geometry.Parse("M12,3 A9,9 0 1 1 11.99,3 Z"), Brush("#CBD5E1")), (Geometry.Parse("M12,10 A2,2 0 1 1 11.99,10 Z"), Brush("#64748B"))]);
+
+        // Servers (plugin file systems): two rack units with status lights; the color tells the protocol apart.
+        var rackTop = Geometry.Parse("M3,4.5 C3,3.7 3.7,3 4.5,3 H19.5 C20.3,3 21,3.7 21,4.5 V10.5 H3 Z");
+        var rackBottom = Geometry.Parse("M3,13.5 H21 V19.5 C21,20.3 20.3,21 19.5,21 H4.5 C3.7,21 3,20.3 3,19.5 Z");
+        var lights = Geometry.Parse("M6.5,6.75 H8 M6.5,17.25 H8 M11,6.75 H17.5 M11,17.25 H17.5");
+        map["Server"] = new IconDefinition(lights, [(rackTop, Brush("#94A3B8")), (rackBottom, Brush("#64748B"))]);
+        map["ServerSsh"] = new IconDefinition(lights, [(rackTop, Brush("#818CF8")), (rackBottom, Brush("#6366F1"))]);
+        map["ServerFtp"] = new IconDefinition(lights, [(rackTop, Brush("#FBBF24")), (rackBottom, Brush("#F59E0B"))]);
 
         return map.ToFrozenDictionary(StringComparer.Ordinal);
     }

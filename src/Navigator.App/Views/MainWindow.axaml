@@ -200,7 +200,7 @@
       <!-- ── Command bar ────────────────────────────────────── -->
       <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="8,2,8,4">
         <StackPanel x:Name="CommandBar" Orientation="Horizontal" Spacing="2">
-          <Button Classes="subtle" IsEnabled="{Binding ActivePane.CanCreateItems}" ToolTip.Tip="{c:Tr Command.New}">
+          <Button Classes="subtle" IsEnabled="{Binding ActivePane.CanCreateFolders}" ToolTip.Tip="{c:Tr Command.New}">
             <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
               <c:IconView Kind="Add" VerticalAlignment="Center" />
               <TextBlock Classes="toolbarLabel" Text="{c:Tr Command.New}" VerticalAlignment="Center" />
@@ -219,6 +219,9 @@
           <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Paste}" Command="{Binding ActivePane.PasteCommand}"><c:IconView Kind="Paste" /></Button>
           <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Rename}" Command="{Binding ActivePane.RenameCommand}"><c:IconView Kind="Rename" /></Button>
           <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Delete}" Command="{Binding ActivePane.DeleteCommand}"><c:IconView Kind="Delete" /></Button>
+          <!-- Server folders (SSH, FTP plugins): copy to and from this computer. -->
+          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Remote.Download}" Command="{Binding ActivePane.DownloadCommand}" IsVisible="{Binding ActivePane.IsRemote}"><c:IconView Kind="Download" /></Button>
+          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Remote.Upload}" Command="{Binding ActivePane.UploadCommand}" IsVisible="{Binding ActivePane.IsRemote}"><c:IconView Kind="Upload" /></Button>
           <Border Width="1" Margin="4,6" Background="{DynamicResource Brush.Stroke}" />
           <Button Classes="subtle" ToolTip.Tip="{c:Tr Command.Sort}">
             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -322,6 +325,9 @@
           <ToggleButton Classes="subtle icon" ToolTip.Tip="{c:Tr Command.TogglePreviewPane}" IsChecked="{Binding IsPreviewVisible}">
             <c:IconView Kind="PreviewPane" />
           </ToggleButton>
+          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Command.PluginShop}" Command="{Binding OpenPluginShopCommand}">
+            <c:IconView Kind="Plugin" />
+          </Button>
           <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Settings}" Command="{Binding OpenSettingsCommand}">
             <c:IconView Kind="Settings" />
           </Button>

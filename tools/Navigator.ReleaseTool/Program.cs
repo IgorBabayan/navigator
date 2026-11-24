@@ -10,6 +10,7 @@ using Navigator.Updater;
 //   checksums     --assets dist --out SHA256SUMS.txt
 //   sign          --manifest update-manifest.json --out update-manifest.json.sig   (key in NAVIGATOR_UPDATE_SIGNING_KEY)
 //   verify        --manifest update-manifest.json --assets dist [--require win-x64,linux-x64] [--public-key KEY --signature FILE]
+//   plugin-catalog --packages artifacts/plugins --app-version X --out plugin-catalog.json   (plugin shop list; sign it with "sign")
 //   keygen
 var command = args.FirstOrDefault();
 var options = ParseOptions(args.Skip(1).ToArray());
@@ -87,6 +88,14 @@ try
             return problems.Count == 0 ? 0 : 1;
         }
 
+        case "plugin-catalog":
+        {
+            var catalog = await ReleaseLogic.BuildPluginCatalogAsync(Required(options, "packages"), Required(options, "app-version"), DateTimeOffset.UtcNow);
+            File.WriteAllBytes(Required(options, "out"), catalog.Serialize());
+            Console.WriteLine($"Plugin catalog with {catalog.Plugins.Count} plugins written.");
+            return 0;
+        }
+
         case "keygen":
         {
             var (privateKey, publicKey) = ManifestSignature.CreateKeyPair();
@@ -98,7 +107,7 @@ try
         }
 
         default:
-            Console.Error.WriteLine("Commands: next-version, is-newest, manifest, checksums, sign, verify, keygen");
+            Console.Error.WriteLine("Commands: next-version, is-newest, manifest, checksums, sign, verify, plugin-catalog, keygen");
             return 2;
     }
 }

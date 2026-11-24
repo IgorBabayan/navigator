@@ -30,6 +30,8 @@ public sealed class PaneServices(
     RecentItems recent,
     BackgroundWorkScheduler scheduler,
     DirectoryListingCache directoryCache,
+    RemoteFileService remote,
+    Navigator.Plugins.PluginHost plugins,
     ILoggerFactory loggerFactory)
 {
     public SettingsService Settings { get; } = settings;
@@ -71,6 +73,12 @@ public sealed class PaneServices(
 
     /// <summary>Recently visited folder listings shared by every pane (Performance.DirectoryCacheEntries).</summary>
     public DirectoryListingCache DirectoryCache { get; } = FollowSettings(directoryCache, settings);
+
+    /// <summary>Folders served by plugins (SFTP, FTP…).</summary>
+    public RemoteFileService Remote { get; } = remote;
+
+    /// <summary>Plugin contributions (sidebar sections, file systems).</summary>
+    public Navigator.Plugins.PluginHost Plugins { get; } = plugins;
 
     public ILoggerFactory LoggerFactory { get; } = loggerFactory;
 
