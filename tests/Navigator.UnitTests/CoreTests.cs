@@ -384,3 +384,147 @@ public sealed class SystemIconKeyTests
         Assert.IsFalse(SystemIconKey.TryParse("Folder", out _, out _));
     }
 }
+
+[TestClass]
+public sealed class DiskCacheTests
+{
+    private static void WriteBytes(DiskCache cache, string key, int length)
+        => Assert.IsTrue(cache.Store(key, stream => stream.Write(new byte[length])));
+
+    [TestMethod]
+    public void StoresAndReadsBack()
+    {
+        using var temp = new Navigator.Tests.TempDirectory();
+        var cache = new DiskCache(temp.Combine("cache"), 1024 * 1024);
+        Assert.IsNull(cache.TryOpen("missing"));
+        Assert.IsTrue(cache.Store("key", stream => stream.Write([1, 2, 3])));
+        using var read = cache.TryOpen("key");
+        Assert.IsNotNull(read);
+        Assert.AreEqual(3, read.Length);
+        Assert.AreEqual(1, read.ReadByte());
+    }
+
+    [TestMethod]
+    public void DisabledCache_NeitherReadsNorWrites()
+    {
+        using var temp = new Navigator.Tests.TempDirectory();
+        var cache = new DiskCache(temp.Combine("cache"), 0);
+        Assert.IsFalse(cache.Store("key", stream => stream.WriteByte(1)));
+        Assert.IsNull(cache.TryOpen("key"));
+        Assert.IsFalse(Directory.Exists(temp.Combine("cache")));
+    }
+
+    [TestMethod]
+    public void Trim_DeletesOldestUntilUnderTheLimit()
+    {
+        using var temp = new Navigator.Tests.TempDirectory();
+        var writer = new DiskCache(temp.Combine("cache"), 1024 * 1024);
+        for (var i = 0; i < 4; i++)
+            WriteBytes(writer, "k" + i, 3_000);
+        // Make k0 the oldest and k3 the newest regardless of file system timestamp resolution.
+        for (var i = 0; i < 4; i++)
+            File.SetLastWriteTimeUtc(writer.PathFor("k" + i), new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddDays(i));
+
+        // A second instance over the same folder never trims on its own (it has not written anything).
+        var cache = new DiskCache(temp.Combine("cache"), 10_000);
+        cache.Trim();
+
+        Assert.IsTrue(cache.CurrentBytes <= 9_000, cache.CurrentBytes.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        Assert.IsNull(cache.TryOpen("k0"));
+        using var newest = cache.TryOpen("k3");
+        Assert.IsNotNull(newest);
+    }
+
+    [TestMethod]
+    public void Clear_RemovesEverything()
+    {
+        using var temp = new Navigator.Tests.TempDirectory();
+        var cache = new DiskCache(temp.Combine("cache"), 1024 * 1024);
+        WriteBytes(cache, "a", 10);
+        WriteBytes(cache, "b", 10);
+        cache.Clear();
+        Assert.IsNull(cache.TryOpen("a"));
+        Assert.IsNull(cache.TryOpen("b"));
+    }
+}
+
+[TestClass]
+public sealed class DirectoryListingCacheTests
+{
+    private static FileEntry[] Entries(string folder, int count)
+        => [.. Enumerable.Range(0, count).Select(i => new FileEntry("f" + i, Path.Combine(folder, "f" + i), false, i, DateTime.UnixEpoch, DateTime.UnixEpoch, FileAttributes.Normal))];
+
+    [TestMethod]
+    public void ReturnsListingOnlyForTheSameFilter()
+    {
+        var cache = new DirectoryListingCache(4);
+        var folder = Path.Combine(Path.GetTempPath(), "a");
+        cache.Store(folder, EnumerationFilter.Default, Entries(folder, 3));
+        Assert.AreEqual(3, cache.TryGet(folder, EnumerationFilter.Default)!.Length);
+        Assert.IsNull(cache.TryGet(folder, EnumerationFilter.All));
+    }
+
+    [TestMethod]
+    public void EvictsLeastRecentlyUsedFolder()
+    {
+        var cache = new DirectoryListingCache(2);
+        var root = Path.GetTempPath();
+        string a = Path.Combine(root, "a"), b = Path.Combine(root, "b"), c = Path.Combine(root, "c");
+        cache.Store(a, EnumerationFilter.Default, Entries(a, 1));
+        cache.Store(b, EnumerationFilter.Default, Entries(b, 1));
+        Assert.IsNotNull(cache.TryGet(a, EnumerationFilter.Default)); // a becomes most recent
+        cache.Store(c, EnumerationFilter.Default, Entries(c, 1));
+        Assert.IsNotNull(cache.TryGet(a, EnumerationFilter.Default));
+        Assert.IsNull(cache.TryGet(b, EnumerationFilter.Default));
+        Assert.AreEqual(2, cache.Count);
+    }
+
+    [TestMethod]
+    public void BoundsTotalEntries_AndSkipsHugeFolders()
+    {
+        var cache = new DirectoryListingCache(100);
+        var root = Path.GetTempPath();
+        var huge = Path.Combine(root, "huge");
+        cache.Store(huge, EnumerationFilter.Default, Entries(huge, DirectoryListingCache.MaxEntriesPerFolder + 1));
+        Assert.IsNull(cache.TryGet(huge, EnumerationFilter.Default));
+
+        for (var i = 0; i < 6; i++)
+        {
+            var folder = Path.Combine(root, "big" + i);
+            cache.Store(folder, EnumerationFilter.Default, Entries(folder, DirectoryListingCache.MaxEntriesPerFolder));
+        }
+
+        Assert.IsTrue(cache.TotalEntries <= DirectoryListingCache.MaxTotalEntries);
+        Assert.IsNull(cache.TryGet(Path.Combine(root, "big0"), EnumerationFilter.Default));
+        Assert.IsNotNull(cache.TryGet(Path.Combine(root, "big5"), EnumerationFilter.Default));
+    }
+
+    [TestMethod]
+    public void ZeroCapacity_DisablesAndResizeEvicts()
+    {
+        var cache = new DirectoryListingCache(0);
+        var folder = Path.Combine(Path.GetTempPath(), "a");
+        cache.Store(folder, EnumerationFilter.Default, Entries(folder, 1));
+        Assert.IsNull(cache.TryGet(folder, EnumerationFilter.Default));
+
+        cache.Resize(1);
+        cache.Store(folder, EnumerationFilter.Default, Entries(folder, 1));
+        Assert.IsNotNull(cache.TryGet(folder, EnumerationFilter.Default));
+        cache.Resize(0);
+        Assert.AreEqual(0, cache.Count);
+        Assert.AreEqual(0, cache.TotalEntries);
+    }
+
+    [TestMethod]
+    public void FileEntry_IsEquivalentTo_ComparesMetadata()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "x.txt");
+        var a = new FileEntry("x.txt", path, false, 10, DateTime.UnixEpoch, DateTime.UnixEpoch, FileAttributes.Normal);
+        var same = new FileEntry("x.txt", path, false, 10, DateTime.UnixEpoch, DateTime.UnixEpoch, FileAttributes.Normal);
+        var bigger = new FileEntry("x.txt", path, false, 11, DateTime.UnixEpoch, DateTime.UnixEpoch, FileAttributes.Normal);
+        var touched = new FileEntry("x.txt", path, false, 10, DateTime.UnixEpoch, DateTime.UnixEpoch.AddSeconds(1), FileAttributes.Normal);
+        Assert.IsTrue(a.IsEquivalentTo(same));
+        Assert.IsFalse(a.IsEquivalentTo(bigger));
+        Assert.IsFalse(a.IsEquivalentTo(touched));
+    }
+}

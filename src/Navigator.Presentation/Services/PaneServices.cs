@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Navigator.Core.Caching;
 using Navigator.Core.Operations;
 using Navigator.Core.Platform;
 using Navigator.Core.Scheduling;
@@ -28,6 +29,7 @@ public sealed class PaneServices(
     TagStore tags,
     RecentItems recent,
     BackgroundWorkScheduler scheduler,
+    DirectoryListingCache directoryCache,
     ILoggerFactory loggerFactory)
 {
     public SettingsService Settings { get; } = settings;
@@ -67,7 +69,21 @@ public sealed class PaneServices(
 
     public BackgroundWorkScheduler Scheduler { get; } = scheduler;
 
+    /// <summary>Recently visited folder listings shared by every pane (Performance.DirectoryCacheEntries).</summary>
+    public DirectoryListingCache DirectoryCache { get; } = FollowSettings(directoryCache, settings);
+
     public ILoggerFactory LoggerFactory { get; } = loggerFactory;
+
+    private static DirectoryListingCache FollowSettings(DirectoryListingCache cache, SettingsService settings)
+    {
+        cache.Resize(settings.Current.Performance.DirectoryCacheEntries);
+        settings.Changed += (_, section) =>
+        {
+            if (section is "performance" or "*")
+                cache.Resize(settings.Current.Performance.DirectoryCacheEntries);
+        };
+        return cache;
+    }
 
     /// <summary>Operation callbacks routed to dialogs on the UI thread.</summary>
     public IFileOperationInteraction CreateInteraction() => new DialogInteraction(Dispatcher, Dialogs);

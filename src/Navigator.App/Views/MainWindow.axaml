@@ -27,6 +27,10 @@
     <Style Selector="WindowDrawnDecorations /template/ Panel#PART_TitleTextPanel > TextBlock">
       <Setter Property="IsVisible" Value="False" />
     </Style>
+    <!-- Settings → Appearance → "Show labels on toolbar buttons" off: buttons become icon-only (tooltips stay). -->
+    <Style Selector="StackPanel.noLabels TextBlock.toolbarLabel">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
   </Window.Styles>
 
   <Panel>
@@ -37,49 +41,53 @@
 
     <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
       <!-- ── Title bar with tabs ───────────────────────────── -->
-      <Grid x:Name="TitleBar" Grid.Row="0" Height="{StaticResource Size.TitleBar}" ColumnDefinitions="Auto,Auto,*,Auto" Background="Transparent">
+      <Grid x:Name="TitleBar" Grid.Row="0" Height="{StaticResource Size.TitleBar}" ColumnDefinitions="Auto,*,Auto" Background="Transparent">
         <Border x:Name="LeftCaptionInset" Grid.Column="0" Width="8" />
-        <ItemsControl x:Name="TabStrip" Grid.Column="1" ItemsSource="{Binding Tabs}" VerticalAlignment="Bottom">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <StackPanel Orientation="Horizontal" Spacing="2" />
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="vm:TabViewModel">
-              <Border Classes="tab" Classes.selected="{Binding IsSelected}" c:Motion.Enter="True"
-                      ToolTip.Tip="{Binding ToolTip}" PointerPressed="OnTabPointerPressed" PointerReleased="OnTabPointerReleased">
-                <Border.ContextMenu>
-                  <ContextMenu>
-                    <MenuItem Header="{c:Tr Command.NewTab}" Command="{Binding $parent[v:MainWindow].Shell.NewTabCommand}" />
-                    <MenuItem Header="{c:Tr Command.DuplicateTab}" Command="{Binding $parent[v:MainWindow].Shell.DuplicateTabCommand}" CommandParameter="{Binding}" />
-                    <MenuItem Header="{c:Tr Command.PinTab}" Command="{Binding $parent[v:MainWindow].Shell.TogglePinTabCommand}" CommandParameter="{Binding}" />
-                    <Separator />
-                    <MenuItem Header="{c:Tr Command.CloseTab}" Command="{Binding $parent[v:MainWindow].Shell.CloseTabCommand}" CommandParameter="{Binding}" />
-                    <MenuItem Header="{c:Tr Command.CloseOtherTabs}" Command="{Binding $parent[v:MainWindow].Shell.CloseOtherTabsCommand}" CommandParameter="{Binding}" />
-                    <MenuItem Header="{c:Tr Command.CloseTabsToRight}" Command="{Binding $parent[v:MainWindow].Shell.CloseTabsToRightCommand}" CommandParameter="{Binding}" />
-                    <MenuItem Header="{c:Tr Command.ReopenClosedTab}" Command="{Binding $parent[v:MainWindow].Shell.ReopenClosedTabCommand}" />
-                  </ContextMenu>
-                </Border.ContextMenu>
-                <Grid ColumnDefinitions="Auto,*,Auto">
-                  <c:IconView Kind="{Binding IconKey}" SystemIcon="{Binding SystemIconKey}" Width="16" Height="16" Margin="0,0,8,0" />
-                  <TextBlock Grid.Column="1" Text="{Binding Header}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="{DynamicResource Font.Caption}" />
-                  <Button Grid.Column="2" Classes="subtle icon tabclose" Width="24" Height="24" MinHeight="24" MinWidth="24" Margin="4,0,0,0"
-                          IsVisible="{Binding !IsPinned}"
-                          ToolTip.Tip="{c:Tr Command.CloseTab}"
-                          Command="{Binding $parent[v:MainWindow].Shell.CloseTabCommand}" CommandParameter="{Binding}">
-                    <c:IconView Kind="Close" Width="10" Height="10" />
-                  </Button>
-                </Grid>
-              </Border>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-        <Button Grid.Column="2" Classes="subtle icon" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,4,0,0"
-                ToolTip.Tip="{c:Tr Command.NewTab}" Command="{Binding NewTabCommand}">
-          <c:IconView Kind="Add" />
-        </Button>
-        <Border x:Name="RightCaptionInset" Grid.Column="3" Width="140" />
+        <!-- Tabs share one width (Size.TabWidth) and shrink equally to Size.TabMinWidth when the strip is full;
+             the new-tab button follows the last tab and the rest of the row stays a window drag area. -->
+        <DockPanel Grid.Column="1" HorizontalAlignment="Left">
+          <Button DockPanel.Dock="Right" Classes="subtle icon" VerticalAlignment="Center" Margin="4,4,0,0"
+                  ToolTip.Tip="{c:Tr Command.NewTab}" Command="{Binding NewTabCommand}">
+            <c:IconView Kind="Add" />
+          </Button>
+          <ItemsControl x:Name="TabStrip" ItemsSource="{Binding Tabs}" VerticalAlignment="Bottom" ClipToBounds="True">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <c:TabStripPanel Spacing="2" ItemWidth="{StaticResource Size.TabWidth}" MinItemWidth="{StaticResource Size.TabMinWidth}" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:TabViewModel">
+                <Border Classes="tab" Classes.selected="{Binding IsSelected}" c:Motion.Enter="True"
+                        ToolTip.Tip="{Binding ToolTip}" PointerPressed="OnTabPointerPressed" PointerReleased="OnTabPointerReleased">
+                  <Border.ContextMenu>
+                    <ContextMenu>
+                      <MenuItem Header="{c:Tr Command.NewTab}" Command="{Binding $parent[v:MainWindow].Shell.NewTabCommand}" />
+                      <MenuItem Header="{c:Tr Command.DuplicateTab}" Command="{Binding $parent[v:MainWindow].Shell.DuplicateTabCommand}" CommandParameter="{Binding}" />
+                      <MenuItem Header="{c:Tr Command.PinTab}" Command="{Binding $parent[v:MainWindow].Shell.TogglePinTabCommand}" CommandParameter="{Binding}" />
+                      <Separator />
+                      <MenuItem Header="{c:Tr Command.CloseTab}" Command="{Binding $parent[v:MainWindow].Shell.CloseTabCommand}" CommandParameter="{Binding}" />
+                      <MenuItem Header="{c:Tr Command.CloseOtherTabs}" Command="{Binding $parent[v:MainWindow].Shell.CloseOtherTabsCommand}" CommandParameter="{Binding}" />
+                      <MenuItem Header="{c:Tr Command.CloseTabsToRight}" Command="{Binding $parent[v:MainWindow].Shell.CloseTabsToRightCommand}" CommandParameter="{Binding}" />
+                      <MenuItem Header="{c:Tr Command.ReopenClosedTab}" Command="{Binding $parent[v:MainWindow].Shell.ReopenClosedTabCommand}" />
+                    </ContextMenu>
+                  </Border.ContextMenu>
+                  <Grid ColumnDefinitions="Auto,*,Auto">
+                    <c:IconView Kind="{Binding IconKey}" SystemIcon="{Binding SystemIconKey}" Width="16" Height="16" Margin="0,0,8,0" />
+                    <TextBlock Grid.Column="1" Text="{Binding Header}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="{DynamicResource Font.Caption}" />
+                    <Button Grid.Column="2" Classes="subtle icon tabclose" Width="24" Height="24" MinHeight="24" MinWidth="24" Margin="4,0,0,0"
+                            IsVisible="{Binding !IsPinned}"
+                            ToolTip.Tip="{c:Tr Command.CloseTab}"
+                            Command="{Binding $parent[v:MainWindow].Shell.CloseTabCommand}" CommandParameter="{Binding}">
+                      <c:IconView Kind="Close" Width="10" Height="10" />
+                    </Button>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </DockPanel>
+        <Border x:Name="RightCaptionInset" Grid.Column="2" Width="140" />
       </Grid>
 
       <!-- ── Navigation toolbar: back/forward/up/refresh, omnibar, search ──
@@ -101,31 +109,83 @@
             </Button>
           </StackPanel>
 
-          <!-- Omnibar: breadcrumb (default) or editable path -->
-          <Border Grid.Column="1" Classes="card omnibar-host" Classes.editing="{Binding ActivePane.IsEditingAddress}" Padding="4,0" Height="{DynamicResource Size.Control}" Margin="4,0" PointerPressed="OnOmnibarPointerPressed">
-            <Panel>
-              <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" IsVisible="{Binding !ActivePane.IsEditingAddress}">
-                <ItemsControl ItemsSource="{Binding ActivePane.Breadcrumbs}">
-                  <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                      <StackPanel Orientation="Horizontal" />
-                    </ItemsPanelTemplate>
-                  </ItemsControl.ItemsPanel>
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="panes:BreadcrumbViewModel">
-                      <StackPanel Orientation="Horizontal">
-                        <Button Classes="subtle" Padding="6,2" MinHeight="26" Content="{Binding Name}"
-                                Command="{Binding $parent[v:MainWindow].Shell.ActivePane.NavigateToBreadcrumbCommand}" CommandParameter="{Binding}" />
-                        <c:IconView Kind="ChevronRight" Width="12" Height="12" IsVisible="{Binding !IsLast}" Margin="2,0" Opacity="0.7" />
-                      </StackPanel>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
-              </ScrollViewer>
-              <TextBox x:Name="AddressBox" Classes="omnibar address" BorderThickness="0" Background="Transparent" Margin="-4,0"
+          <!-- Omnibar: breadcrumb with sub-folder chevrons (default) or editable path with autocompletion.
+               The leading button lists root locations (and the segments scrolled out of view, shown as «);
+               the trailing arrow opens the typed-address history. -->
+          <Border x:Name="OmnibarHost" Grid.Column="1" Classes="card omnibar-host" Classes.editing="{Binding ActivePane.IsEditingAddress}" Padding="4,0" Height="{DynamicResource Size.Control}" Margin="4,0" PointerPressed="OnOmnibarPointerPressed">
+            <Border.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="{c:Tr Omnibar.CopyAddress}" Command="{Binding ActivePane.CopyAddressCommand}" />
+                <MenuItem Header="{c:Tr Command.EditAddress}" Click="OnEditAddressClick" />
+                <Separator />
+                <MenuItem Header="{c:Tr Omnibar.ClearHistory}" Command="{Binding ActivePane.ClearAddressHistoryCommand}" />
+              </ContextMenu>
+            </Border.ContextMenu>
+            <Grid ColumnDefinitions="*,Auto">
+              <DockPanel IsVisible="{Binding !ActivePane.IsEditingAddress}">
+                <Button x:Name="RootChevron" DockPanel.Dock="Left" Classes="subtle crumbchevron" ToolTip.Tip="{c:Tr Omnibar.Locations}" Click="OnRootChevronClick">
+                  <Panel>
+                    <c:IconView x:Name="RootChevronIcon" Kind="ChevronRight" Width="12" Height="12" />
+                    <TextBlock x:Name="OverflowGlyph" Text="«" IsVisible="False" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="2,-2,2,0" />
+                  </Panel>
+                </Button>
+                <ScrollViewer x:Name="CrumbScroller" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" ScrollChanged="OnCrumbScrollChanged">
+                  <ItemsControl x:Name="CrumbItems" ItemsSource="{Binding ActivePane.Breadcrumbs}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="panes:BreadcrumbViewModel">
+                        <StackPanel Orientation="Horizontal">
+                          <Button Classes="subtle" Padding="6,2" MinHeight="26" Content="{Binding Name}" PointerReleased="OnCrumbPointerReleased"
+                                  Command="{Binding $parent[v:MainWindow].Shell.ActivePane.NavigateToBreadcrumbCommand}" CommandParameter="{Binding}">
+                            <Button.ContextMenu>
+                              <ContextMenu IsEnabled="{Binding HasPath}">
+                                <MenuItem Header="{c:Tr Command.OpenInNewTab}" Command="{Binding $parent[v:MainWindow].Shell.ActivePane.OpenBreadcrumbInNewTabCommand}" CommandParameter="{Binding}" />
+                                <MenuItem Header="{c:Tr Omnibar.CopyAddress}" Command="{Binding $parent[v:MainWindow].Shell.ActivePane.CopyBreadcrumbPathCommand}" CommandParameter="{Binding}" />
+                              </ContextMenu>
+                            </Button.ContextMenu>
+                          </Button>
+                          <Button Classes="subtle crumbchevron" IsVisible="{Binding CanExpand}" Click="OnCrumbChevronClick">
+                            <c:IconView Kind="ChevronRight" Width="12" Height="12" />
+                          </Button>
+                        </StackPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+              </DockPanel>
+              <!-- Spans the drop-down arrow (drawn on top) so the focus border still follows the whole card -->
+              <TextBox x:Name="AddressBox" Grid.ColumnSpan="2" Classes="omnibar address" BorderThickness="0" Background="Transparent" Margin="-4,0" Padding="10,0,34,0"
                        IsVisible="{Binding ActivePane.IsEditingAddress}" Text="{Binding ActivePane.AddressText}"
                        KeyDown="OnAddressKeyDown" LostFocus="OnAddressLostFocus" />
-            </Panel>
+              <Button x:Name="HistoryButton" Grid.Column="1" Classes="subtle crumbchevron" Focusable="False" Margin="2,0,0,0"
+                      ToolTip.Tip="{c:Tr Omnibar.History}" Click="OnHistoryButtonClick">
+                <c:IconView Kind="ChevronDown" Width="12" Height="12" />
+              </Button>
+              <Popup x:Name="SuggestionPopup" PlacementTarget="{Binding #OmnibarHost}" Placement="BottomEdgeAlignedLeft" VerticalOffset="4"
+                     IsLightDismissEnabled="False" IsOpen="{Binding ActivePane.IsAddressDropDownOpen, Mode=OneWay}">
+                <Border x:Name="SuggestionCard" Classes="omnibar-dropdown" Width="{Binding #OmnibarHost.Bounds.Width}">
+                  <ListBox x:Name="SuggestionList" Classes="suggestions" ItemsSource="{Binding ActivePane.AddressSuggestions}" MaxHeight="360"
+                           Tapped="OnSuggestionTapped">
+                    <ListBox.ItemTemplate>
+                      <DataTemplate x:DataType="panes:AddressSuggestion">
+                        <Grid ColumnDefinitions="Auto,*">
+                          <c:IconView Kind="{Binding IconKey}" Width="16" Height="16" Margin="0,0,10,0" VerticalAlignment="Center" />
+                          <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Classes="caption" Text="{Binding Detail}" TextTrimming="CharacterEllipsis"
+                                       IsVisible="{Binding Detail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                          </StackPanel>
+                        </Grid>
+                      </DataTemplate>
+                    </ListBox.ItemTemplate>
+                  </ListBox>
+                </Border>
+              </Popup>
+            </Grid>
           </Border>
 
           <TextBox x:Name="SearchBox" Grid.Column="2" Width="260" Margin="4,0" Classes="omnibar"
@@ -139,11 +199,11 @@
 
       <!-- ── Command bar ────────────────────────────────────── -->
       <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="8,2,8,4">
-        <StackPanel Orientation="Horizontal" Spacing="2">
+        <StackPanel x:Name="CommandBar" Orientation="Horizontal" Spacing="2">
           <Button Classes="subtle" IsEnabled="{Binding ActivePane.CanCreateItems}" ToolTip.Tip="{c:Tr Command.New}">
             <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
               <c:IconView Kind="Add" VerticalAlignment="Center" />
-              <TextBlock Text="{c:Tr Command.New}" VerticalAlignment="Center" />
+              <TextBlock Classes="toolbarLabel" Text="{c:Tr Command.New}" VerticalAlignment="Center" />
               <c:IconView Kind="ChevronDown" Width="10" Height="10" VerticalAlignment="Center" />
             </StackPanel>
             <Button.Flyout>
@@ -160,10 +220,10 @@
           <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Rename}" Command="{Binding ActivePane.RenameCommand}"><c:IconView Kind="Rename" /></Button>
           <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Delete}" Command="{Binding ActivePane.DeleteCommand}"><c:IconView Kind="Delete" /></Button>
           <Border Width="1" Margin="4,6" Background="{DynamicResource Brush.Stroke}" />
-          <Button Classes="subtle">
+          <Button Classes="subtle" ToolTip.Tip="{c:Tr Command.Sort}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <c:IconView Kind="Sort" />
-              <TextBlock Text="{c:Tr Command.Sort}" VerticalAlignment="Center" />
+              <TextBlock Classes="toolbarLabel" Text="{c:Tr Command.Sort}" VerticalAlignment="Center" />
             </StackPanel>
             <Button.Flyout>
               <MenuFlyout Placement="BottomEdgeAlignedLeft">
@@ -178,10 +238,10 @@
               </MenuFlyout>
             </Button.Flyout>
           </Button>
-          <Button Classes="subtle">
+          <Button Classes="subtle" ToolTip.Tip="{c:Tr Command.Group}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <c:IconView Kind="Group" />
-              <TextBlock Text="{c:Tr Command.Group}" VerticalAlignment="Center" />
+              <TextBlock Classes="toolbarLabel" Text="{c:Tr Command.Group}" VerticalAlignment="Center" />
             </StackPanel>
             <Button.Flyout>
               <MenuFlyout Placement="BottomEdgeAlignedLeft">
@@ -194,10 +254,10 @@
               </MenuFlyout>
             </Button.Flyout>
           </Button>
-          <Button Classes="subtle">
+          <Button Classes="subtle" ToolTip.Tip="{c:Tr Command.Layout}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <c:IconView Kind="LayoutDetails" />
-              <TextBlock Text="{c:Tr Command.Layout}" VerticalAlignment="Center" />
+              <TextBlock Classes="toolbarLabel" Text="{c:Tr Command.Layout}" VerticalAlignment="Center" />
             </StackPanel>
             <Button.Flyout>
               <MenuFlyout Placement="BottomEdgeAlignedLeft">
@@ -234,10 +294,26 @@
         </StackPanel>
 
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2">
+          <!-- Status center: shown while there are file operations; the ring tracks overall progress, the badge the outcome -->
+          <Button Classes="subtle icon" IsVisible="{Binding Operations.HasItems}" ToolTip.Tip="{Binding Operations.SummaryText}">
+            <Panel Width="18" Height="18">
+              <c:ProgressRing Width="18" Height="18" Thickness="2" IsVisible="{Binding Operations.HasActive}"
+                              Value="{Binding Operations.OverallProgress}" IsIndeterminate="{Binding Operations.IsOverallIndeterminate}" />
+              <c:IconView Width="18" Height="18" Kind="{Binding Operations.OverallIconKey}" IsVisible="{Binding Operations.HasOverallIcon}"
+                          Classes.tone-success="{Binding Operations.OverallTone, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Success}"
+                          Classes.tone-warning="{Binding Operations.OverallTone, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Warning}"
+                          Classes.tone-error="{Binding Operations.OverallTone, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Error}" />
+            </Panel>
+            <Button.Flyout>
+              <Flyout Placement="BottomEdgeAlignedRight">
+                <v:OperationsView DataContext="{Binding Operations}" Width="400" />
+              </Flyout>
+            </Button.Flyout>
+          </Button>
           <Button Classes="subtle" IsVisible="{Binding Update.IsUpdateAvailable}" Command="{Binding OpenSettingsCommand}" ToolTip.Tip="{Binding Update.StatusText}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <c:IconView Kind="Update" Foreground="{DynamicResource Accent.Brush}" />
-              <TextBlock Text="{c:Tr Update.Badge}" VerticalAlignment="Center" />
+              <TextBlock Classes="toolbarLabel" Text="{c:Tr Update.Badge}" VerticalAlignment="Center" />
             </StackPanel>
           </Button>
           <ToggleButton Classes="subtle icon" ToolTip.Tip="{c:Tr Command.ToggleSplitView}" IsChecked="{Binding SelectedTab.IsSplit, Mode=OneWay}" Command="{Binding ToggleSplitViewCommand}">
@@ -272,17 +348,7 @@
       <Grid Grid.Row="4" ColumnDefinitions="Auto,Auto,*,Auto" Height="28" Margin="16,0,12,0">
         <TextBlock Classes="caption" Text="{Binding ActivePane.StatusText}" VerticalAlignment="Center" ToolTip.Tip="{Binding ActivePane.LastLoadMilliseconds, StringFormat='{}{0} ms'}" />
         <TextBlock Grid.Column="1" Classes="caption" Margin="16,0,0,0" Text="{Binding ActivePane.SelectionText}" VerticalAlignment="Center" />
-        <Button Grid.Column="3" Classes="subtle" Padding="8,0" MinHeight="24" IsVisible="{Binding Operations.HasItems}">
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <ProgressBar Width="80" Value="{Binding Operations.OverallProgress}" IsVisible="{Binding Operations.HasActive}" VerticalAlignment="Center" />
-            <TextBlock Classes="caption" Text="{c:Tr Operations.Title}" VerticalAlignment="Center" />
-          </StackPanel>
-          <Button.Flyout>
-            <Flyout Placement="TopEdgeAlignedRight">
-              <v:OperationsView DataContext="{Binding Operations}" Width="380" />
-            </Flyout>
-          </Button.Flyout>
-        </Button>
+        <v:PerformanceIndicator Grid.Column="3" Margin="12,0,0,0" VerticalAlignment="Center" />
       </Grid>
     </Grid>
 

@@ -29,6 +29,8 @@ Originality scan: 0 matching code windows against Files app sources — see `doc
 - Platform services for Windows, Linux, macOS.
 - Updater with signed manifests and per-installation-kind installers with rollback.
 - All view models incl. 12 settings pages, command registry with customizable shortcuts, en/uk localization.
+- Explorer-style omnibar: sub-folder chevrons, root-locations/overflow button, autocompletion, typed-address
+  history, shell names; mouse side buttons and browser keys for back/forward.
 - Avalonia UI: design tokens, styles, title bar tabs, omnibar, command bar, sidebar, all layouts,
   preview pane, operations, dialogs, properties and settings windows, motion system, original icons/logo.
 - CI and release workflows; Windows/Linux/macOS packaging scripts.
@@ -56,3 +58,7 @@ Originality scan: 0 matching code windows against Files app sources — see `doc
 | 2026-11-24 | Signed update manifest (ECDSA P-256) | asset hashes alone do not protect against a compromised release upload |
 | 2026-11-24 | Tags stored in app data | portable across file systems; no xattr/ADS permission issues |
 | 2026-11-24 | OS icons through `ISystemIconProvider` (Windows shell image lists, flat API + vtable call, no built-in COM interop) | native look for user folders/drives while staying trimming-safe; other platforms fall back to the own icon set |
+| 2026-11-24 | Translucent brushes carry alpha in the color; rows recycle without transitions (`RowSurface`) | `BrushTransition` interpolates color and opacity separately (hover flash); recycled rows faded between items while scrolling |
+| 2026-11-24 | Status center summary values are cached per tick; cards raise only changed properties | bindings never enumerate the operation list; idle cards cost nothing |
+| 2026-11-24 | Global "open Navigator" shortcut is a registry command flagged `IsGlobal`, registered with the OS by `IGlobalHotkeyService` (Windows RegisterHotKey on its own message thread, macOS Carbon `RegisterEventHotKey`, Linux XCB grab on its own connection; Wayland unsupported) | reuses the shortcut editor and conflict check; no polling, no Accessibility permission on macOS; XCB reports a taken key as a checked error instead of Avalonia's process-wide Xlib error handler |
+| 2026-11-24 | Background mode is opt-in (`KeepRunningInBackground`) and uses Avalonia's `TrayIcon` | a global shortcut can only open a closed app if the process stays alive; nothing is created when off |

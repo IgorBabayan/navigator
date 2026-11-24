@@ -1,0 +1,22 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Navigator.App.Views.PerformanceIndicator"
+             IsVisible="False">
+  <!--
+    Status bar performance indicator (Settings → Performance → "Show performance diagnostics").
+    A memory bar in the style of the JetBrains IDE memory indicator: the fill is the managed heap in use relative to
+    the committed heap, the text reads "used of committed" in MB, and clicking runs a full garbage collection.
+    Lives in its own status bar column, so it never covers content. Fixed size, so updates never move the status bar;
+    the fill is scaled with a render transform (no layout pass). The tooltip has the full breakdown.
+  -->
+  <Border x:Name="Chip" Width="120" Height="20" VerticalAlignment="Center" ClipToBounds="True" Cursor="Hand"
+          CornerRadius="{StaticResource Radius.Control}" Background="{DynamicResource Brush.ProgressTrack}"
+          BorderBrush="{DynamicResource Brush.Stroke}" BorderThickness="1">
+    <Panel>
+      <!-- RenderTransform (a reused ScaleTransform) is assigned in code -->
+      <Border x:Name="Fill" RenderTransformOrigin="0%,50%" Background="{DynamicResource Accent.SubtleBrush}" />
+      <TextBlock x:Name="Summary" Classes="caption" HorizontalAlignment="Center" VerticalAlignment="Center"
+                 Foreground="{DynamicResource Brush.Text}" />
+    </Panel>
+  </Border>
+</UserControl>

@@ -23,10 +23,12 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Tab/window session restore | ✅ | 🟦 | ✓ | ✓ | ✓ | `SessionState` persistence + corruption tests; restore flow in `WindowService` unverified |
 | Drag a tab out into a new window | ⬜ | ⬜ | | | | context-menu alternative not present either |
 | Back / forward / up / refresh, history (128) | ✅ | 🟦 | ✓ | ✓ | ✓ | `NavigationHistory` |
+| Mouse back/forward side buttons, browser keys | ➖ | 🟦 | ✓ | ✓ | ✓ | XButton1/XButton2 act on release on the pane under the pointer; BrowserBack/BrowserForward keys |
 | Breadcrumb bar | ✅ | 🟦 | ✓ | ✓ | ✓ | |
-| Breadcrumb chevron flyouts (sibling folders) | ⬜ | ⬜ | | | | |
-| Editable address bar (`~`, env vars, relative) | ✅ | 🟦 | ✓ | ✓ | ✓ | `PathUtil.ExpandUserInput` |
-| Address autocompletion | ⬜ | ⬜ | | | | |
+| Breadcrumb chevron flyouts (sub-folders, root locations, overflow «) | ✅ | 🟦 | ✓ | ✓ | ✓ | `AddressCompletion.FindFolders`, `PaneViewModel.GetBreadcrumbChildrenAsync` / `GetRootLocationsAsync` |
+| Editable address bar (`~`, env vars, relative, shell names) | ✅ | 🟦 | ✓ | ✓ | ✓ | `PathUtil.ExpandUserInput`, `AddressAliases` |
+| Address autocompletion (Up/Down, Tab) | ✅ | 🟦 | ✓ | ✓ | ✓ | `AddressCompletion` |
+| Typed-address history drop-down (25) | ✅ | 🟦 | ✓ | ✓ | ✓ | `GeneralSettings.AddressHistory`, F4 / Alt+Down / arrow |
 | Command palette | 🟦 | 🟦 | ✓ | ✓ | ✓ | Ctrl+Shift+P |
 | Home page (quick access, drives, recent files, tags) | 🟦 | 🟦 | ✓ | ✓ | ✓ | |
 | Split view (dual pane) | 🟦 | 🟦 | ✓ | ✓ | ✓ | |
@@ -77,7 +79,7 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Drag and drop inside Navigator (panes, tabs, sidebar) | 🟦 | 🟦 | ✓ | ✓ | ✓ | `ShouldMoveOnDrop` (same volume = move) |
 | Drag and drop to/from other apps | ⬜ | ⬜ | | | | |
 | Queue, concurrency limit, pause/resume, cancel | ✅ | 🟦 | ✓ | ✓ | ✓ | `FileOperationQueue`, `PauseGate` |
-| Progress, speed, ETA, operations flyout | 🟦 | 🟦 | ✓ | ✓ | ✓ | |
+| Progress, speed, ETA, status center (toolbar ring, cards, speed graph, dismiss/clear/cancel all) | 🟦 | 🟦 | ✓ | ✓ | ✓ | `OperationsViewModel`, `OperationsView`, `ProgressRing`, `SpeedGraph` |
 | Conflict resolution (replace/skip/keep both/merge, apply to all) | ✅ | 🟦 | ✓ | ✓ | ✓ | never silent overwrite |
 | Atomic copy via temp file, metadata preserved | ✅ | ➖ | ✓ | ✓ | ✓ | `SafeFileCopier` |
 | Cross-volume move with verify-before-delete | ✅ | ➖ | ✓ | ✓ | ✓ | `TransferExecutor` |
@@ -136,6 +138,7 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Mica / Acrylic backdrop | 🟦 | 🟦 | 🟦 | 🟨 | 🟨 | effect depends on platform/compositor |
 | Animations full / reduced / off | 🟦 | 🟦 | ✓ | ✓ | ✓ | |
 | Customizable keyboard shortcuts | ✅ | 🟦 | ✓ | ✓ | ✓ | `CommandRegistry` |
+| Global shortcut to open Navigator; background mode with tray icon | 🟦 | 🟦 | 🟦 | 🟨 | 🟦 | `GlobalHotkeyController`; X11 only (Wayland: bind a desktop shortcut to the app) |
 | English + Ukrainian | ✅ | 🟦 | ✓ | ✓ | ✓ | key parity test |
 | High-contrast themes | ⬜ | ⬜ | | | | |
 

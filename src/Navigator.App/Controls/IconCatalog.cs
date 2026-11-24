@@ -29,6 +29,7 @@ internal static class IconCatalog
         Line("Forward", "M5,12 H19 M13,6 L19,12 L13,18");
         Line("Up", "M12,19 V5 M6,11 L12,5 L18,11");
         Line("Refresh", "M19,12 A7,7 0 1 1 16.9,7 M19,4 V8 H15");
+        Line("History", "M4.6,9 A8,8 0 1 1 4,12 M4,5 V9 H8 M12,8 V12 L15,14");
         Line("Add", "M12,5 V19 M5,12 H19");
         Line("Close", "M6,6 L18,18 M18,6 L6,18");
         Line("ChevronRight", "M9,6 L15,12 L9,18");

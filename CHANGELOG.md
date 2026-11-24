@@ -22,11 +22,67 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
   layouts, split view, preview pane, operations flyout, properties and settings windows, command palette,
   light/dark themes, accent colors, density, Mica/Acrylic, motion levels, original icon set and logo.
 - English and Ukrainian localization.
+- Settings → Keyboard shortcuts: search by command name, category or shortcut; record a shortcut by pressing it;
+  per-command reset (shows the default) and "Reset all shortcuts"; conflicts are flagged on the affected rows;
+  invalid input is rejected with a message instead of being saved.
+- Settings now expose: font family, startup locations (for "Open specific locations"), sidebar visibility,
+  clearing address history / remembered folder views / the skipped update version.
+- "Show performance diagnostics" shows a memory bar in the status bar in the style of the JetBrains IDE memory
+  indicator: managed heap in use of committed heap ("123 of 456M"); click it to run a garbage collection, hover it
+  for frame rate, compositor/layout/input timings, visual count, working set and GC counts. It reads Avalonia's own metrics and measures nothing while it is off.
+- "Show labels on toolbar buttons" works: off makes New/Sort/Group/Layout icon-only (with tooltips).
+- "Show check boxes for selecting items": a check box in front of each item (Details, List, tiles) toggles it in
+  the selection; Shift+click on it adds a range.
+- Thumbnail disk cache (Settings → Performance): thumbnails of images over 256 KB are kept as small PNGs, bounded
+  by the configured size (oldest removed first), with a "Clear" button.
+- Recently visited folders kept in memory (Settings → Performance): revisiting a folder shows its items at once
+  and refreshes them in the background; unchanged items keep their rows, thumbnails and selection.
 - Packaging: Windows installer + portable ZIP, Linux AppImage + tar.gz, macOS DMG + ZIP.
+- Global shortcut "Open Navigator from any app" (default Ctrl+Shift+Alt+E, Cmd+Shift+Option+E on macOS): brings
+  Navigator to the front from any application, or opens a window. Change it in Settings → Keyboard shortcuts;
+  Settings → General shows whether it is active and why not (taken by another app, Wayland session).
+  Windows: RegisterHotKey; macOS: Carbon hot keys (no Accessibility permission); Linux X11: XCB key grab.
+- "Keep running in the background" (Settings → General, off by default): after the last window closes Navigator
+  stays in the notification area (Open / Exit) so the global shortcut opens it instantly; the managed heap is
+  compacted once when it goes idle.
 - Documentation set and source-originality scanner.
+
+- Status center for file operations, opened from a toolbar button that appears while operations exist: a progress
+  ring shows overall progress (a badge shows the outcome once everything finished); the flyout lists every operation
+  with its kind, route ("From A to B"), state and percentage, a tone-colored progress bar, pause/resume, cancel,
+  per-card dismiss, "Cancel all" and "Clear finished", and expandable details with a live throughput graph, speed,
+  time left, item count and the current item. Replaces the status bar "File operations" button.
+
+### Changed
+
+- Tabs all have the same width and shrink equally when the title bar fills up, instead of sizing to their titles.
+- A tab in split view shows both pane titles separated by "|" (left first).
+- The Recycle Bin / Trash moved into the sidebar's quick access (pinned) section.
+- Selection follows the accent color everywhere: selected rows get an accent outline, the selected sidebar entry an
+  accent tint, and text selection / focused text boxes use the accent with a contrasting selected-text color.
+  With "Use system accent", changing the OS accent while Navigator runs updates the UI immediately.
+
+- Hover and selection fades are smooth: translucent brushes carry their alpha in the color (a fade from transparent
+  used to overshoot to ~6× the target darkness mid-way and read as a blink), command buttons fade instead of snapping,
+  hovering a selected row deepens its fill instead of dimming the whole row, and the tab close button fades in.
+- Progress bars and the progress ring ease between the 10 Hz progress updates instead of stepping.
+
+### Removed
+
+- The "Enable experimental features" setting (it controlled nothing); the stored value is dropped on next save.
 
 ### Fixed
 
+- Rows and tiles no longer blink while scrolling: a recycled container switched its hover/selection state with a fade
+  from the previous item's state. `RowSurface` turns transitions off while virtualization assigns a new item.
+- Clearing the search box while search results are shown returns to the searched folder (a Back step when it
+  came from there); Back/Forward into results shows their query in the search box again.
+- The performance overlay (Avalonia's renderer debug overlay) covered the title bar and search box and forced
+  continuous redraws; it is replaced by the status bar indicator.
+- Shortcuts with digit or punctuation keys were not reliably recognized: a bare `1` or `` ` `` is not an Avalonia
+  key name (`Ctrl+Shift+1…5`, ``Ctrl+Shift+` ``). Gestures are now normalized to key names (`D1`, `OemTilde`, …)
+  and shown in friendly form (`1`, `` ` ``, `,`).
+- Settings: after "Reset all settings" or "Import", tag and shortcut rows kept editing the replaced settings object.
 - Title bar: the default "Window" caption text no longer appears above the tabs; the window is titled "Navigator".
 - Title bar: the drawn decorations' opaque background no longer shows through the tabs, so the selected tab has one
   color; the navigation toolbar is now full-width and flush with the tab strip.

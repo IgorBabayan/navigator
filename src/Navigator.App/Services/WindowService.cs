@@ -25,6 +25,28 @@ internal sealed class WindowService(IServiceProvider services, SettingsService s
 
     public Window? ActiveTopLevel => _settingsWindow is { IsActive: true } ? _settingsWindow : ActiveWindow;
 
+    public int WindowCount => _windows.Count;
+
+    /// <summary>Raised after the last main window has closed (the app keeps running only in background mode).</summary>
+    public event EventHandler? LastWindowClosed;
+
+    /// <summary>
+    /// Global shortcut and tray icon: brings the most recently used window to the front, or, when every window was
+    /// closed (background mode), opens one the same way a fresh start would (startup setting / restored session).
+    /// </summary>
+    public void ShowOrActivate()
+    {
+        if (ActiveWindow is { } existing)
+        {
+            existing.BringToFront();
+            return;
+        }
+
+        var window = CreateStartupWindows([]);
+        window.Show();
+        window.Activate();
+    }
+
     public MainWindow CreateStartupWindows(string[] args)
     {
         var session = _sessionStore.Load();
@@ -88,8 +110,11 @@ internal sealed class WindowService(IServiceProvider services, SettingsService s
         {
             _windows.Remove(window);
             shell.Dispose();
+            if (_windows.Count == 0)
+                LastWindowClosed?.Invoke(this, EventArgs.Empty);
         };
         _windows.Add(window);
+        _sessionSaved = false; // a window reopened from the background must be saved again when it closes
         return window;
     }
 

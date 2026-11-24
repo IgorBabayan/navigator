@@ -9,6 +9,11 @@ internal static class Program
     public static int Main(string[] args)
     {
         StartupTimer.Start();
+
+        // Lets Avalonia publish its layout/render timing metrics ("Avalonia.Diagnostic.Meter"), read by the status bar
+        // performance indicator. Must be set before any Avalonia type is used. Without a listener (indicator off)
+        // Avalonia does not even start the timers, so this costs nothing in normal use.
+        AppContext.SetSwitch("Avalonia.Diagnostics.Diagnostic.IsEnabled", true);
         try
         {
             return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);

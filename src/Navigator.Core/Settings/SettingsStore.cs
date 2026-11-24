@@ -166,6 +166,9 @@ public sealed class SettingsStore
         if (settings.Search.History.Count > 50)
             settings.Search.History.RemoveRange(50, settings.Search.History.Count - 50);
         settings.General.StartupLocations ??= [];
+        settings.General.AddressHistory ??= [];
+        if (settings.General.AddressHistory.Count > 25)
+            settings.General.AddressHistory.RemoveRange(25, settings.General.AddressHistory.Count - 25);
         settings.Sidebar.CollapsedSections ??= [];
     }
 

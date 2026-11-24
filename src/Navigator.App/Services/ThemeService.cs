@@ -29,6 +29,18 @@ internal sealed class ThemeService(SettingsService settings)
     public void Initialize()
     {
         ApplyAll();
+        // Fluent's own controls follow the OS accent by themselves; our Accent.* tokens are computed here, so
+        // they must be recomputed when the user changes the Windows/macOS/Linux accent while the app is running.
+        // Only the accent is reapplied (a few brushes), not the whole appearance.
+        if (Application.Current?.PlatformSettings is { } platform)
+        {
+            platform.ColorValuesChanged += (_, _) =>
+            {
+                if (settings.Current.Appearance.AccentColor is null)
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => ApplyAccent(Application.Current!, null));
+            };
+        }
+
         settings.Changed += (_, section) =>
         {
             if (section is "appearance" or "*")
@@ -52,6 +64,7 @@ internal sealed class ThemeService(SettingsService settings)
 
         ApplyAccent(app, appearance.AccentColor);
         ApplyDensity(app, appearance.Density, appearance.FontScale);
+        ApplyFontFamily(app, appearance.FontFamily);
         ApplyMotion(app, appearance.Animations);
         ApplyLogLevel();
 
@@ -70,6 +83,8 @@ internal sealed class ThemeService(SettingsService settings)
             LogVerbosity.Debug => LogLevel.Debug,
             _ => LogLevel.Information,
         };
+
+    private static Color? _appliedAccent;
 
     private static void ApplyAccent(Application app, string? accent)
     {
@@ -93,10 +108,37 @@ internal sealed class ThemeService(SettingsService settings)
             app.Resources["SystemAccentColorDark3"] = Mix(color, Colors.Black, 0.6);
         }
 
+        // Settings changes and OS color events (which also fire on light/dark switches) often leave the accent
+        // as it was: skip replacing the brushes then, so no DynamicResource consumer is re-resolved for nothing.
+        if (_appliedAccent == color)
+            return;
+        _appliedAccent = color;
+
+        var foreground = new SolidColorBrush(Luminance(color) > 0.55 ? Colors.Black : Colors.White);
         app.Resources["Accent.Brush"] = new SolidColorBrush(color);
-        app.Resources["Accent.SubtleBrush"] = new SolidColorBrush(color, 0.16);
-        app.Resources["Accent.SelectionBrush"] = new SolidColorBrush(color, 0.24);
-        app.Resources["Accent.ForegroundBrush"] = new SolidColorBrush(Luminance(color) > 0.55 ? Colors.Black : Colors.White);
+        // Alpha goes into the color, not into Opacity: BrushTransition interpolates both independently, which makes
+        // a fade from a transparent brush overshoot (flash) when the target carries its translucency in Opacity.
+        app.Resources["Accent.SubtleBrush"] = new SolidColorBrush(WithAlpha(color, 0.16));
+        app.Resources["Accent.SelectionBrush"] = new SolidColorBrush(WithAlpha(color, 0.24));
+        app.Resources["Accent.SelectionHoverBrush"] = new SolidColorBrush(WithAlpha(color, 0.30));
+        app.Resources["Accent.SelectionBorderBrush"] = new SolidColorBrush(WithAlpha(color, 0.72));
+        app.Resources["Accent.ForegroundBrush"] = foreground;
+
+        // Text selection (every TextBox: omnibar, search, rename, settings) and focused text-box borders use the
+        // same accent as the rest of the UI. The selected text gets a contrasting color, so a light accent such
+        // as yellow stays readable.
+        app.Resources["TextControlSelectionHighlightColor"] = new SolidColorBrush(color);
+        app.Resources["TextControlSelectionForegroundBrush"] = foreground;
+        app.Resources["TextControlBorderBrushFocused"] = new SolidColorBrush(color);
+    }
+
+    /// <summary>A custom family overrides the token; removing the override restores the cross-platform fallback list.</summary>
+    private static void ApplyFontFamily(Application app, string? family)
+    {
+        if (string.IsNullOrWhiteSpace(family))
+            app.Resources.Remove("Font.Family");
+        else
+            app.Resources["Font.Family"] = new FontFamily(family);
     }
 
     private static void ApplyDensity(Application app, InterfaceDensity density, double fontScale)
@@ -137,8 +179,22 @@ internal sealed class ThemeService(SettingsService settings)
         app.Resources["Motion.Duration.Normal"] = enabled ? normal : TimeSpan.Zero;
         app.Resources["Motion.Duration.Slow"] = enabled ? slow : TimeSpan.Zero;
 
+        // Hover/selection fades: background and border recolor together (Border.BackgroundProperty is shared with
+        // ContentPresenter, so the same collection also serves button templates). Selection borders follow the fill.
         app.Resources["Motion.Hover"] = enabled
-            ? new Transitions { new BrushTransition { Property = Avalonia.Controls.Border.BackgroundProperty, Duration = fast, Easing = Standard } }
+            ? new Transitions
+            {
+                new BrushTransition { Property = Avalonia.Controls.Border.BackgroundProperty, Duration = fast, Easing = Standard },
+                new BrushTransition { Property = Avalonia.Controls.Border.BorderBrushProperty, Duration = fast, Easing = Standard },
+            }
+            : new Transitions();
+        // Progress values arrive at 10 Hz; easing between them turns the steps into continuous motion.
+        app.Resources["Motion.Progress"] = enabled
+            ? new Transitions
+            {
+                new DoubleTransition { Property = Avalonia.Controls.Primitives.RangeBase.ValueProperty, Duration = slow, Easing = Decelerate },
+                new DoubleTransition { Property = Navigator.App.Controls.ProgressRing.ValueProperty, Duration = slow, Easing = Decelerate },
+            }
             : new Transitions();
         app.Resources["Motion.Fade"] = enabled
             ? new Transitions { new DoubleTransition { Property = Visual.OpacityProperty, Duration = normal, Easing = Decelerate } }
@@ -154,6 +210,9 @@ internal sealed class ThemeService(SettingsService settings)
             ? new Transitions { new TransformOperationsTransition { Property = Visual.RenderTransformProperty, Duration = normal, Easing = Standard } }
             : new Transitions();
     }
+
+    private static Color WithAlpha(Color color, double alpha)
+        => Color.FromArgb((byte)Math.Round(Math.Clamp(alpha, 0, 1) * 255), color.R, color.G, color.B);
 
     private static Color Mix(Color a, Color b, double amount)
         => Color.FromArgb(a.A, (byte)(a.R + ((b.R - a.R) * amount)), (byte)(a.G + ((b.G - a.G) * amount)), (byte)(a.B + ((b.B - a.B) * amount)));

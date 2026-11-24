@@ -44,6 +44,21 @@ public sealed class FileEntry
 
     public FileAttributes Attributes { get; }
 
+    /// <summary>
+    /// True when both snapshots describe the same entry with the same metadata (path, kind, size, times, attributes).
+    /// Lets a re-enumeration keep the existing instance, so the item view model built for it is kept as well.
+    /// </summary>
+    public bool IsEquivalentTo(FileEntry other)
+        => ReferenceEquals(this, other)
+           || (other is not null
+               && IsDirectory == other.IsDirectory
+               && Length == other.Length
+               && LastWriteTimeUtc == other.LastWriteTimeUtc
+               && CreationTimeUtc == other.CreationTimeUtc
+               && Attributes == other.Attributes
+               && string.Equals(FullPath, other.FullPath, StringComparison.Ordinal)
+               && string.Equals(Name, other.Name, StringComparison.Ordinal));
+
     /// <summary>Hidden attribute. On Unix .NET reports dot-files as Hidden as well.</summary>
     public bool IsHidden => (Attributes & FileAttributes.Hidden) != 0;
 

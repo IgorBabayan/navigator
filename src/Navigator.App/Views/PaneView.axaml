@@ -19,6 +19,43 @@
     <Style Selector="Border#PaneHeader.active">
       <Setter Property="BorderBrush" Value="{DynamicResource Accent.Brush}" />
     </Style>
+
+    <!--
+      Settings → Files and folders → "Show check boxes": a check box in front of each item toggles its selection
+      (like Ctrl+click). Hidden (not laid out) unless the pane has the "checkboxes" class.
+    -->
+    <Style Selector="Border.rowCheck">
+      <Setter Property="IsVisible" Value="False" />
+      <Setter Property="Width" Value="18" />
+      <Setter Property="Height" Value="18" />
+      <Setter Property="Margin" Value="0,0,8,0" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="BorderThickness" Value="1.5" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Brush.StrokeStrong}" />
+      <Setter Property="Background" Value="{DynamicResource Brush.Layer}" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="v|PaneView.checkboxes Border.rowCheck">
+      <Setter Property="IsVisible" Value="True" />
+    </Style>
+    <Style Selector="Border.rowCheck > c|IconView">
+      <Setter Property="Width" Value="12" />
+      <Setter Property="Height" Value="12" />
+      <Setter Property="StrokeThickness" Value="2" />
+      <Setter Property="Foreground" Value="{DynamicResource Accent.ForegroundBrush}" />
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="Border.item.selected Border.rowCheck">
+      <Setter Property="Background" Value="{DynamicResource Accent.Brush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Accent.Brush}" />
+    </Style>
+    <Style Selector="Border.item.selected Border.rowCheck > c|IconView">
+      <Setter Property="IsVisible" Value="True" />
+    </Style>
+    <Style Selector="Border.item:pointerover Border.rowCheck">
+      <Setter Property="BorderBrush" Value="{DynamicResource Accent.Brush}" />
+    </Style>
   </UserControl.Styles>
   <Grid RowDefinitions="Auto,Auto,Auto,*">
     <!-- Split view: each pane shows its own location; the active one is underlined with the accent. -->

@@ -42,6 +42,9 @@ public sealed partial class App : Application
             var update = _services.GetRequiredService<UpdateViewModel>();
             update.ExitRequested += (_, _) => desktop.Shutdown();
 
+            // Creates nothing unless Settings → General → "Keep running in the background" is on.
+            _services.GetRequiredService<BackgroundModeService>().Start(desktop);
+
             // Everything that is not needed for the first frame runs after it (startup budget, docs/PERFORMANCE.md).
             Dispatcher.UIThread.Post(() =>
             {
@@ -49,6 +52,7 @@ public sealed partial class App : Application
                 if (logger.IsEnabled(LogLevel.Information))
                     logger.LogInformation("First frame after {Milliseconds} ms", (int)StartupTimer.Elapsed.TotalMilliseconds);
                 update.StartBackgroundChecks();
+                _services.GetRequiredService<GlobalHotkeyController>().Start();
             }, DispatcherPriority.Background);
         }
 

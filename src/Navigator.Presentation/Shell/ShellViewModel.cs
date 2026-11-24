@@ -386,11 +386,13 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
         var isMac = OperatingSystem.IsMacOS();
         foreach (var command in CommandRegistry.All)
         {
+            if (command.IsGlobal)
+                continue;
             var name = _services.Localizer[command.NameKey];
             if (_paletteFilter.Length > 0 && !name.Contains(_paletteFilter, StringComparison.CurrentCultureIgnoreCase))
                 continue;
             var gestures = CommandRegistry.GesturesFor(command.Id, _services.Settings.Current, isMac);
-            var gesture = gestures.Count > 0 ? gestures[0] : string.Empty;
+            var gesture = gestures.Count > 0 ? CommandRegistry.FormatForDisplay(gestures[0]) : string.Empty;
             PaletteEntries.Add(new PaletteEntry(command.Id, name, gesture));
         }
     }

@@ -57,34 +57,138 @@ public sealed class TagRowViewModel(TagDefinition tag, Action<TagRowViewModel> c
         => value.Length == 7 && value[0] == '#' && value.AsSpan(1).IndexOfAnyExcept(HexDigits) < 0;
 }
 
-public sealed class KeyBindingRowViewModel(AppCommandInfo command, string name, Func<string, IReadOnlyList<string>> current, Action<string, IReadOnlyList<string>?> save) : ObservableObject
+/// <summary>
+/// One command in Settings → Keyboard shortcuts. Gestures are edited as comma-separated text or recorded from
+/// the keyboard (the window forwards the next key press while <see cref="IsRecording"/> is set).
+/// </summary>
+public sealed class KeyBindingRowViewModel : ObservableObject
 {
+    private readonly AppCommandInfo _command;
+    private readonly SettingsViewModel _owner;
     private string? _editText;
+    private string? _error;
+    private bool _isRecording;
+    private bool _hasConflict;
+    private bool _isVisible = true;
+    private string _searchText = string.Empty;
 
-    public string Id => command.Id;
+    internal KeyBindingRowViewModel(AppCommandInfo command, string name, string category, SettingsViewModel owner)
+    {
+        _command = command;
+        _owner = owner;
+        Name = name;
+        Category = category;
+        DefaultGesturesText = owner.FormatGestures(CommandRegistry.NormalizedDefaults(command.Id, owner.IsMac));
+        DefaultGesturesCaption = owner.FormatDefaultCaption(DefaultGesturesText);
+        RebuildSearchText();
+    }
 
-    public string Name { get; } = name;
+    public string Id => _command.Id;
 
-    public string Category => command.Category;
+    public string Name { get; }
 
+    public string Category { get; }
+
+    public string DefaultGesturesText { get; }
+
+    /// <summary>Shown under the name when the binding was changed, so the user knows what "reset" restores.</summary>
+    public string DefaultGesturesCaption { get; }
+
+    /// <summary>Comma-separated, human-friendly gestures. Setting it validates and saves (or shows <see cref="Error"/>).</summary>
     public string Gestures
     {
-        get => _editText ?? string.Join(", ", current(command.Id));
+        get => _editText ?? _owner.FormatGestures(_owner.CurrentGestures(Id));
         set
         {
-            _editText = value;
-            var gestures = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            save(command.Id, gestures);
+            if (value == Gestures)
+                return;
+            var parsed = _owner.ParseGestures(value, out var invalid);
+            if (parsed is null)
+            {
+                _editText = value;
+                Error = invalid;
+                return;
+            }
+
             _editText = null;
-            OnPropertyChanged();
+            Error = null;
+            _owner.SaveKeyBinding(this, parsed);
         }
     }
 
-    public void ResetToDefault()
+    public string? Error
     {
-        save(command.Id, null);
-        OnPropertyChanged(nameof(Gestures));
+        get => _error;
+        private set
+        {
+            if (SetProperty(ref _error, value))
+                OnPropertyChanged(nameof(HasError));
+        }
     }
+
+    public bool HasError => _error is not null;
+
+    public bool IsModified => _owner.IsKeyBindingModified(Id);
+
+    public bool HasConflict
+    {
+        get => _hasConflict;
+        internal set => SetProperty(ref _hasConflict, value);
+    }
+
+    public bool IsRecording
+    {
+        get => _isRecording;
+        internal set => SetProperty(ref _isRecording, value);
+    }
+
+    /// <summary>False while the row is filtered out by the search box (cheaper than rebuilding the list).</summary>
+    public bool IsVisible
+    {
+        get => _isVisible;
+        internal set => SetProperty(ref _isVisible, value);
+    }
+
+    /// <summary>Called when a recorded gesture arrives; replaces the command's gestures with it.</summary>
+    internal void ApplyRecorded(string normalized)
+    {
+        _editText = null;
+        Error = null;
+        _owner.SaveKeyBinding(this, [normalized]);
+    }
+
+    internal void ResetToDefault()
+    {
+        _editText = null;
+        Error = null;
+        _owner.SaveKeyBinding(this, null);
+    }
+
+    /// <summary>Re-reads the effective gestures after a change (own save, reset all, import).</summary>
+    internal void Refresh()
+    {
+        _editText = null;
+        Error = null;
+        RebuildSearchText();
+        OnPropertyChanged(nameof(Gestures));
+        OnPropertyChanged(nameof(IsModified));
+    }
+
+    /// <summary>Every search term must occur in the name, category, id or current/default gestures.</summary>
+    internal bool Matches(string[] terms)
+    {
+        foreach (var term in terms)
+        {
+            if (!_searchText.Contains(term, StringComparison.OrdinalIgnoreCase))
+                return false;
+        }
+
+        return true;
+    }
+
+    // Precomputed so filtering while typing is a few string scans per row, with no allocations.
+    private void RebuildSearchText()
+        => _searchText = string.Join('\n', Name, Category, Id, Gestures, DefaultGesturesText);
 }
 
 /// <summary>
@@ -101,12 +205,22 @@ public sealed class SettingsViewModel : ObservableObject
     private readonly IFileLauncher _launcher;
     private readonly TagStore _tags;
     private readonly AppDirectories _directories;
+    private readonly IThumbnailProvider _thumbnails;
+    private readonly IGlobalHotkeyStatus _globalHotkey;
     private readonly Dictionary<string, (string Section, Action<AppSettings, AppSettings> Reset)> _resetters = [];
     private SettingsPage _selectedPage;
+    private string _keyBindingFilter = string.Empty;
+    private string _keyBindingConflicts = string.Empty;
+    private bool _hasKeyBindingResults = true;
+    private KeyBindingRowViewModel? _recordingRow;
+    private IReadOnlyList<Option<string>>? _fontFamilies;
 
-    public SettingsViewModel(SettingsService settings, Localizer localizer, IDialogService dialogs, IFileLauncher launcher, TagStore tags, AppDirectories directories, UpdateViewModel update)
+    public SettingsViewModel(SettingsService settings, Localizer localizer, IDialogService dialogs, IFileLauncher launcher, TagStore tags, AppDirectories directories, UpdateViewModel update, IThumbnailProvider thumbnails, IGlobalHotkeyStatus globalHotkey)
     {
         _settings = settings;
+        _globalHotkey = globalHotkey;
+        _globalHotkey.Changed += OnGlobalHotkeyChanged;
+        _thumbnails = thumbnails;
         _localizer = localizer;
         _dialogs = dialogs;
         _launcher = launcher;
@@ -144,15 +258,11 @@ public sealed class SettingsViewModel : ObservableObject
         LogLevels = [.. Enum.GetValues<LogVerbosity>().Select(v => new Option<LogVerbosity>(v, localizer["LogLevel." + v]))];
         AccentPresets = ["#0078D4", "#0063B1", "#8764B8", "#E3008C", "#E81123", "#F7630C", "#CA5010", "#498205", "#00B7C3", "#2D7D9A", "#5D5A58"];
 
-        foreach (var tag in settings.Current.Tags)
-            TagRows.Add(new TagRowViewModel(tag, _ => SaveTags()));
-        var isMac = OperatingSystem.IsMacOS();
+        ReloadTagRows();
+        ReloadStartupLocations();
         foreach (var command in CommandRegistry.All)
-        {
-            KeyBindings.Add(new KeyBindingRowViewModel(command, localizer[command.NameKey],
-                id => CommandRegistry.GesturesFor(id, _settings.Current, isMac),
-                SaveKeyBinding));
-        }
+            KeyBindings.Add(new KeyBindingRowViewModel(command, localizer[command.NameKey], localizer["CommandCategory." + command.Category], this));
+        UpdateKeyBindingConflicts();
 
         ResetCommand = new RelayCommand<string>(Reset);
         ResetAllCommand = new AsyncRelayCommand(ResetAllAsync);
@@ -162,10 +272,27 @@ public sealed class SettingsViewModel : ObservableObject
         OpenSettingsFolderCommand = new AsyncRelayCommand(() => _launcher.OpenAsync(_directories.ConfigDirectory));
         AddTagCommand = new RelayCommand(AddTag);
         RemoveTagCommand = new RelayCommand<TagRowViewModel>(RemoveTag);
-        ResetKeyBindingCommand = new RelayCommand<KeyBindingRowViewModel>(row => row?.ResetToDefault());
+        ResetKeyBindingCommand = new RelayCommand<KeyBindingRowViewModel>(row =>
+        {
+            CancelKeyBindingRecording();
+            row?.ResetToDefault();
+        });
+        ResetAllKeyBindingsCommand = new AsyncRelayCommand(ResetAllKeyBindingsAsync);
+        RecordKeyBindingCommand = new RelayCommand<KeyBindingRowViewModel>(ToggleRecording);
+        AddStartupLocationCommand = new AsyncRelayCommand(AddStartupLocationAsync);
+        RemoveStartupLocationCommand = new RelayCommand<string>(RemoveStartupLocation);
+        ClearAddressHistoryCommand = new RelayCommand(() => _settings.Update("general", s => s.General.AddressHistory.Clear()));
+        ClearFolderViewsCommand = new RelayCommand(() => _settings.Update("filesAndFolders", s => s.FilesAndFolders.FolderViews.Clear()));
+        ClearSkippedVersionCommand = new RelayCommand(() => Set("updates", (string?)null, s => s.Updates.SkippedVersion, (s, v) => s.Updates.SkippedVersion = v, nameof(SkippedVersion)));
         ClearSearchHistoryCommand = new RelayCommand(() => Set("search", new List<string>(), s => s.Search.History, (s, v) => s.Search.History = v));
+        ClearThumbnailCacheCommand = new AsyncRelayCommand(() => _thumbnails.ClearDiskCacheAsync());
         PickAccentCommand = new RelayCommand<string>(color => AccentColor = color);
         PickBackgroundImageCommand = new AsyncRelayCommand(PickBackgroundImageAsync);
+        ChangeGlobalShortcutCommand = new RelayCommand(() =>
+        {
+            SelectedPage = Pages.First(p => p.Id == "keyboard");
+            KeyBindingFilter = _localizer[CommandRegistry.Find(CommandRegistry.ActivateAppId)!.NameKey];
+        });
         RegisterResetters();
     }
 
@@ -178,8 +305,26 @@ public sealed class SettingsViewModel : ObservableObject
     public SettingsPage SelectedPage
     {
         get => _selectedPage;
-        set => SetProperty(ref _selectedPage, value);
+        set
+        {
+            if (!SetProperty(ref _selectedPage, value))
+                return;
+            CancelKeyBindingRecording();
+            if (value?.Id == "appearance")
+                EnsureFontFamilies();
+        }
     }
+
+    internal bool IsMac { get; } = OperatingSystem.IsMacOS();
+
+    /// <summary>
+    /// Set by the view: returns false for gestures the UI framework cannot parse (unknown key names).
+    /// Without it only the structure of a gesture is validated.
+    /// </summary>
+    public Func<string, bool>? GestureValidator { get; set; }
+
+    /// <summary>Set by the view: installed font family names. Enumerated lazily, on the first visit of the Appearance page.</summary>
+    public Func<IEnumerable<string>>? FontFamilyProvider { get; set; }
 
     public IReadOnlyList<Option<string>> Languages { get; }
 
@@ -209,9 +354,40 @@ public sealed class SettingsViewModel : ObservableObject
 
     public ObservableCollection<KeyBindingRowViewModel> KeyBindings { get; } = [];
 
+    public ObservableCollection<string> StartupLocations { get; } = [];
+
+    /// <summary>Search text for the shortcut list: matches command name, category, id and gestures ("ctrl+t", "tab close").</summary>
+    public string KeyBindingFilter
+    {
+        get => _keyBindingFilter;
+        set
+        {
+            value ??= string.Empty;
+            if (!SetProperty(ref _keyBindingFilter, value))
+                return;
+            ApplyKeyBindingFilter();
+        }
+    }
+
+    public bool HasKeyBindingResults
+    {
+        get => _hasKeyBindingResults;
+        private set => SetProperty(ref _hasKeyBindingResults, value);
+    }
+
     public string KeyBindingConflicts
-        => string.Join(Environment.NewLine, CommandRegistry.FindConflicts(S, OperatingSystem.IsMacOS())
-            .Select(c => $"{c.Gesture}: {string.Join(", ", c.CommandIds.Select(id => _localizer[CommandRegistry.Find(id)!.NameKey]))}"));
+    {
+        get => _keyBindingConflicts;
+        private set
+        {
+            if (SetProperty(ref _keyBindingConflicts, value))
+                OnPropertyChanged(nameof(HasKeyBindingConflicts));
+        }
+    }
+
+    public bool HasKeyBindingConflicts => _keyBindingConflicts.Length > 0;
+
+    public bool IsRecordingKeyBinding => _recordingRow is not null;
 
     /// <summary>Mica/Acrylic are native on Windows 11 and macOS; elsewhere a tinted fallback is drawn.</summary>
     public bool IsNativeBackdropSupported => OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000) || OperatingSystem.IsMacOS();
@@ -244,8 +420,16 @@ public sealed class SettingsViewModel : ObservableObject
     public Option<StartupBehavior> Startup
     {
         get => StartupOptions.First(o => o.Value == S.General.Startup);
-        set { if (value is not null) Set("general", value.Value, s => s.General.Startup, (s, v) => s.General.Startup = v); }
+        set
+        {
+            if (value is null)
+                return;
+            Set("general", value.Value, s => s.General.Startup, (s, v) => s.General.Startup = v);
+            OnPropertyChanged(nameof(IsStartupWithSpecificLocations));
+        }
     }
+
+    public bool IsStartupWithSpecificLocations => S.General.Startup == StartupBehavior.OpenSpecificLocations;
 
     public bool OpenFoldersInNewTab { get => S.General.OpenFoldersInNewTab; set => Set("general", value, s => s.General.OpenFoldersInNewTab, (s, v) => s.General.OpenFoldersInNewTab = v); }
 
@@ -264,6 +448,24 @@ public sealed class SettingsViewModel : ObservableObject
     public bool ShowCopyPathInContextMenu { get => S.General.ShowCopyPathInContextMenu; set => Set("contextMenu", value, s => s.General.ShowCopyPathInContextMenu, (s, v) => s.General.ShowCopyPathInContextMenu = v); }
 
     public bool ShowOpenTerminalInContextMenu { get => S.General.ShowOpenTerminalInContextMenu; set => Set("contextMenu", value, s => s.General.ShowOpenTerminalInContextMenu, (s, v) => s.General.ShowOpenTerminalInContextMenu = v); }
+
+    public bool KeepRunningInBackground { get => S.General.KeepRunningInBackground; set => Set("general", value, s => s.General.KeepRunningInBackground, (s, v) => s.General.KeepRunningInBackground = v); }
+
+    /// <summary>What the global "open Navigator" shortcut does right now, or why it does not work.</summary>
+    public string GlobalShortcutStatus => _globalHotkey.State switch
+    {
+        null => _localizer["Settings.GlobalShortcutNotSet"],
+        HotkeyRegistrationResult.Registered => _localizer.Format("Settings.GlobalShortcutActive", _globalHotkey.Gesture),
+        HotkeyRegistrationResult.InUse => _localizer.Format("Settings.GlobalShortcutInUse", _globalHotkey.Gesture),
+        HotkeyRegistrationResult.InvalidGesture => _localizer.Format("Settings.GlobalShortcutInvalid", _globalHotkey.Gesture),
+        _ => _localizer.Format("Settings.GlobalShortcutUnsupported", LaunchCommand),
+    };
+
+    public bool HasGlobalShortcutProblem => _globalHotkey.State is not (null or HotkeyRegistrationResult.Registered);
+
+    /// <summary>What a desktop-level shortcut should run where apps cannot register one (Wayland).</summary>
+    private static string LaunchCommand
+        => Environment.GetEnvironmentVariable("APPIMAGE") is { Length: > 0 } appImage ? appImage : Environment.ProcessPath ?? "Navigator";
 
     public string CodeEditorCommand { get => S.General.CodeEditorCommand ?? string.Empty; set => Set("general", string.IsNullOrWhiteSpace(value) ? null : value.Trim(), s => s.General.CodeEditorCommand, (s, v) => s.General.CodeEditorCommand = v); }
 
@@ -318,6 +520,48 @@ public sealed class SettingsViewModel : ObservableObject
     {
         get => AnimationLevels.First(o => o.Value == S.Appearance.Animations);
         set { if (value is not null) Set("appearance", value.Value, s => s.Appearance.Animations, (s, v) => s.Appearance.Animations = v); }
+    }
+
+    /// <summary>"System default" followed by the installed families; filled on the first visit of the Appearance page.</summary>
+    public IReadOnlyList<Option<string>> FontFamilies
+    {
+        get
+        {
+            if (_fontFamilies is not null)
+                return _fontFamilies;
+
+            // Before the fonts are enumerated only the current choice is offered, so the combo box still shows it.
+            var system = new Option<string>(string.Empty, _localizer["Settings.FontFamilySystem"]);
+            return S.Appearance.FontFamily is { } current ? [system, new Option<string>(current, current)] : [system];
+        }
+    }
+
+    private void EnsureFontFamilies()
+    {
+        if (_fontFamilies is not null || FontFamilyProvider is null)
+            return;
+        var current = S.Appearance.FontFamily;
+        IEnumerable<string> names = FontFamilyProvider().Where(f => !string.IsNullOrWhiteSpace(f));
+        if (current is not null)
+            names = names.Append(current); // keep a configured font that is not installed (any more) selectable
+        _fontFamilies = [new Option<string>(string.Empty, _localizer["Settings.FontFamilySystem"]),
+            .. names.Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.CurrentCultureIgnoreCase).Select(f => new Option<string>(f, f))];
+        OnPropertyChanged(nameof(FontFamilies));
+        OnPropertyChanged(nameof(FontFamily));
+    }
+
+    public Option<string>? FontFamily
+    {
+        get
+        {
+            var current = S.Appearance.FontFamily ?? string.Empty;
+            return FontFamilies.FirstOrDefault(f => string.Equals(f.Value, current, StringComparison.OrdinalIgnoreCase));
+        }
+        set
+        {
+            if (value is not null)
+                Set("appearance", value.Value.Length == 0 ? null : value.Value, s => s.Appearance.FontFamily, (s, v) => s.Appearance.FontFamily = v);
+        }
     }
 
     public double FontScale { get => S.Appearance.FontScale; set => Set("appearance", Math.Round(value, 2), s => s.Appearance.FontScale, (s, v) => s.Appearance.FontScale = v); }
@@ -376,6 +620,8 @@ public sealed class SettingsViewModel : ObservableObject
     }
 
     // ── Sidebar ─────────────────────────────────────────────
+    public bool SidebarIsVisible { get => S.Sidebar.IsVisible; set => Set("sidebarVisible", value, s => s.Sidebar.IsVisible, (s, v) => s.Sidebar.IsVisible = v); }
+
     public bool SidebarShowQuickAccess { get => S.Sidebar.ShowQuickAccess; set => Set("sidebarOptions", value, s => s.Sidebar.ShowQuickAccess, (s, v) => s.Sidebar.ShowQuickAccess = v); }
 
     public bool SidebarShowDrives { get => S.Sidebar.ShowDrives; set => Set("sidebarOptions", value, s => s.Sidebar.ShowDrives, (s, v) => s.Sidebar.ShowDrives = v); }
@@ -407,6 +653,8 @@ public sealed class SettingsViewModel : ObservableObject
 
     public double ThumbnailDiskCacheMegabytes { get => S.Performance.ThumbnailDiskCacheMegabytes; set => Set("performance", (int)Math.Round(value), s => s.Performance.ThumbnailDiskCacheMegabytes, (s, v) => s.Performance.ThumbnailDiskCacheMegabytes = v); }
 
+    public double DirectoryCacheEntries { get => S.Performance.DirectoryCacheEntries; set => Set("performance", (int)Math.Round(value), s => s.Performance.DirectoryCacheEntries, (s, v) => s.Performance.DirectoryCacheEntries = v); }
+
     public double MaxBackgroundWorkers { get => S.Performance.MaxBackgroundWorkers; set => Set("performance", (int)Math.Round(value), s => s.Performance.MaxBackgroundWorkers, (s, v) => s.Performance.MaxBackgroundWorkers = v); }
 
     public double ProcessorCount => Environment.ProcessorCount;
@@ -422,14 +670,14 @@ public sealed class SettingsViewModel : ObservableObject
         set { if (value is not null) Set("updates", value.Value, s => s.Updates.Channel, (s, v) => s.Updates.Channel = v); }
     }
 
+    public string? SkippedVersion => S.Updates.SkippedVersion;
+
     // ── Advanced ────────────────────────────────────────────
     public Option<LogVerbosity> LogLevel
     {
         get => LogLevels.First(o => o.Value == S.Advanced.LogLevel);
         set { if (value is not null) Set("advanced", value.Value, s => s.Advanced.LogLevel, (s, v) => s.Advanced.LogLevel = v); }
     }
-
-    public bool EnableExperimentalFeatures { get => S.Advanced.EnableExperimentalFeatures; set => Set("advanced", value, s => s.Advanced.EnableExperimentalFeatures, (s, v) => s.Advanced.EnableExperimentalFeatures = v); }
 
     public bool ShowPerformanceOverlay { get => S.Advanced.ShowPerformanceOverlay; set => Set("advanced", value, s => s.Advanced.ShowPerformanceOverlay, (s, v) => s.Advanced.ShowPerformanceOverlay = v); }
 
@@ -451,11 +699,39 @@ public sealed class SettingsViewModel : ObservableObject
 
     public IRelayCommand<KeyBindingRowViewModel> ResetKeyBindingCommand { get; }
 
+    public IAsyncRelayCommand ResetAllKeyBindingsCommand { get; }
+
+    public IRelayCommand<KeyBindingRowViewModel> RecordKeyBindingCommand { get; }
+
+    public IAsyncRelayCommand AddStartupLocationCommand { get; }
+
+    public IRelayCommand<string> RemoveStartupLocationCommand { get; }
+
+    public IRelayCommand ClearAddressHistoryCommand { get; }
+
+    public IRelayCommand ClearFolderViewsCommand { get; }
+
+    public IRelayCommand ClearSkippedVersionCommand { get; }
+
     public IRelayCommand ClearSearchHistoryCommand { get; }
+
+    public IAsyncRelayCommand ClearThumbnailCacheCommand { get; }
 
     public IRelayCommand<string> PickAccentCommand { get; }
 
     public IAsyncRelayCommand PickBackgroundImageCommand { get; }
+
+    /// <summary>Opens Keyboard shortcuts filtered to the global "open Navigator" command.</summary>
+    public IRelayCommand ChangeGlobalShortcutCommand { get; }
+
+    /// <summary>Stops listening to app-wide services; called when the settings window closes (it is created per window).</summary>
+    public void Detach() => _globalHotkey.Changed -= OnGlobalHotkeyChanged;
+
+    private void OnGlobalHotkeyChanged(object? sender, EventArgs e)
+    {
+        OnPropertyChanged(nameof(GlobalShortcutStatus));
+        OnPropertyChanged(nameof(HasGlobalShortcutProblem));
+    }
 
     private void Set<T>(string section, T value, Func<AppSettings, T> get, Action<AppSettings, T> set, [CallerMemberName] string? name = null)
     {
@@ -472,6 +748,7 @@ public sealed class SettingsViewModel : ObservableObject
         Register(nameof(Language), "language", (s, d) => s.General.Language = d.General.Language);
         Register(nameof(Startup), "general", (s, d) => s.General.Startup = d.General.Startup);
         Register(nameof(OpenFoldersInNewTab), "general", (s, d) => s.General.OpenFoldersInNewTab = d.General.OpenFoldersInNewTab);
+        Register(nameof(KeepRunningInBackground), "general", (s, d) => s.General.KeepRunningInBackground = d.General.KeepRunningInBackground);
         Register(nameof(Theme), "appearance", (s, d) => s.Appearance.Theme = d.Appearance.Theme);
         Register(nameof(AccentColor), "appearance", (s, d) => s.Appearance.AccentColor = d.Appearance.AccentColor);
         Register(nameof(BackgroundColor), "appearance", (s, d) => s.Appearance.BackgroundColor = d.Appearance.BackgroundColor);
@@ -479,6 +756,7 @@ public sealed class SettingsViewModel : ObservableObject
         Register(nameof(Transparency), "appearance", (s, d) => s.Appearance.Transparency = d.Appearance.Transparency);
         Register(nameof(Density), "appearance", (s, d) => s.Appearance.Density = d.Appearance.Density);
         Register(nameof(Animations), "appearance", (s, d) => s.Appearance.Animations = d.Appearance.Animations);
+        Register(nameof(FontFamily), "appearance", (s, d) => s.Appearance.FontFamily = d.Appearance.FontFamily);
         Register(nameof(FontScale), "appearance", (s, d) => s.Appearance.FontScale = d.Appearance.FontScale);
         Register(nameof(BackgroundImagePath), "appearance", (s, d) => s.Appearance.BackgroundImagePath = d.Appearance.BackgroundImagePath);
         Register(nameof(BackgroundImageOpacity), "appearance", (s, d) => s.Appearance.BackgroundImageOpacity = d.Appearance.BackgroundImageOpacity);
@@ -489,6 +767,7 @@ public sealed class SettingsViewModel : ObservableObject
         Register(nameof(SearchMaxResults), "search", (s, d) => s.Search.MaxResults = d.Search.MaxResults);
         Register(nameof(ThumbnailMemoryCacheMegabytes), "performance", (s, d) => s.Performance.ThumbnailMemoryCacheMegabytes = d.Performance.ThumbnailMemoryCacheMegabytes);
         Register(nameof(ThumbnailDiskCacheMegabytes), "performance", (s, d) => s.Performance.ThumbnailDiskCacheMegabytes = d.Performance.ThumbnailDiskCacheMegabytes);
+        Register(nameof(DirectoryCacheEntries), "performance", (s, d) => s.Performance.DirectoryCacheEntries = d.Performance.DirectoryCacheEntries);
         Register(nameof(MaxBackgroundWorkers), "performance", (s, d) => s.Performance.MaxBackgroundWorkers = d.Performance.MaxBackgroundWorkers);
         Register(nameof(UpdateCheckIntervalHours), "updates", (s, d) => s.Updates.CheckIntervalHours = d.Updates.CheckIntervalHours);
         Register(nameof(Channel), "updates", (s, d) => s.Updates.Channel = d.Updates.Channel);
@@ -515,7 +794,7 @@ public sealed class SettingsViewModel : ObservableObject
             return;
         _settings.ResetAll();
         _localizer.SetLanguage(S.General.Language);
-        OnPropertyChanged(string.Empty);
+        ReloadAfterReplace();
     }
 
     private async Task ExportAsync()
@@ -542,7 +821,7 @@ public sealed class SettingsViewModel : ObservableObject
         {
             _settings.Import(path);
             _localizer.SetLanguage(S.General.Language);
-            OnPropertyChanged(string.Empty);
+            ReloadAfterReplace();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
         {
@@ -575,15 +854,209 @@ public sealed class SettingsViewModel : ObservableObject
 
     private void SaveTags() => _settings.Update("tags", _ => { });
 
-    private void SaveKeyBinding(string id, IReadOnlyList<string>? gestures)
+    /// <summary>The settings object was replaced (reset all, import): row view models must re-bind to it.</summary>
+    private void ReloadAfterReplace()
     {
+        CancelKeyBindingRecording();
+        ReloadTagRows();
+        ReloadStartupLocations();
+        foreach (var row in KeyBindings)
+            row.Refresh();
+        UpdateKeyBindingConflicts();
+        ApplyKeyBindingFilter();
+        OnPropertyChanged(string.Empty);
+    }
+
+    private void ReloadTagRows()
+    {
+        TagRows.Clear();
+        foreach (var tag in S.Tags)
+            TagRows.Add(new TagRowViewModel(tag, _ => SaveTags()));
+    }
+
+    // ── Startup locations ───────────────────────────────────
+
+    private void ReloadStartupLocations()
+    {
+        StartupLocations.Clear();
+        foreach (var location in S.General.StartupLocations)
+            StartupLocations.Add(location);
+    }
+
+    private async Task AddStartupLocationAsync()
+    {
+        var path = await _dialogs.PickFolderAsync(_localizer["Settings.AddStartupLocation"]).ConfigureAwait(true);
+        if (path is null || S.General.StartupLocations.Contains(path, StringComparer.Ordinal))
+            return;
+        _settings.Update("general", s => s.General.StartupLocations.Add(path));
+        StartupLocations.Add(path);
+    }
+
+    private void RemoveStartupLocation(string? path)
+    {
+        if (path is null)
+            return;
+        _settings.Update("general", s => s.General.StartupLocations.Remove(path));
+        StartupLocations.Remove(path);
+    }
+
+    // ── Keyboard shortcuts ──────────────────────────────────
+
+    internal string FormatDefaultCaption(string defaults)
+        => _localizer.Format("Settings.DefaultShortcut", defaults.Length > 0 ? defaults : _localizer["Settings.ShortcutNotAssigned"]);
+
+    internal IReadOnlyList<string> CurrentGestures(string id) => CommandRegistry.GesturesFor(id, S, IsMac);
+
+    internal bool IsKeyBindingModified(string id) => S.KeyBindings.ContainsKey(id);
+
+    internal string FormatGestures(IReadOnlyList<string> gestures)
+        => gestures.Count switch
+        {
+            0 => string.Empty,
+            1 => CommandRegistry.FormatForDisplay(CommandRegistry.ResolvePrimary(gestures[0], IsMac)),
+            _ => string.Join(", ", gestures.Select(g => CommandRegistry.FormatForDisplay(CommandRegistry.ResolvePrimary(g, IsMac)))),
+        };
+
+    /// <summary>
+    /// Parses comma-separated gesture text into canonical gestures. An empty text means "no shortcut".
+    /// Returns null and a user-facing message when any part is invalid.
+    /// </summary>
+    internal List<string>? ParseGestures(string? text, out string? error)
+    {
+        error = null;
+        var result = new List<string>();
+        foreach (var part in SplitGestureList(text ?? string.Empty))
+        {
+            var normalized = NormalizeAndValidate(part);
+            if (normalized is null)
+            {
+                error = _localizer.Format("Settings.InvalidShortcut", part);
+                return null;
+            }
+
+            if (!result.Contains(normalized, StringComparer.OrdinalIgnoreCase))
+                result.Add(normalized);
+        }
+
+        return result;
+    }
+
+    private string? NormalizeAndValidate(string text)
+    {
+        var normalized = CommandRegistry.NormalizeGesture(text, IsMac);
+        if (normalized is null)
+            return null;
+        if (GestureValidator is { } validator && !validator(CommandRegistry.ResolvePrimary(normalized, IsMac)))
+            return null;
+        return normalized;
+    }
+
+    /// <summary>Splits "Ctrl+R, F5" on commas, keeping a comma that is itself the key ("Ctrl+,").</summary>
+    internal static List<string> SplitGestureList(string text)
+    {
+        var parts = new List<string>();
+        var start = 0;
+        for (var i = 0; i < text.Length; i++)
+        {
+            if (text[i] != ',')
+                continue;
+            var before = text.AsSpan(start, i - start).TrimEnd();
+            if (before.Length == 0 || before[^1] == '+')
+                continue; // the comma is the key of this gesture
+            parts.Add(before.Trim().ToString());
+            start = i + 1;
+        }
+
+        var last = text.AsSpan(start).Trim();
+        if (last.Length > 0)
+            parts.Add(last.ToString());
+        return parts;
+    }
+
+    internal void SaveKeyBinding(KeyBindingRowViewModel row, List<string>? gestures)
+    {
+        // Storing the defaults as an override would hide future default changes: treat it as a reset.
+        if (gestures is not null && gestures.SequenceEqual(CommandRegistry.NormalizedDefaults(row.Id, IsMac), StringComparer.OrdinalIgnoreCase))
+            gestures = null;
         _settings.Update("keyBindings", s =>
         {
             if (gestures is null)
-                s.KeyBindings.Remove(id);
+                s.KeyBindings.Remove(row.Id);
             else
-                s.KeyBindings[id] = [.. gestures];
+                s.KeyBindings[row.Id] = gestures;
         });
-        OnPropertyChanged(nameof(KeyBindingConflicts));
+        row.Refresh();
+        UpdateKeyBindingConflicts();
+    }
+
+    private void UpdateKeyBindingConflicts()
+    {
+        var conflicts = CommandRegistry.FindConflicts(S, IsMac);
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var conflict in conflicts)
+            ids.UnionWith(conflict.CommandIds);
+        foreach (var row in KeyBindings)
+            row.HasConflict = ids.Contains(row.Id);
+        KeyBindingConflicts = string.Join(Environment.NewLine, conflicts.Select(c =>
+            $"{CommandRegistry.FormatForDisplay(c.Gesture)}: {string.Join(", ", c.CommandIds.Select(id => _localizer[CommandRegistry.Find(id)!.NameKey]))}"));
+    }
+
+    private void ApplyKeyBindingFilter()
+    {
+        var terms = _keyBindingFilter.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var any = false;
+        foreach (var row in KeyBindings)
+        {
+            var visible = terms.Length == 0 || row.Matches(terms);
+            row.IsVisible = visible;
+            any |= visible;
+        }
+
+        HasKeyBindingResults = any;
+    }
+
+    private void ToggleRecording(KeyBindingRowViewModel? row)
+    {
+        var wasRecording = _recordingRow == row;
+        CancelKeyBindingRecording();
+        if (row is null || wasRecording)
+            return;
+        _recordingRow = row;
+        row.IsRecording = true;
+        OnPropertyChanged(nameof(IsRecordingKeyBinding));
+    }
+
+    /// <summary>Called by the view with the pressed key combination (e.g. "Primary+Shift+T") while recording.</summary>
+    public void CompleteKeyBindingRecording(string gesture)
+    {
+        if (_recordingRow is not { } row)
+            return;
+        CancelKeyBindingRecording();
+        if (NormalizeAndValidate(gesture) is { } normalized)
+            row.ApplyRecorded(normalized);
+    }
+
+    public void CancelKeyBindingRecording()
+    {
+        if (_recordingRow is null)
+            return;
+        _recordingRow.IsRecording = false;
+        _recordingRow = null;
+        OnPropertyChanged(nameof(IsRecordingKeyBinding));
+    }
+
+    private async Task ResetAllKeyBindingsAsync()
+    {
+        CancelKeyBindingRecording();
+        if (S.KeyBindings.Count == 0)
+            return;
+        var confirm = await _dialogs.ConfirmAsync(new ConfirmRequest(_localizer["Settings.ResetShortcutsTitle"], _localizer["Settings.ResetShortcutsMessage"], _localizer["Settings.ResetShortcuts"], IsDestructive: true)).ConfigureAwait(true);
+        if (confirm.Result != DialogResult.Primary)
+            return;
+        _settings.Update("keyBindings", s => s.KeyBindings.Clear());
+        foreach (var row in KeyBindings)
+            row.Refresh();
+        UpdateKeyBindingConflicts();
+        ApplyKeyBindingFilter();
     }
 }

@@ -150,6 +150,12 @@ public sealed class GeneralSettings
 
     public bool ConfirmCloseWithMultipleTabs { get; set; } = true;
 
+    /// <summary>
+    /// Keep the process (and its notification-area icon) alive after the last window closes, so the global shortcut
+    /// opens a window instantly instead of only working while a window is open.
+    /// </summary>
+    public bool KeepRunningInBackground { get; set; }
+
     public bool ShowHomeQuickAccess { get; set; } = true;
 
     public bool ShowHomeDrives { get; set; } = true;
@@ -165,6 +171,9 @@ public sealed class GeneralSettings
     public bool ShowOpenTerminalInContextMenu { get; set; } = true;
 
     public string? CodeEditorCommand { get; set; }
+
+    /// <summary>Addresses typed into the omnibar, most recent first (its history drop-down); bounded by the omnibar.</summary>
+    public List<string> AddressHistory { get; set; } = [];
 }
 
 public sealed class SidebarSettings
@@ -310,8 +319,6 @@ public sealed class UpdateSettings
 public sealed class AdvancedSettings
 {
     public LogVerbosity LogLevel { get; set; } = LogVerbosity.Information;
-
-    public bool EnableExperimentalFeatures { get; set; }
 
     public bool ShowPerformanceOverlay { get; set; }
 }

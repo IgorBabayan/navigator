@@ -72,6 +72,45 @@ public sealed partial class PaneView : UserControl
 
     private Localizer Text => _services.Localizer;
 
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        _services.Settings.Changed += OnSettingsChanged;
+        ApplyCheckBoxes();
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        _services.Settings.Changed -= OnSettingsChanged;
+        base.OnDetachedFromVisualTree(e);
+    }
+
+    private void OnSettingsChanged(object? sender, string section)
+    {
+        if (section is "filesAndFolders" or "*")
+            Dispatcher.UIThread.Post(ApplyCheckBoxes);
+    }
+
+    /// <summary>Settings → Files and folders → "Show check boxes" (styles in PaneView.axaml key off this class).</summary>
+    private void ApplyCheckBoxes() => Classes.Set("checkboxes", _services.Settings.Current.FilesAndFolders.ShowCheckBoxes);
+
+    /// <summary>True when the press landed on an item's check box.</summary>
+    private static bool IsOnCheckBox(object? source)
+    {
+        for (var visual = source as Visual; visual is not null; visual = visual.GetVisualParent())
+        {
+            if (visual is Border border)
+            {
+                if (border.Classes.Contains("rowCheck"))
+                    return true;
+                if (border.Classes.Contains("item"))
+                    return false;
+            }
+        }
+
+        return false;
+    }
+
     private void Attach(PaneViewModel? pane)
     {
         if (_pane is not null)
@@ -205,6 +244,14 @@ public sealed partial class PaneView : UserControl
 
         if (!point.Properties.IsLeftButtonPressed)
             return;
+
+        // The check box toggles the item in or out of the selection and keeps the rest; Shift adds a range.
+        if (IsOnCheckBox(e.Source))
+        {
+            _pane.Selection.Click(item, control: true, shift: shift);
+            e.Handled = true;
+            return;
+        }
 
         var openOnSingleClick = _services.Settings.Current.FilesAndFolders.OpenItemsWithSingleClick && !control && !shift;
         if (e.ClickCount == 2 || openOnSingleClick && item.IsDirectory)

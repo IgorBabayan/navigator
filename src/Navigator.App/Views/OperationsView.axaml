@@ -4,32 +4,121 @@
              xmlns:vm="using:Navigator.Presentation.Shell"
              x:Class="Navigator.App.Views.OperationsView"
              x:DataType="vm:OperationsViewModel">
-  <StackPanel Margin="12" Spacing="8">
-    <Grid ColumnDefinitions="*,Auto">
-      <TextBlock Classes="subtitle" Text="{c:Tr Operations.Title}" />
-      <Button Grid.Column="1" Classes="subtle" Content="{c:Tr Operations.ClearFinished}" Command="{Binding ClearFinishedCommand}" />
+  <!--
+    Status center: one card per file operation, newest first. Cards are plain borders (no templates per state);
+    everything that changes while an operation runs is a bound value refreshed by the view model at 10 Hz, and only
+    the expanded card draws a speed graph.
+  -->
+  <Grid RowDefinitions="Auto,*">
+    <Grid Margin="16,14,10,10" ColumnDefinitions="*,Auto,Auto">
+      <StackPanel Spacing="2" VerticalAlignment="Center">
+        <TextBlock Classes="subtitle" Text="{c:Tr Operations.Title}" />
+        <TextBlock Classes="caption" Text="{Binding SummaryText}" TextTrimming="CharacterEllipsis" />
+      </StackPanel>
+      <Button Grid.Column="1" Classes="subtle" VerticalAlignment="Center" Content="{c:Tr Operations.CancelAll}"
+              Command="{Binding CancelAllCommand}" IsVisible="{Binding HasActive}" />
+      <Button Grid.Column="2" Classes="subtle" VerticalAlignment="Center" Content="{c:Tr Operations.ClearFinished}"
+              Command="{Binding ClearFinishedCommand}" IsVisible="{Binding HasFinished}" />
     </Grid>
-    <ScrollViewer MaxHeight="420">
-      <ItemsControl ItemsSource="{Binding Items}">
+
+    <ScrollViewer Grid.Row="1" MaxHeight="460" HorizontalScrollBarVisibility="Disabled">
+      <ItemsControl ItemsSource="{Binding Items}" Margin="12,0,12,12">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="6" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="vm:OperationItemViewModel">
-            <Border Classes="card" Padding="12" Margin="0,0,0,6">
-              <Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto,Auto">
-                <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
-                <TextBlock Grid.Row="1" Classes="caption" Text="{Binding StateText}" />
-                <ProgressBar Grid.Row="2" Grid.ColumnSpan="3" Margin="0,8,0,4" Value="{Binding Progress}" IsIndeterminate="{Binding IsIndeterminate}" IsVisible="{Binding !IsFinished}" />
-                <TextBlock Grid.Row="2" Grid.ColumnSpan="3" Classes="caption" Margin="0,8,0,0" Text="{Binding Detail}" TextWrapping="Wrap" IsVisible="{Binding IsFinished}" />
-                <Button Grid.Column="1" Grid.RowSpan="2" Classes="subtle icon" Command="{Binding PauseCommand}" IsVisible="{Binding !IsFinished}" ToolTip.Tip="{c:Tr Operations.PauseResume}">
-                  <c:IconView Kind="{Binding PauseIconKey}" Width="12" Height="12" />
-                </Button>
-                <Button Grid.Column="2" Grid.RowSpan="2" Classes="subtle icon" Command="{Binding CancelCommand}" IsVisible="{Binding !IsFinished}" ToolTip.Tip="{c:Tr Dialog.Cancel}">
-                  <c:IconView Kind="Close" Width="12" Height="12" />
-                </Button>
+            <Border Classes="card" Padding="12" c:Motion.Enter="True">
+              <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+                <!-- Kind glyph with the outcome badge -->
+                <Panel Grid.RowSpan="3" VerticalAlignment="Top" Margin="0,0,12,0">
+                  <Border Classes="op-glyph">
+                    <c:IconView Kind="{Binding KindIconKey}" Width="18" Height="18" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Foreground="{DynamicResource Accent.Brush}" />
+                  </Border>
+                  <Border Classes="op-badge" IsVisible="{Binding HasStateIcon}">
+                    <c:IconView Kind="{Binding StateIconKey}" Width="14" Height="14" StrokeThickness="2" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Classes.tone-success="{Binding Tone, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Success}"
+                                Classes.tone-warning="{Binding Tone, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Warning}"
+                                Classes.tone-error="{Binding Tone, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Error}"
+                                Classes.tone-muted="{Binding Tone, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=None}" />
+                  </Border>
+                </Panel>
+
+                <!-- Title and route -->
+                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                  <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Title}" />
+                  <TextBlock Classes="caption" Text="{Binding Route}" IsVisible="{Binding HasRoute}" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+
+                <!-- Actions: pause/resume and cancel while running, dismiss once finished -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" VerticalAlignment="Top" Margin="8,0,0,0">
+                  <Button Classes="subtle icon" Width="28" Height="28" MinWidth="0" MinHeight="0" Command="{Binding PauseCommand}"
+                          IsVisible="{Binding CanPause}" ToolTip.Tip="{c:Tr Operations.PauseResume}">
+                    <c:IconView Kind="{Binding PauseIconKey}" Width="12" Height="12" />
+                  </Button>
+                  <Button Classes="subtle icon" Width="28" Height="28" MinWidth="0" MinHeight="0" Command="{Binding CancelCommand}"
+                          IsVisible="{Binding !IsFinished}" ToolTip.Tip="{c:Tr Dialog.Cancel}">
+                    <c:IconView Kind="Close" Width="12" Height="12" />
+                  </Button>
+                  <Button Classes="subtle icon" Width="28" Height="28" MinWidth="0" MinHeight="0" Command="{Binding DismissCommand}"
+                          IsVisible="{Binding IsFinished}" ToolTip.Tip="{c:Tr Operations.Dismiss}">
+                    <c:IconView Kind="Close" Width="12" Height="12" />
+                  </Button>
+                </StackPanel>
+
+                <!-- State · percent, details toggle -->
+                <Grid Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" ColumnDefinitions="Auto,Auto,*,Auto" Margin="0,8,0,0">
+                  <TextBlock Classes="caption" Text="{Binding StateText}" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="1" Classes="caption" Margin="6,0,0,0" Text="{Binding PercentText}" VerticalAlignment="Center"
+                             IsVisible="{Binding PercentText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                  <Button Grid.Column="3" Classes="subtle icon op-expander" Classes.expanded="{Binding IsExpanded}" Width="24" Height="24" MinWidth="0" MinHeight="0"
+                          Command="{Binding ToggleDetailsCommand}" ToolTip.Tip="{c:Tr Operations.ShowDetails}">
+                    <c:IconView Kind="ChevronDown" Width="10" Height="10" />
+                  </Button>
+                </Grid>
+
+                <ProgressBar Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,6,0,0"
+                             Value="{Binding Progress, Mode=OneWay}" IsIndeterminate="{Binding IsIndeterminate}"
+                             Classes.tone-success="{Binding Tone, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Success}"
+                             Classes.tone-warning="{Binding Tone, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Warning}"
+                             Classes.tone-error="{Binding Tone, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Error}"
+                             Classes.tone-paused="{Binding Tone, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Paused}"
+                             Classes.tone-muted="{Binding Tone, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=None}" />
+
+                <TextBlock Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Classes="caption" Margin="0,6,0,0" Text="{Binding Detail}" TextWrapping="Wrap"
+                           IsVisible="{Binding HasDetail}" />
+
+                <!-- Expanded details: throughput graph and figures -->
+                <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Spacing="6" Margin="0,10,0,0" IsVisible="{Binding IsExpanded}">
+                  <Border Height="56" CornerRadius="{StaticResource Radius.Control}" ClipToBounds="True" IsVisible="{Binding HasByteProgress}">
+                    <c:SpeedGraph Samples="{Binding SpeedSamples}" Revision="{Binding SpeedRevision}"
+                                  Stroke="{DynamicResource Accent.Brush}" Fill="{DynamicResource Accent.SubtleBrush}" BaselineBrush="{DynamicResource Brush.Stroke}" />
+                  </Border>
+                  <Grid ColumnDefinitions="110,*" IsVisible="{Binding SpeedText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                    <TextBlock Classes="caption" Text="{c:Tr Operations.Speed}" />
+                    <TextBlock Grid.Column="1" Classes="caption" Text="{Binding SpeedText}" TextTrimming="CharacterEllipsis" />
+                  </Grid>
+                  <Grid ColumnDefinitions="110,*" IsVisible="{Binding RemainingText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                    <TextBlock Classes="caption" Text="{c:Tr Operations.TimeLeft}" />
+                    <TextBlock Grid.Column="1" Classes="caption" Text="{Binding RemainingText}" TextTrimming="CharacterEllipsis" />
+                  </Grid>
+                  <Grid ColumnDefinitions="110,*" IsVisible="{Binding ItemsText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                    <TextBlock Classes="caption" Text="{c:Tr Operations.ItemsLabel}" />
+                    <TextBlock Grid.Column="1" Classes="caption" Text="{Binding ItemsText}" TextTrimming="CharacterEllipsis" />
+                  </Grid>
+                  <Grid ColumnDefinitions="110,*" IsVisible="{Binding CurrentItemText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                    <TextBlock Classes="caption" Text="{c:Tr Operations.CurrentItem}" />
+                    <TextBlock Grid.Column="1" Classes="caption" Text="{Binding CurrentItemText}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding CurrentItemText}" />
+                  </Grid>
+                </StackPanel>
               </Grid>
             </Border>
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
     </ScrollViewer>
-  </StackPanel>
+  </Grid>
 </UserControl>

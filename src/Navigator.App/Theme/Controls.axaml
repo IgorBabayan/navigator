@@ -8,7 +8,7 @@
 
   <!-- ── Typography ───────────────────────────────────────── -->
   <Style Selector="Window">
-    <Setter Property="FontFamily" Value="{StaticResource Font.Family}" />
+    <Setter Property="FontFamily" Value="{DynamicResource Font.Family}" />
     <Setter Property="FontSize" Value="{DynamicResource Font.Body}" />
     <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
   </Style>
@@ -62,11 +62,15 @@
 
   <!-- Subtle (toolbar, title bar, row actions): transparent until hovered -->
   <Style Selector="Button.subtle, ToggleButton.subtle">
-    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Background" Value="{DynamicResource Brush.Rest}" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="Padding" Value="8,4" />
     <Setter Property="MinWidth" Value="{DynamicResource Size.Control}" />
     <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
+  </Style>
+  <!-- The template part owns the visible background, so the fade lives there (the base theme snaps it) -->
+  <Style Selector="Button.subtle /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.subtle /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Transitions" Value="{DynamicResource Motion.Hover}" />
   </Style>
   <Style Selector="Button.subtle:pointerover /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.subtle:pointerover /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource Brush.Hover}" />
@@ -80,7 +84,7 @@
     <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
   </Style>
   <Style Selector="Button.subtle:disabled /template/ ContentPresenter#PART_ContentPresenter">
-    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Background" Value="{DynamicResource Brush.Rest}" />
   </Style>
   <Style Selector="Button.subtle:disabled c|IconView, Button.subtle:disabled TextBlock">
     <Setter Property="Opacity" Value="0.4" />
@@ -99,6 +103,7 @@
   <!-- ── Text input ───────────────────────────────────────── -->
   <Style Selector="TextBox">
     <Setter Property="CornerRadius" Value="{StaticResource Radius.Control}" />
+    <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextControlSelectionForegroundBrush}" />
     <Setter Property="MinHeight" Value="{DynamicResource Size.Control}" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
   </Style>
@@ -114,6 +119,36 @@
   <!-- While editing, the address box's focus border replaces the card stroke (no double outline) -->
   <Style Selector="Border.omnibar-host.editing">
     <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
+  <!-- Breadcrumb segment chevrons (sub-folder lists) and the drop-down arrow: narrow buttons inside the omnibar -->
+  <Style Selector="Button.crumbchevron">
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="MinHeight" Value="26" />
+    <Setter Property="Padding" Value="3,2" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Button.crumbchevron c|IconView">
+    <Setter Property="Opacity" Value="0.7" />
+  </Style>
+  <Style Selector="MenuFlyoutPresenter.crumbs">
+    <Setter Property="MaxHeight" Value="480" />
+  </Style>
+  <!-- Omnibar drop-down: autocompletion and typed-address history -->
+  <Style Selector="Border.omnibar-dropdown">
+    <Setter Property="Background" Value="{DynamicResource Brush.Flyout}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Stroke}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{StaticResource Radius.Overlay}" />
+    <Setter Property="Padding" Value="4" />
+  </Style>
+  <Style Selector="ListBox.suggestions">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Focusable" Value="False" />
+  </Style>
+  <Style Selector="ListBox.suggestions ListBoxItem">
+    <Setter Property="Focusable" Value="False" />
+    <Setter Property="Padding" Value="8,4" />
+    <Setter Property="CornerRadius" Value="{StaticResource Radius.Control}" />
   </Style>
 
   <!-- ── Flyouts, menus, tooltips ─────────────────────────── -->
@@ -146,6 +181,7 @@
     <Setter Property="CornerRadius" Value="2" />
     <Setter Property="Foreground" Value="{DynamicResource Accent.Brush}" />
     <Setter Property="Background" Value="{DynamicResource Brush.ProgressTrack}" />
+    <Setter Property="Transitions" Value="{DynamicResource Motion.Progress}" />
   </Style>
 
   <!-- ── Surfaces ─────────────────────────────────────────── -->
@@ -173,7 +209,7 @@
 
   <!-- Hoverable rows (sidebar entries, settings navigation, home cards, palette entries) -->
   <Style Selector="Border.hoverable">
-    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Background" Value="{DynamicResource Brush.Rest}" />
     <Setter Property="CornerRadius" Value="{StaticResource Radius.Control}" />
     <Setter Property="Transitions" Value="{DynamicResource Motion.Hover}" />
   </Style>
@@ -181,7 +217,7 @@
     <Setter Property="Background" Value="{DynamicResource Brush.Hover}" />
   </Style>
   <Style Selector="Border.hoverable.selected">
-    <Setter Property="Background" Value="{DynamicResource Brush.Hover}" />
+    <Setter Property="Background" Value="{DynamicResource Accent.SubtleBrush}" />
   </Style>
 
   <!-- Selection pill shown left of the selected sidebar / settings entry -->
@@ -200,8 +236,11 @@
   </Style>
 
   <!-- File rows -->
+  <!-- The 1px border is always present (transparent) so selecting a row recolors it without a relayout -->
   <Style Selector="Border.item">
-    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Background" Value="{DynamicResource Brush.Rest}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="{StaticResource Radius.Control}" />
     <Setter Property="Margin" Value="4,1" />
     <Setter Property="Transitions" Value="{DynamicResource Motion.Hover}" />
@@ -211,23 +250,22 @@
   </Style>
   <Style Selector="Border.item.selected">
     <Setter Property="Background" Value="{DynamicResource Accent.SelectionBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent.SelectionBorderBrush}" />
   </Style>
+  <!-- A slightly denser fill instead of dimming the whole row (an Opacity jump re-renders text and icons) -->
   <Style Selector="Border.item.selected:pointerover">
-    <Setter Property="Background" Value="{DynamicResource Accent.SelectionBrush}" />
-    <Setter Property="Opacity" Value="0.92" />
+    <Setter Property="Background" Value="{DynamicResource Accent.SelectionHoverBrush}" />
   </Style>
   <Style Selector="Border.item.droptarget">
     <Setter Property="BorderBrush" Value="{DynamicResource Accent.Brush}" />
-    <Setter Property="BorderThickness" Value="1" />
   </Style>
 
   <!-- Tabs -->
   <Style Selector="Border.tab">
-    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Background" Value="{DynamicResource Brush.Rest}" />
     <Setter Property="CornerRadius" Value="{StaticResource Radius.Tab}" />
     <Setter Property="Height" Value="{DynamicResource Size.Tab}" />
-    <Setter Property="MinWidth" Value="72" />
-    <Setter Property="MaxWidth" Value="240" />
+    <!-- Width comes from TabStripPanel: every tab gets the same one. -->
     <Setter Property="Padding" Value="12,0,6,0" />
     <Setter Property="Transitions" Value="{DynamicResource Motion.Hover}" />
   </Style>
@@ -239,9 +277,64 @@
   </Style>
   <Style Selector="Border.tab Button.tabclose">
     <Setter Property="Opacity" Value="0" />
+    <Setter Property="Transitions" Value="{DynamicResource Motion.Fade}" />
   </Style>
   <Style Selector="Border.tab:pointerover Button.tabclose, Border.tab.selected Button.tabclose">
     <Setter Property="Opacity" Value="1" />
+  </Style>
+
+  <!-- Status center (file operations): tone colors for the toolbar ring, card badges and progress bars -->
+  <Style Selector="c|ProgressRing">
+    <Setter Property="Foreground" Value="{DynamicResource Accent.Brush}" />
+    <Setter Property="TrackBrush" Value="{DynamicResource Brush.ProgressTrack}" />
+    <Setter Property="Transitions" Value="{DynamicResource Motion.Progress}" />
+  </Style>
+  <Style Selector="c|IconView.tone-success">
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Success}" />
+  </Style>
+  <Style Selector="c|IconView.tone-warning">
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Warning}" />
+  </Style>
+  <Style Selector="c|IconView.tone-error">
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Danger}" />
+  </Style>
+  <Style Selector="c|IconView.tone-muted">
+    <Setter Property="Foreground" Value="{DynamicResource Brush.TextTertiary}" />
+  </Style>
+  <Style Selector="ProgressBar.tone-success">
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Success}" />
+  </Style>
+  <Style Selector="ProgressBar.tone-warning, ProgressBar.tone-paused">
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Warning}" />
+  </Style>
+  <Style Selector="ProgressBar.tone-error">
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Danger}" />
+  </Style>
+  <Style Selector="ProgressBar.tone-muted">
+    <Setter Property="Foreground" Value="{DynamicResource Brush.TextTertiary}" />
+  </Style>
+  <!-- Kind glyph in a soft accent disc; the outcome badge sits on its lower-right edge -->
+  <Style Selector="Border.op-glyph">
+    <Setter Property="Width" Value="36" />
+    <Setter Property="Height" Value="36" />
+    <Setter Property="CornerRadius" Value="18" />
+    <Setter Property="Background" Value="{DynamicResource Accent.SubtleBrush}" />
+  </Style>
+  <Style Selector="Border.op-badge">
+    <Setter Property="Width" Value="16" />
+    <Setter Property="Height" Value="16" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Background" Value="{DynamicResource Brush.Card}" />
+    <Setter Property="HorizontalAlignment" Value="Right" />
+    <Setter Property="VerticalAlignment" Value="Bottom" />
+    <Setter Property="Margin" Value="0,0,-3,-3" />
+  </Style>
+  <Style Selector="Button.op-expander c|IconView">
+    <Setter Property="RenderTransform" Value="rotate(0deg)" />
+    <Setter Property="Transitions" Value="{DynamicResource Motion.Indicator}" />
+  </Style>
+  <Style Selector="Button.op-expander.expanded c|IconView">
+    <Setter Property="RenderTransform" Value="rotate(180deg)" />
   </Style>
 
   <!-- Toasts -->
