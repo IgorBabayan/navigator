@@ -188,7 +188,7 @@ jobs:
           APPIMAGETOOL_SHA256: ${{ matrix.arch == 'x86_64' && vars.APPIMAGETOOL_SHA256_X86_64 || vars.APPIMAGETOOL_SHA256_AARCH64 }}
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq libfuse2 file > /dev/null
-          ./installer/linux/package.sh "$VERSION" "$RID" "${{ matrix.arch }}" "publish/$RID" dist
+          bash ./installer/linux/package.sh "$VERSION" "$RID" "${{ matrix.arch }}" "publish/$RID" dist
 
       - name: Package (macOS)
         if: startsWith(matrix.rid, 'osx-')
@@ -199,7 +199,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-        run: ./installer/macos/package.sh "$VERSION" "$RID" "publish/$RID" dist
+        run: bash ./installer/macos/package.sh "$VERSION" "$RID" "publish/$RID" dist
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

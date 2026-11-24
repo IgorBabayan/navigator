@@ -9,6 +9,7 @@ using Navigator.Presentation.Services;
 using Navigator.Presentation.Settings;
 using Navigator.Presentation.SettingsPages;
 using Navigator.Presentation.Shell;
+using Location = Navigator.Core.Navigation.Location;
 
 namespace Navigator.App.Services;
 
