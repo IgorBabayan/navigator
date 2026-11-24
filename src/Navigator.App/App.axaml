@@ -1,0 +1,19 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Navigator.App.App"
+             Name="Navigator"
+             RequestedThemeVariant="Default">
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="avares://Navigator/Theme/Tokens.axaml" />
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
+
+  <Application.Styles>
+    <!-- Fluent supplies base control templates; Controls.axaml restyles them with Navigator's own tokens. -->
+    <FluentTheme />
+    <StyleInclude Source="avares://Navigator/Theme/Controls.axaml" />
+  </Application.Styles>
+</Application>

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Dependency-free timing probe for the core listing/sort/search paths (docs/PERFORMANCE.md).
+       Complements tests/Navigator.Benchmarks (BenchmarkDotNet) where NuGet access is unavailable. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Navigator.PerfProbe</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Navigator.Core\Navigator.Core.csproj" />
+  </ItemGroup>
+</Project>

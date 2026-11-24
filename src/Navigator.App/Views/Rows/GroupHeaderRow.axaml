@@ -1,0 +1,10 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:items="using:Navigator.Presentation.Items"
+             x:Class="Navigator.App.Views.Rows.GroupHeaderRow"
+             x:DataType="items:GroupHeaderViewModel">
+  <StackPanel Orientation="Horizontal" Spacing="8" Margin="16,14,16,6">
+    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+    <TextBlock Classes="caption" Text="{Binding Count}" VerticalAlignment="Center" />
+  </StackPanel>
+</UserControl>

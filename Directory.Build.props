@@ -1,0 +1,39 @@
+<Project>
+  <!--
+    Shared build settings for every project in the repository.
+    Versioning: CI passes -p:AppVersion=MAJOR.MINOR.PATCH (see docs/RELEASE.md).
+    Local builds fall back to 0.0.0-dev so they can never be mistaken for a release.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <TreatWarningsAsErrors Condition="'$(ContinuousIntegrationBuild)' == 'true'">true</TreatWarningsAsErrors>
+    <Deterministic>true</Deterministic>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <SatelliteResourceLanguages>en;uk</SatelliteResourceLanguages>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+
+    <Product>Navigator</Product>
+    <Company>Igor Babayan</Company>
+    <Authors>Igor Babayan</Authors>
+    <Copyright>Copyright (c) 2026 Igor Babayan</Copyright>
+    <RepositoryUrl>https://github.com/IgorBabayan/navigator</RepositoryUrl>
+
+    <AppVersion Condition="'$(AppVersion)' == ''">0.0.0-dev</AppVersion>
+    <Version>$(AppVersion)</Version>
+    <!-- Assembly/File versions cannot carry a prerelease label. -->
+    <_NavigatorNumericVersion>$([System.Text.RegularExpressions.Regex]::Match('$(AppVersion)', '^\d+\.\d+\.\d+').Value)</_NavigatorNumericVersion>
+    <AssemblyVersion>$(_NavigatorNumericVersion).0</AssemblyVersion>
+    <FileVersion>$(_NavigatorNumericVersion).0</FileVersion>
+    <InformationalVersion>$(AppVersion)</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true'">
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,77 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:Navigator.App.Controls"
+             xmlns:v="using:Navigator.App.Views"
+             xmlns:panes="using:Navigator.Presentation.Panes"
+             xmlns:sort="using:Navigator.Core.Sorting"
+             x:Class="Navigator.App.Views.PaneView"
+             x:DataType="panes:PaneViewModel"
+             Focusable="True">
+  <Grid RowDefinitions="Auto,Auto,Auto,*">
+    <!-- Split view: each pane shows its own location; the active one is underlined with the accent. -->
+    <Border x:Name="PaneHeader" Grid.Row="0" IsVisible="False" Padding="16,8" BorderThickness="0,0,0,2"
+            BorderBrush="{DynamicResource Brush.Stroke}">
+      <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+    </Border>
+
+    <!-- Folder filter (Ctrl+Shift+F) -->
+    <Grid x:Name="FilterBar" Grid.Row="1" IsVisible="False" ColumnDefinitions="*,Auto" Margin="12,8,12,0">
+      <TextBox x:Name="FilterBox" Text="{Binding FilterText}" PlaceholderText="{c:Tr Pane.FilterPlaceholder}" KeyDown="OnFilterKeyDown" />
+      <Button Grid.Column="1" Classes="subtle icon" Margin="4,0,0,0" Click="OnCloseFilter" ToolTip.Tip="{c:Tr Dialog.Close}">
+        <c:IconView Kind="Close" Width="12" Height="12" />
+      </Button>
+    </Grid>
+
+    <!-- Details column header: click sorts, drag the separators to resize. -->
+    <Border Grid.Row="2" IsVisible="{Binding IsDetailsLayout}" Padding="16,0,12,0" Height="34" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource Brush.Stroke}">
+      <StackPanel x:Name="ColumnHeader" Orientation="Horizontal" IsVisible="{Binding IsBrowsingList}">
+        <v:ColumnHeader x:Name="NameHeader" Column="Name" Text="{c:Tr Column.Name}" Width="{Binding $parent[v:PaneView].Columns.NameWidth}" />
+        <v:ColumnHeader x:Name="ModifiedHeader" Column="DateModified" Text="{c:Tr Column.Modified}" Width="{Binding $parent[v:PaneView].Columns.ModifiedWidth}" />
+        <v:ColumnHeader x:Name="TypeHeader" Column="Type" Text="{c:Tr Column.Type}" Width="{Binding $parent[v:PaneView].Columns.TypeWidth}" />
+        <v:ColumnHeader x:Name="SizeHeader" Column="Size" Text="{c:Tr Column.Size}" Width="{Binding $parent[v:PaneView].Columns.SizeWidth}" />
+        <v:ColumnHeader x:Name="CreatedHeader" Column="DateCreated" Text="{c:Tr Column.Created}" Width="{Binding $parent[v:PaneView].Columns.CreatedWidth}" IsVisible="{Binding $parent[v:PaneView].Columns.ShowCreated}" />
+        <v:ColumnHeader x:Name="TagsHeader" Column="Name" Text="{c:Tr Column.Tags}" Width="{Binding $parent[v:PaneView].Columns.TagsWidth}" IsVisible="{Binding $parent[v:PaneView].Columns.ShowTags}" IsSortable="False" />
+      </StackPanel>
+    </Border>
+
+    <Panel Grid.Row="3">
+      <Panel IsVisible="{Binding IsHome}">
+        <v:HomeView DataContext="{Binding Home}" />
+      </Panel>
+
+      <Panel IsVisible="{Binding IsBrowsingList}">
+        <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Background="Transparent">
+          <ItemsControl x:Name="ItemsHost" ItemsSource="{Binding Rows}" Padding="0,4,0,24">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <VirtualizingStackPanel />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+        </ScrollViewer>
+
+        <!-- Rubber-band selection rectangle -->
+        <Canvas x:Name="SelectionCanvas" IsHitTestVisible="False">
+          <Border x:Name="SelectionRectangle" IsVisible="False" Background="{DynamicResource Accent.SubtleBrush}"
+                  BorderBrush="{DynamicResource Accent.Brush}" BorderThickness="1" CornerRadius="2" />
+        </Canvas>
+
+        <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsLoading}" VerticalAlignment="Top" Margin="0" />
+
+        <StackPanel IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8" IsHitTestVisible="False">
+          <c:IconView Kind="Folder" Width="56" Height="56" Opacity="0.6" />
+          <TextBlock Classes="secondary" Text="{Binding EmptyText}" HorizontalAlignment="Center" />
+        </StackPanel>
+
+        <StackPanel IsVisible="{Binding HasError}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12" MaxWidth="420">
+          <c:IconView Kind="Warning" Width="40" Height="40" Foreground="{DynamicResource Brush.Warning}" HorizontalAlignment="Center" />
+          <TextBlock Text="{Binding ErrorText}" TextWrapping="Wrap" TextAlignment="Center" />
+          <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+            <Button Content="{c:Tr Command.Back}" Command="{Binding GoBackCommand}" />
+            <Button Classes="accent" Content="{c:Tr Command.Refresh}" Command="{Binding RefreshCommand}" />
+          </StackPanel>
+        </StackPanel>
+      </Panel>
+    </Panel>
+  </Grid>
+</UserControl>

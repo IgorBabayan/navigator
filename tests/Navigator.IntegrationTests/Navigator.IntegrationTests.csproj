@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Real file system tests. Everything runs inside per-test temporary folders; user files are never touched. -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>Navigator.IntegrationTests</RootNamespace>
+    <NoWarn>$(NoWarn);CA1707;CA1515;CA1861;CA2201</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="MSTest" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Navigator.Core\Navigator.Core.csproj" />
+    <ProjectReference Include="..\..\src\Navigator.Platform\Navigator.Platform.csproj" />
+    <ProjectReference Include="..\..\src\Navigator.Updater\Navigator.Updater.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Shared\*.cs" Link="Shared\%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,248 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="using:Navigator.App.Controls">
+  <!--
+    Navigator control styles: an independently written Fluent-inspired restyle on top of the base templates.
+    Only tokens from Tokens.axaml are used here.
+  -->
+
+  <!-- ── Typography ───────────────────────────────────────── -->
+  <Style Selector="Window">
+    <Setter Property="FontFamily" Value="{StaticResource Font.Family}" />
+    <Setter Property="FontSize" Value="{DynamicResource Font.Body}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
+  </Style>
+  <Style Selector="TextBlock.title">
+    <Setter Property="FontSize" Value="{DynamicResource Font.Title}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="TextBlock.display">
+    <Setter Property="FontSize" Value="{DynamicResource Font.Display}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="TextBlock.subtitle">
+    <Setter Property="FontSize" Value="{DynamicResource Font.Subtitle}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="TextBlock.caption">
+    <Setter Property="FontSize" Value="{DynamicResource Font.Caption}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.TextSecondary}" />
+  </Style>
+  <Style Selector="TextBlock.secondary">
+    <Setter Property="Foreground" Value="{DynamicResource Brush.TextSecondary}" />
+  </Style>
+  <Style Selector="TextBlock.error">
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Danger}" />
+    <Setter Property="FontSize" Value="{DynamicResource Font.Caption}" />
+  </Style>
+  <Style Selector="TextBlock.section">
+    <Setter Property="FontSize" Value="{DynamicResource Font.Body}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Margin" Value="0,16,0,8" />
+  </Style>
+
+  <!-- ── Buttons ──────────────────────────────────────────── -->
+  <Style Selector="Button">
+    <Setter Property="CornerRadius" Value="{StaticResource Radius.Control}" />
+    <Setter Property="MinHeight" Value="{DynamicResource Size.Control}" />
+    <Setter Property="Padding" Value="12,4" />
+  </Style>
+  <Style Selector="Button.accent">
+    <Setter Property="Background" Value="{DynamicResource Accent.Brush}" />
+    <Setter Property="Foreground" Value="{DynamicResource Accent.ForegroundBrush}" />
+  </Style>
+  <Style Selector="Button.accent:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource SystemAccentColorLight1}" />
+    <Setter Property="Foreground" Value="{DynamicResource Accent.ForegroundBrush}" />
+  </Style>
+  <Style Selector="Button.danger">
+    <Setter Property="Background" Value="{DynamicResource Brush.Danger}" />
+    <Setter Property="Foreground" Value="White" />
+  </Style>
+
+  <!-- Subtle (toolbar, title bar, row actions): transparent until hovered -->
+  <Style Selector="Button.subtle, ToggleButton.subtle">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="8,4" />
+    <Setter Property="MinWidth" Value="{DynamicResource Size.Control}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
+  </Style>
+  <Style Selector="Button.subtle:pointerover /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.subtle:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Brush.Hover}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
+  </Style>
+  <Style Selector="Button.subtle:pressed /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.subtle:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Brush.Pressed}" />
+  </Style>
+  <Style Selector="ToggleButton.subtle:checked /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Accent.SubtleBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
+  </Style>
+  <Style Selector="Button.subtle:disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+  <Style Selector="Button.subtle:disabled c|IconView, Button.subtle:disabled TextBlock">
+    <Setter Property="Opacity" Value="0.4" />
+  </Style>
+  <Style Selector="Button.icon, ToggleButton.icon">
+    <Setter Property="Width" Value="{DynamicResource Size.Control}" />
+    <Setter Property="Height" Value="{DynamicResource Size.Control}" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+  <Style Selector="c|IconView">
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
+  </Style>
+
+  <!-- ── Text input ───────────────────────────────────────── -->
+  <Style Selector="TextBox">
+    <Setter Property="CornerRadius" Value="{StaticResource Radius.Control}" />
+    <Setter Property="MinHeight" Value="{DynamicResource Size.Control}" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+  <Style Selector="TextBox.omnibar">
+    <Setter Property="Background" Value="{DynamicResource Brush.Card}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Stroke}" />
+  </Style>
+
+  <!-- ── Flyouts, menus, tooltips ─────────────────────────── -->
+  <Style Selector="MenuFlyoutPresenter, ContextMenu">
+    <Setter Property="CornerRadius" Value="{StaticResource Radius.Overlay}" />
+    <Setter Property="Background" Value="{DynamicResource Brush.Flyout}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Stroke}" />
+    <Setter Property="Padding" Value="4" />
+  </Style>
+  <Style Selector="MenuItem">
+    <Setter Property="CornerRadius" Value="{StaticResource Radius.Control}" />
+    <Setter Property="MinHeight" Value="32" />
+    <Setter Property="Padding" Value="10,4" />
+  </Style>
+  <Style Selector="FlyoutPresenter">
+    <Setter Property="CornerRadius" Value="{StaticResource Radius.Overlay}" />
+    <Setter Property="Background" Value="{DynamicResource Brush.Flyout}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Stroke}" />
+    <Setter Property="Padding" Value="0" />
+  </Style>
+  <Style Selector="ToolTip">
+    <Setter Property="CornerRadius" Value="{StaticResource Radius.Control}" />
+    <Setter Property="FontSize" Value="{DynamicResource Font.Caption}" />
+  </Style>
+
+  <!-- ── Thin scroll bars and progress ────────────────────── -->
+  <Style Selector="ProgressBar">
+    <Setter Property="MinHeight" Value="3" />
+    <Setter Property="Height" Value="3" />
+    <Setter Property="CornerRadius" Value="2" />
+    <Setter Property="Foreground" Value="{DynamicResource Accent.Brush}" />
+    <Setter Property="Background" Value="{DynamicResource Brush.ProgressTrack}" />
+  </Style>
+
+  <!-- ── Surfaces ─────────────────────────────────────────── -->
+  <Style Selector="Border.card">
+    <Setter Property="Background" Value="{DynamicResource Brush.Card}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Stroke}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{StaticResource Radius.Card}" />
+    <Setter Property="Padding" Value="{StaticResource Space.Card}" />
+  </Style>
+  <Style Selector="Border.layer">
+    <Setter Property="Background" Value="{DynamicResource Brush.Layer}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Stroke}" />
+    <Setter Property="BorderThickness" Value="1,1,0,0" />
+    <Setter Property="CornerRadius" Value="{StaticResource Radius.Layer}" />
+  </Style>
+  <Style Selector="Border.dialog-footer">
+    <Setter Property="Background" Value="{DynamicResource Brush.LayerSolid}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Stroke}" />
+    <Setter Property="BorderThickness" Value="0,1,0,0" />
+  </Style>
+  <Style Selector="Window.dialog">
+    <Setter Property="Background" Value="{DynamicResource Brush.Card}" />
+  </Style>
+
+  <!-- Hoverable rows (sidebar entries, settings navigation, home cards, palette entries) -->
+  <Style Selector="Border.hoverable">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="CornerRadius" Value="{StaticResource Radius.Control}" />
+    <Setter Property="Transitions" Value="{DynamicResource Motion.Hover}" />
+  </Style>
+  <Style Selector="Border.hoverable:pointerover">
+    <Setter Property="Background" Value="{DynamicResource Brush.Hover}" />
+  </Style>
+  <Style Selector="Border.hoverable.selected">
+    <Setter Property="Background" Value="{DynamicResource Brush.Hover}" />
+  </Style>
+
+  <!-- Selection pill shown left of the selected sidebar / settings entry -->
+  <Style Selector="Border.pill">
+    <Setter Property="Width" Value="3" />
+    <Setter Property="Height" Value="16" />
+    <Setter Property="CornerRadius" Value="{StaticResource Radius.Pill}" />
+    <Setter Property="Background" Value="{DynamicResource Accent.Brush}" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="RenderTransform" Value="scaleY(0)" />
+    <Setter Property="Transitions" Value="{DynamicResource Motion.Indicator}" />
+  </Style>
+  <Style Selector="Border.selected > Panel > Border.pill, Border.selected > Grid > Border.pill">
+    <Setter Property="RenderTransform" Value="scaleY(1)" />
+  </Style>
+
+  <!-- File rows -->
+  <Style Selector="Border.item">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="CornerRadius" Value="{StaticResource Radius.Control}" />
+    <Setter Property="Margin" Value="4,1" />
+    <Setter Property="Transitions" Value="{DynamicResource Motion.Hover}" />
+  </Style>
+  <Style Selector="Border.item:pointerover">
+    <Setter Property="Background" Value="{DynamicResource Brush.Hover}" />
+  </Style>
+  <Style Selector="Border.item.selected">
+    <Setter Property="Background" Value="{DynamicResource Accent.SelectionBrush}" />
+  </Style>
+  <Style Selector="Border.item.selected:pointerover">
+    <Setter Property="Background" Value="{DynamicResource Accent.SelectionBrush}" />
+    <Setter Property="Opacity" Value="0.92" />
+  </Style>
+  <Style Selector="Border.item.droptarget">
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent.Brush}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+
+  <!-- Tabs -->
+  <Style Selector="Border.tab">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="CornerRadius" Value="{StaticResource Radius.Tab}" />
+    <Setter Property="Height" Value="{DynamicResource Size.Tab}" />
+    <Setter Property="MinWidth" Value="72" />
+    <Setter Property="MaxWidth" Value="240" />
+    <Setter Property="Padding" Value="12,0,6,0" />
+    <Setter Property="Transitions" Value="{DynamicResource Motion.Hover}" />
+  </Style>
+  <Style Selector="Border.tab:pointerover">
+    <Setter Property="Background" Value="{DynamicResource Brush.Hover}" />
+  </Style>
+  <Style Selector="Border.tab.selected">
+    <Setter Property="Background" Value="{DynamicResource Brush.TabSelected}" />
+  </Style>
+  <Style Selector="Border.tab Button.tabclose">
+    <Setter Property="Opacity" Value="0" />
+  </Style>
+  <Style Selector="Border.tab:pointerover Button.tabclose, Border.tab.selected Button.tabclose">
+    <Setter Property="Opacity" Value="1" />
+  </Style>
+
+  <!-- Toasts -->
+  <Style Selector="Border.toast">
+    <Setter Property="Background" Value="{DynamicResource Brush.Flyout}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Stroke}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{StaticResource Radius.Card}" />
+    <Setter Property="BoxShadow" Value="{StaticResource Shadow.Flyout}" />
+    <Setter Property="Padding" Value="16,12" />
+    <Setter Property="Width" Value="340" />
+  </Style>
+</Styles>

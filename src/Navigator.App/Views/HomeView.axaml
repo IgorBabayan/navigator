@@ -1,0 +1,117 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:Navigator.App.Controls"
+             xmlns:panes="using:Navigator.Presentation.Panes"
+             xmlns:items="using:Navigator.Presentation.Items"
+             x:Class="Navigator.App.Views.HomeView"
+             x:DataType="panes:HomeViewModel">
+  <ScrollViewer>
+    <StackPanel Margin="{StaticResource Space.Page}" Spacing="8">
+      <!-- Quick access -->
+      <StackPanel IsVisible="{Binding ShowQuickAccess}">
+        <TextBlock Classes="section" Text="{c:Tr Home.QuickAccess}" />
+        <ItemsControl ItemsSource="{Binding QuickAccess}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="panes:QuickAccessCardViewModel">
+              <Button Classes="subtle" Width="132" Height="104" Margin="0,0,8,8" Padding="8"
+                      Command="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).OpenCommand}" CommandParameter="{Binding Path}"
+                      ToolTip.Tip="{Binding Path}" c:Motion.Enter="True">
+                <Button.ContextMenu>
+                  <ContextMenu>
+                    <MenuItem Header="{c:Tr Command.OpenInNewTab}" Command="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).OpenInNewTabCommand}" CommandParameter="{Binding Path}" />
+                    <MenuItem Header="{c:Tr Command.UnpinFromSidebar}" Command="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).UnpinCommand}" CommandParameter="{Binding Path}" />
+                  </ContextMenu>
+                </Button.ContextMenu>
+                <StackPanel Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+                  <c:IconView Kind="{Binding IconKey}" Width="48" Height="48" HorizontalAlignment="Center" />
+                  <TextBlock Text="{Binding Name}" TextAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="{DynamicResource Font.Caption}" />
+                </StackPanel>
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+
+      <!-- Drives -->
+      <StackPanel IsVisible="{Binding ShowDrives}">
+        <TextBlock Classes="section" Text="{c:Tr Home.Drives}" />
+        <ItemsControl ItemsSource="{Binding Drives}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="panes:VolumeItemViewModel">
+              <Button Classes="subtle" Width="272" Margin="0,0,8,8" Padding="12" HorizontalContentAlignment="Stretch"
+                      Command="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).OpenCommand}" CommandParameter="{Binding Volume.RootPath}"
+                      c:Motion.Enter="True">
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto">
+                  <c:IconView Grid.RowSpan="3" Kind="{Binding IconKey}" Width="40" Height="40" Margin="0,0,12,0" />
+                  <TextBlock Grid.Column="1" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                  <ProgressBar Grid.Column="1" Grid.Row="1" Value="{Binding UsedPercent}" Margin="0,6" Height="4" MinHeight="4" />
+                  <TextBlock Grid.Column="1" Grid.Row="2" Classes="caption" Text="{Binding Detail}" />
+                </Grid>
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+
+      <!-- Tags -->
+      <StackPanel IsVisible="{Binding ShowTags}">
+        <TextBlock Classes="section" Text="{c:Tr Home.Tags}" />
+        <ItemsControl ItemsSource="{Binding Tags}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="items:TagChip">
+              <Button Classes="subtle" Margin="0,0,8,8" Command="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).OpenTagCommand}" CommandParameter="{Binding}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Ellipse Width="10" Height="10" Fill="{Binding Color, Converter={x:Static c:HexToBrushConverter.Instance}}" />
+                  <TextBlock Text="{Binding Name}" />
+                </StackPanel>
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+
+      <!-- Recent files -->
+      <StackPanel IsVisible="{Binding ShowRecentFiles}">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Classes="section" Text="{c:Tr Home.RecentFiles}" />
+          <Button Grid.Column="1" Classes="subtle" Content="{c:Tr Home.ClearRecent}" Command="{Binding ClearRecentCommand}" IsVisible="{Binding HasRecentFiles}" VerticalAlignment="Bottom" />
+        </Grid>
+        <TextBlock Classes="caption" Text="{c:Tr Home.NoRecentFiles}" IsVisible="{Binding !HasRecentFiles}" />
+        <ItemsControl ItemsSource="{Binding RecentFiles}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="panes:RecentFileViewModel">
+              <Button Classes="subtle" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="8,6"
+                      Command="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).OpenRecentCommand}" CommandParameter="{Binding}">
+                <Button.ContextMenu>
+                  <ContextMenu>
+                    <MenuItem Header="{c:Tr Home.RemoveRecent}" Command="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).RemoveRecentCommand}" CommandParameter="{Binding}" />
+                  </ContextMenu>
+                </Button.ContextMenu>
+                <Grid ColumnDefinitions="Auto,*,2*">
+                  <c:IconView Kind="{Binding IconKey}" Width="20" Height="20" Margin="0,0,12,0" />
+                  <TextBlock Grid.Column="1" Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="2" Classes="caption" Text="{Binding Folder}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="12,0,0,0" />
+                </Grid>
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

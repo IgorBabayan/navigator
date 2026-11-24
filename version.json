@@ -1,0 +1,5 @@
+{
+  "$comment": "Release series. The release workflow publishes MAJOR.MINOR.<next patch>. Bump major/minor here (or label the release PR 'release:minor' / 'release:major'). See docs/RELEASE.md.",
+  "major": 1,
+  "minor": 0
+}

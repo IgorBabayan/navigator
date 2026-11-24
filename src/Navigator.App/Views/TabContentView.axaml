@@ -1,0 +1,15 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:Navigator.App.Views"
+             xmlns:vm="using:Navigator.Presentation.Shell"
+             x:Class="Navigator.App.Views.TabContentView"
+             x:DataType="vm:TabViewModel">
+  <!-- One tab: the primary pane, plus the second pane of split (dual pane) view. -->
+  <Grid x:Name="Root" ColumnDefinitions="*,0,0">
+    <v:PaneView x:Name="PrimaryPane" DataContext="{Binding Primary}" />
+    <GridSplitter Grid.Column="1" Background="{DynamicResource Brush.Stroke}" ResizeDirection="Columns" />
+    <Panel Grid.Column="2" IsVisible="{Binding IsSplit}">
+      <v:PaneView x:Name="SecondaryPane" DataContext="{Binding Secondary}" />
+    </Panel>
+  </Grid>
+</UserControl>

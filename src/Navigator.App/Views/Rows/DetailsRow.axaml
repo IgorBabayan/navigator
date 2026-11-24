@@ -1,0 +1,37 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:Navigator.App.Controls"
+             xmlns:v="using:Navigator.App.Views"
+             xmlns:items="using:Navigator.Presentation.Items"
+             x:Class="Navigator.App.Views.Rows.DetailsRow"
+             x:DataType="items:FileItemViewModel">
+  <!-- Details row: kept flat (one Border, one StackPanel, text blocks) so realizing rows is cheap. -->
+  <Border Classes="item" Classes.selected="{Binding IsSelected}" Height="{DynamicResource Size.Row}" ToolTip.Tip="{Binding FullPath}">
+    <StackPanel Orientation="Horizontal" Margin="12,0,8,0" Opacity="{Binding ContentOpacity}">
+      <Grid Width="{Binding $parent[v:PaneView].Columns.NameWidth}" ColumnDefinitions="Auto,*">
+        <Panel Width="{StaticResource Size.RowIcon}" Height="{StaticResource Size.RowIcon}" Margin="0,0,10,0">
+          <c:IconView Kind="{Binding IconKey}" Width="{StaticResource Size.RowIcon}" Height="{StaticResource Size.RowIcon}" IsVisible="{Binding !HasThumbnail}" />
+          <Image Source="{Binding Thumbnail, Converter={x:Static v:ImageConverter.Instance}}" IsVisible="{Binding HasThumbnail}" Stretch="UniformToFill" />
+        </Panel>
+        <TextBlock Grid.Column="1" Text="{Binding DisplayName}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
+      </Grid>
+      <TextBlock Width="{Binding $parent[v:PaneView].Columns.ModifiedWidth}" Classes="secondary" Text="{Binding ModifiedText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Padding="8,0" />
+      <TextBlock Width="{Binding $parent[v:PaneView].Columns.TypeWidth}" Classes="secondary" Text="{Binding TypeText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Padding="8,0" />
+      <TextBlock Width="{Binding $parent[v:PaneView].Columns.SizeWidth}" Classes="secondary" Text="{Binding SizeText}" VerticalAlignment="Center" TextAlignment="Right" Padding="8,0" />
+      <TextBlock Width="{Binding $parent[v:PaneView].Columns.CreatedWidth}" IsVisible="{Binding $parent[v:PaneView].Columns.ShowCreated}" Classes="secondary" Text="{Binding CreatedText}" VerticalAlignment="Center" Padding="8,0" />
+      <ItemsControl Width="{Binding $parent[v:PaneView].Columns.TagsWidth}" IsVisible="{Binding $parent[v:PaneView].Columns.ShowTags}" ItemsSource="{Binding Tags}" VerticalAlignment="Center" Padding="8,0">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Orientation="Horizontal" Spacing="4" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="items:TagChip">
+            <Ellipse Width="10" Height="10" Fill="{Binding Color, Converter={x:Static c:HexToBrushConverter.Instance}}" ToolTip.Tip="{Binding Name}" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock Classes="secondary" Text="{Binding OriginalLocationText}" VerticalAlignment="Center" Padding="8,0" IsVisible="{Binding TrashItem, Converter={x:Static ObjectConverters.IsNotNull}}" />
+    </StackPanel>
+  </Border>
+</UserControl>

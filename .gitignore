@@ -55,3 +55,14 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# Navigator build and release outputs
+publish/
+dist/
+.tool/
+*.AppImage
+*.AppDir/
+
+# Python
+__pycache__/
+*.pyc

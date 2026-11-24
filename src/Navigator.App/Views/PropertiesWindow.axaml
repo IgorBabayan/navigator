@@ -1,0 +1,55 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="using:Navigator.App.Controls"
+        xmlns:d="using:Navigator.Presentation.Details"
+        x:Class="Navigator.App.Views.PropertiesWindow"
+        x:DataType="d:PropertiesViewModel"
+        Title="{Binding Title}"
+        Width="460" Height="600" MinWidth="380" MinHeight="360"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Brush.Card}">
+  <DockPanel>
+    <Border DockPanel.Dock="Bottom" Classes="dialog-footer" Padding="16,12">
+      <Button Classes="accent" HorizontalAlignment="Right" MinWidth="96" Content="{c:Tr Dialog.Close}" Click="OnClose" />
+    </Border>
+    <ScrollViewer>
+      <StackPanel Margin="24" Spacing="12">
+        <StackPanel Orientation="Horizontal" Spacing="16">
+          <c:IconView Kind="{Binding IconKey}" Width="48" Height="48" />
+          <TextBlock Classes="title" Text="{Binding Title}" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="320" />
+        </StackPanel>
+        <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsCalculating}" />
+        <Border Classes="card">
+          <ItemsControl ItemsSource="{Binding General}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="d:PropertyRow">
+                <Grid ColumnDefinitions="140,*" Margin="0,4">
+                  <TextBlock Classes="caption" Text="{Binding Label}" VerticalAlignment="Top" />
+                  <SelectableTextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </Border>
+
+        <StackPanel IsVisible="{Binding IsSingleFile}" Spacing="8">
+          <TextBlock Classes="section" Text="{c:Tr Properties.Hashes}" />
+          <Border Classes="card">
+            <ItemsControl ItemsSource="{Binding Hashes}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="d:HashRowViewModel">
+                  <Grid ColumnDefinitions="80,*,Auto" Margin="0,4">
+                    <TextBlock Classes="caption" Text="{Binding Name}" VerticalAlignment="Center" />
+                    <SelectableTextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap" FontSize="{DynamicResource Font.Caption}" VerticalAlignment="Center" />
+                    <Button Grid.Column="2" Classes="subtle" Content="{c:Tr Properties.Compute}" IsEnabled="{Binding !IsComputing}"
+                            Command="{Binding $parent[Window].((d:PropertiesViewModel)DataContext).ComputeHashCommand}" CommandParameter="{Binding}" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </Border>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</Window>
