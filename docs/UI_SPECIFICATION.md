@@ -84,8 +84,10 @@ Navigator's window follows the familiar Files-app layout. Everything is styled t
   - Settings → General → Context menu hides individual entries. Separators never lead, trail or double. Sub-menus
     that need disk, process or shell work fill the first time they open.
 - **Split view**: two panes side by side (Ctrl+Shift+S / toolbar), focused pane highlighted; drag between panes.
-- **Drag and drop**: the selection drags as real files (other apps receive them); folders under the pointer are
-  outlined, the list scrolls near its edges. Same volume moves, other volumes copy; Ctrl copies, Shift moves.
+- **Drag and drop**: the selection drags as real files (other apps receive them). While something droppable is over
+  a pane, a drop overlay fades in: a tinted dashed frame (drop into this folder) and a card at the bottom naming the
+  action and target ("Move to “Documents”", "Copy to…", "Upload to…") with the Ctrl/Shift hint; over a sub-folder
+  the frame steps aside and the folder is outlined instead. The list scrolls near its edges. Same volume moves, other volumes copy; Ctrl copies, Shift moves.
   Resting on a tab for a moment switches to it; dropping on a tab puts the items in its active pane's folder.
   Files from other applications can be dropped on panes, tabs and the sidebar.
 - **Preview pane**: image, text and Markdown source (first 64 KB), folder summary, multi-selection summary,

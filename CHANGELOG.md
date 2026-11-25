@@ -14,6 +14,9 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
   other applications (real files) and in from other applications. Folders under the pointer are outlined, the list
   scrolls near its edges, and a folder can never be dropped into itself. Files coming from another application are
   always reported back to it as copied, so the source never deletes originals that Navigator is still moving.
+- Drop overlay: while files are dragged over a pane, a dashed, tinted frame and a card ("Move to “Documents”",
+  "Copy to…", "Upload to…", with the Ctrl/Shift hint) show where the items will land. Tabs and the pinned group's
+  header light up with the accent color when they accept the drop.
 - Recycle Bin / Trash in the sidebar: its context menu starts with "Empty trash" (with confirmation), followed by a
   separator and the other actions. The item is disabled while the trash is empty; the state is re-checked off the UI
   thread when the menu opens. Linux and macOS now answer "is the trash empty?" cheaply too, so the full-bin icon

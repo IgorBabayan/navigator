@@ -270,6 +270,12 @@
     <Setter Property="BorderBrush" Value="{DynamicResource Accent.Brush}" />
     <Setter Property="BorderThickness" Value="0,2,0,0" />
   </Style>
+  <!-- Pinned group header while folders are dragged over it: dropping pins them at the end. -->
+  <Style Selector="Button.subtle.droptarget">
+    <Setter Property="Background" Value="{DynamicResource Accent.SubtleBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent.Brush}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
   <Style Selector="Border.hoverable.dropafter">
     <Setter Property="BorderBrush" Value="{DynamicResource Accent.Brush}" />
     <Setter Property="BorderThickness" Value="0,0,0,2" />
@@ -333,6 +339,8 @@
   <!-- Items dragged over a tab: they will land in that tab's active pane folder. -->
   <Style Selector="Border.tab.droptarget">
     <Setter Property="Background" Value="{DynamicResource Accent.SubtleBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent.Brush}" />
+    <Setter Property="BorderThickness" Value="1,1,1,0" />
   </Style>
   <Style Selector="Border.tab Button.tabclose">
     <Setter Property="Opacity" Value="0" />

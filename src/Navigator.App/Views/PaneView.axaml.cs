@@ -8,6 +8,7 @@ using Avalonia.VisualTree;
 using Microsoft.Extensions.DependencyInjection;
 using Navigator.App.Views.Rows;
 using Navigator.Core.IO;
+using Navigator.Core.Navigation;
 using Navigator.Presentation.Items;
 using Navigator.Presentation.Localization;
 using Navigator.Presentation.Panes;
@@ -29,6 +30,9 @@ public sealed partial class PaneView : UserControl
     private readonly IVolumeLocator _volumes = App.Services.GetRequiredService<IVolumeLocator>();
     private readonly DropEvaluator _drop;
     private Border? _dropHighlight;
+    private DragDropEffects _overlayEffect;
+    private FileItemViewModel? _overlayFolder;
+    private int _dragEventSerial;
     private PointerPressedEventArgs? _pressEvent;
     private PaneMenuView? _menus;
     private PaneViewModel? _pane;
@@ -423,26 +427,80 @@ public sealed partial class PaneView : UserControl
 
     private void OnDragOver(object? sender, DragEventArgs e)
     {
+        _dragEventSerial++;
         var (destination, folder) = DropTargetAt(e);
         e.DragEffects = _pane is null ? DragDropEffects.None : _drop.Evaluate(e, destination);
-        SetDropHighlight(e.DragEffects == DragDropEffects.None ? null : folder);
+        var droppable = e.DragEffects != DragDropEffects.None;
+        SetDropHighlight(droppable ? folder : null);
+        if (droppable)
+            ShowDropOverlay(e.DragEffects, destination, folder?.DataContext as FileItemViewModel);
+        else
+            HideDropOverlay();
         AutoScroll(e);
         e.Handled = true;
     }
 
     /// <summary>
-    /// Leave is raised for every child the pointer crosses (followed at once by Enter on the next one), so it only
-    /// clears the highlight; the cached decision is keyed by destination and stays valid.
+    /// Leave is raised for every child the pointer crosses, followed at once by Enter on the next one. Clearing is
+    /// therefore deferred to the next dispatcher turn and skipped when another drag event arrived meanwhile, so the
+    /// overlay neither flickers nor rebuilds its text while the pointer moves across rows.
     /// </summary>
-    private void OnDragLeave(object? sender, DragEventArgs e) => SetDropHighlight(null);
+    private void OnDragLeave(object? sender, DragEventArgs e)
+    {
+        var serial = ++_dragEventSerial;
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (serial != _dragEventSerial)
+                return;
+            SetDropHighlight(null);
+            HideDropOverlay();
+        });
+    }
 
     private void OnDrop(object? sender, DragEventArgs e)
     {
+        _dragEventSerial++;
         var (destination, _) = DropTargetAt(e);
         SetDropHighlight(null);
+        HideDropOverlay();
         _drop.Reset();
         e.DragEffects = ItemDragDrop.Drop(e, destination, _pane, _volumes);
         e.Handled = true;
+    }
+
+    /// <summary>
+    /// Shows the drop overlay (like a chat window's "drop files here"): a dashed frame around the list when the drop
+    /// goes into this folder, and a card naming the action and the target. Texts are rebuilt only when the action or
+    /// the target folder changes, not on every drag-over event.
+    /// </summary>
+    private void ShowDropOverlay(DragDropEffects effect, string? destination, FileItemViewModel? folder)
+    {
+        var shown = DropOverlay.Classes.Contains("shown");
+        if (shown && effect == _overlayEffect && ReferenceEquals(folder, _overlayFolder))
+            return;
+        _overlayEffect = effect;
+        _overlayFolder = folder;
+
+        var upload = RemoteUri.IsRemote(destination);
+        var name = folder?.DisplayName ?? _pane?.Title ?? string.Empty;
+        var (key, icon) = upload ? ("Drop.UploadTo", "Upload")
+            : effect == DragDropEffects.Move ? ("Drop.MoveTo", "FolderMove")
+            : ("Drop.CopyTo", "Copy");
+        DropIcon.Kind = icon;
+        DropTitle.Text = Text.Format(key, name);
+        DropHint.IsVisible = !upload;
+        if (!upload)
+            DropHint.Text = Text.Format("Drop.Hint", OperatingSystem.IsMacOS() ? "⌘" : "Ctrl");
+        DropOverlay.Classes.Set("folder", folder is not null);
+        if (!shown)
+            DropOverlay.Classes.Add("shown");
+    }
+
+    private void HideDropOverlay()
+    {
+        DropOverlay.Classes.Remove("shown");
+        _overlayEffect = DragDropEffects.None;
+        _overlayFolder = null;
     }
 
     /// <summary>One highlighted folder at a time; only the class changes, so no relayout happens while dragging.</summary>

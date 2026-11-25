@@ -21,7 +21,7 @@ public sealed partial class SidebarView : UserControl
     private SidebarItemViewModel? _pressed;
     private readonly IVolumeLocator _volumes;
     private readonly DropEvaluator _drop;
-    private Border? _dropHighlight;
+    private Control? _dropHighlight;
     private string? _dropClass;
 
     public SidebarView()
@@ -120,8 +120,8 @@ public sealed partial class SidebarView : UserControl
                 return EntryTarget(model, item, surface, e.GetPosition(surface).Y);
 
             // The pinned group's header pins at the end (also while the group is collapsed or empty).
-            if (visual is Button { DataContext: SidebarSectionViewModel { IsReorderable: true } } && model.CanPin)
-                return new SidebarDropTarget(SidebarDropKind.Pin, null, null, model.PinnedCount, null);
+            if (visual is Button { DataContext: SidebarSectionViewModel { IsReorderable: true } } header && model.CanPin)
+                return new SidebarDropTarget(SidebarDropKind.Pin, null, header, model.PinnedCount, "droptarget");
         }
 
         return default;
@@ -205,7 +205,7 @@ public sealed partial class SidebarView : UserControl
     }
 
     /// <summary>One highlighted entry at a time; only a style class changes (insertion line or folder outline).</summary>
-    private void SetDropHighlight(Border? surface, string? cssClass)
+    private void SetDropHighlight(Control? surface, string? cssClass)
     {
         if (ReferenceEquals(surface, _dropHighlight) && string.Equals(cssClass, _dropClass, StringComparison.Ordinal))
             return;
@@ -230,7 +230,7 @@ internal enum SidebarDropKind
     Pin,
 }
 
-internal readonly record struct SidebarDropTarget(SidebarDropKind Kind, SidebarItemViewModel? Item, Border? Surface, int PinIndex, string? Highlight);
+internal readonly record struct SidebarDropTarget(SidebarDropKind Kind, SidebarItemViewModel? Item, Control? Surface, int PinIndex, string? Highlight);
 
 /// <summary>Section expanded → chevron down, collapsed → chevron right.</summary>
 public sealed class ExpandGlyphConverter : IValueConverter

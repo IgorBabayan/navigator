@@ -55,6 +55,33 @@
     <Style Selector="Border.item:pointerover Border.rowCheck">
       <Setter Property="BorderBrush" Value="{DynamicResource Accent.Brush}" />
     </Style>
+
+    <!--
+      Drop overlay (drag and drop). Shown only while something droppable is dragged over the list: a tinted, dashed
+      frame means "drops into this folder"; over a sub-folder the frame steps aside (the folder itself is outlined) and
+      the card names that folder instead. Opacity/transform only, so showing it never relays out the list.
+    -->
+    <Style Selector="Panel#DropOverlay">
+      <Setter Property="Opacity" Value="0" />
+      <Setter Property="Transitions" Value="{DynamicResource Motion.Fade}" />
+    </Style>
+    <Style Selector="Panel#DropOverlay.shown">
+      <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="Panel#DropFrame">
+      <Setter Property="Opacity" Value="1" />
+      <Setter Property="Transitions" Value="{DynamicResource Motion.Fade}" />
+    </Style>
+    <Style Selector="Panel#DropOverlay.folder Panel#DropFrame">
+      <Setter Property="Opacity" Value="0" />
+    </Style>
+    <Style Selector="Border#DropCard">
+      <Setter Property="RenderTransform" Value="translateY(10px)" />
+      <Setter Property="Transitions" Value="{DynamicResource Motion.FadeAndMove}" />
+    </Style>
+    <Style Selector="Panel#DropOverlay.shown Border#DropCard">
+      <Setter Property="RenderTransform" Value="translateY(0px)" />
+    </Style>
   </UserControl.Styles>
   <Grid RowDefinitions="Auto,Auto,Auto,*">
     <!-- Split view: each pane shows its own location; the active one is underlined with the accent. -->
@@ -97,6 +124,27 @@
             </ItemsControl.ItemsPanel>
           </ItemsControl>
         </ScrollViewer>
+
+        <!-- Drop overlay: frame for "into this folder", card saying what the drop does (see the styles above). -->
+        <Panel x:Name="DropOverlay" IsHitTestVisible="False">
+          <Panel x:Name="DropFrame" Margin="6">
+            <Border CornerRadius="10" Background="{DynamicResource Accent.SubtleBrush}" />
+            <Rectangle RadiusX="10" RadiusY="10" StrokeThickness="2" StrokeDashArray="4,3" Stroke="{DynamicResource Accent.Brush}" />
+          </Panel>
+          <Border x:Name="DropCard" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="16,0,16,22" Padding="12,10,16,10"
+                  CornerRadius="12" Background="{DynamicResource Brush.Card}" BorderBrush="{DynamicResource Accent.Brush}" BorderThickness="1"
+                  BoxShadow="{StaticResource Shadow.Flyout}">
+            <Grid ColumnDefinitions="Auto,*">
+              <Border Width="34" Height="34" CornerRadius="17" Margin="0,0,12,0" VerticalAlignment="Center" Background="{DynamicResource Accent.Brush}">
+                <c:IconView x:Name="DropIcon" Kind="Copy" Width="18" Height="18" Foreground="{DynamicResource Accent.ForegroundBrush}" />
+              </Border>
+              <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                <TextBlock x:Name="DropTitle" FontWeight="SemiBold" MaxWidth="380" TextTrimming="CharacterEllipsis" />
+                <TextBlock x:Name="DropHint" Classes="caption secondary" />
+              </StackPanel>
+            </Grid>
+          </Border>
+        </Panel>
 
         <!-- Rubber-band selection rectangle -->
         <Canvas x:Name="SelectionCanvas" IsHitTestVisible="False">
