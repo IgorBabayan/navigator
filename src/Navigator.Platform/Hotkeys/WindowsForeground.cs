@@ -74,6 +74,12 @@ public static partial class WindowsForeground
     /// Called on the thread that received WM_HOTKEY, which Windows lets take the foreground: passes that right on to
     /// the whole process, so the UI thread can activate the window a moment later.
     /// </summary>
+    /// <summary>
+    /// Called by the shortcut agent right after its hotkey fired (when it may take the foreground): lets whichever
+    /// Navigator process it activates or starts next bring its window to the front.
+    /// </summary>
+    public static void AllowForAnyProcess() => _ = AllowSetForegroundWindow(AsfwAny);
+
     internal static void AllowForThisProcess()
     {
         if (!AllowSetForegroundWindow((int)Environment.ProcessId))

@@ -141,7 +141,8 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Mica / Acrylic backdrop | 🟦 | 🟦 | 🟦 | 🟨 | 🟨 | effect depends on platform/compositor |
 | Animations full / reduced / off | 🟦 | 🟦 | ✓ | ✓ | ✓ | |
 | Customizable keyboard shortcuts | ✅ | 🟦 | ✓ | ✓ | ✓ | `CommandRegistry` |
-| Global shortcut to open Navigator; background mode with tray icon | 🟦 | 🟦 | 🟦 | 🟨 | 🟦 | `GlobalHotkeyController`; X11 only (Wayland: bind a desktop shortcut to the app) |
+| Global shortcut to open Navigator; background mode with tray icon | 🟦 | 🟦 | 🟦 | 🟨 | 🟦 | `GlobalHotkeyController`; X11, and GNOME on Wayland (desktop shortcut); other Wayland desktops: bind `Navigator --activate` |
+| Global shortcut works while Navigator is not running | 🟦 | 🟦 | 🟦 | 🟨 | 🟦 | `ShortcutAgentHost` started at sign-in; agent verified end-to-end on X11 (Xvfb + xdotool) |
 | English + Ukrainian | ✅ | 🟦 | ✓ | ✓ | ✓ | key parity test |
 | High-contrast themes | ⬜ | ⬜ | | | | |
 

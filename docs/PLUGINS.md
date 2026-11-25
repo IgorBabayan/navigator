@@ -9,6 +9,8 @@ reachable from the plug button next to Settings in the title bar).
 | Network (computers, shares, network drives) | `network` | `plugins/Navigator.Plugin.Network` | inside the app (built-in) | no (permanent) |
 | SSH (SFTP) | `ssh` | `plugins/Navigator.Plugin.Ssh` | `navigator-plugin-ssh-{version}.navplugin` | yes |
 | FTP (FTP, FTPS) | `ftp` | `plugins/Navigator.Plugin.Ftp` | `navigator-plugin-ftp-{version}.navplugin` | yes |
+| Google Drive (Cloud group) | `gdrive` | `plugins/Navigator.Plugin.GoogleDrive` | `navigator-plugin-gdrive-{version}.navplugin` | yes |
+| OneDrive (Cloud group) | `onedrive` | `plugins/Navigator.Plugin.OneDrive` | `navigator-plugin-onedrive-{version}.navplugin` | yes |
 
 Only the Network plugin is part of the app build: `Navigator.App` references `Navigator.Plugin.Network` and no
 other plugin project. SSH and FTP are built and released as separate packages and installed from the shop.
@@ -188,8 +190,73 @@ plugin address.
   (`trusted_certificates.json`, SHA-256). Anonymous sign-in is supported.
 - Up to 3 connections per server (FTP allows one transfer per connection), reused for 2 idle minutes.
 
+## Cloud group (plugin API 1.2)
+
+Sidebar sections that implement `IPluginSidebarGroupMember` with `PluginSidebarGroups.Cloud` are merged by the host
+into one section, **Cloud**, placed right below Network (order 150; SSH 200, FTP 300). Each member keeps its own
+entries and commands; an "add-account" command offered by several members is shown once and asks which service to
+use. The group listens to its members only while the sidebar listens to it. Settings → Sidebar has a "Cloud" switch.
+
+Shared helpers for cloud plugins live in `Navigator.Plugins.Cloud` (contract assembly, BCL only):
+
+- `OAuthClient`: OAuth 2.0 for native apps (RFC 8252) — authorization code + PKCE (S256) in the system browser,
+  one-shot loopback redirect on a random port (127.0.0.1, plus ::1 for providers that require `localhost`), state
+  check, 5-minute timeout. No embedded browser.
+- `CloudAuthenticator`: access tokens in memory, refreshed a minute before expiry (one refresh per account at a time);
+  refresh tokens in `IPluginContext.Secrets`; an expired/revoked sign-in asks the user to sign in again and checks it
+  is the same account.
+- `CloudAccountStore` (`accounts.json` in the plugin folder: id, provider user id, e-mail, name — never tokens),
+  `CloudAccountsSection` (accounts, "Add account", "Sign out"), `CloudApi` (bearer token, one refresh on 401, retries
+  for 429/5xx honoring `Retry-After`, errors mapped to `RemoteErrorKind`), one shared `HttpClient` (HTTP/2,
+  compression, created on first use).
+- `IPluginContext.Secrets`: Windows DPAPI (per-user encrypted files in `%LOCALAPPDATA%\Navigator\Secrets`), macOS
+  login Keychain (`security`, secret via stdin), Linux Secret Service (`secret-tool`, secret via stdin). Without a store
+  the secret lives in memory for the session and the user is told so. `IPluginContext.OpenInBrowser` opens https only.
+
+Addresses are `gdrive://{account}/path` and `onedrive://{account}/path`, where `{account}` is a random 10-hex id (no
+e-mail addresses in paths); the root shows the account's e-mail. Nothing touches the network until an account is added
+or opened.
+
+### OAuth clients
+
+Release builds embed the clients from repository **variables** (they are public desktop clients):
+`NAVIGATOR_GOOGLE_CLIENT_ID`, `NAVIGATOR_GOOGLE_CLIENT_SECRET` (Google treats a desktop client secret as public) and
+`NAVIGATOR_ONEDRIVE_CLIENT_ID`. The same environment variables override them at run time (development, self-built
+packages). Without a client the plugin explains this when "Add account" is used.
+
+- Google: Google Cloud project with the Drive API enabled, OAuth client type "Desktop app", scope
+  `https://www.googleapis.com/auth/drive` (a restricted scope: public distribution needs Google's verification).
+- Microsoft: Entra app registration, "Mobile and desktop applications" platform with redirect URI `http://localhost`,
+  account types "any organization and personal accounts", delegated `Files.ReadWrite.All`, `User.Read`,
+  `offline_access`; public client flows enabled (no secret).
+
+## Google Drive plugin
+
+- Drive API v3, "My Drive" of each account. Drive identifies items by id, so paths are resolved segment by segment
+  through caches (folder listings 30 s, resolved paths 5 min; every change Navigator makes clears them); a name lookup
+  is one small query, not a listing of a large folder.
+- Names a path cannot hold: `/` and `\` are shown as `∕` / `⧵`; Google Docs, Sheets, Slides and Drawings get the
+  extension they download as (`.docx`, `.xlsx`, `.pptx`, `.pdf`) and are exported on download; items with the same
+  name in one folder get ` (2)`, ` (3)`… in creation order. Forms, Sites and My Maps cannot be downloaded.
+- Shortcuts are links: opening follows the target, deleting removes only the shortcut.
+- Uploads are resumable (8 MiB chunks, nothing appears until complete) and refuse an existing name; rename refuses
+  an existing name; delete moves to the Drive trash.
+
+## OneDrive plugin
+
+- Microsoft Graph, personal and work/school accounts. Path addressing (one request per operation); folders shared with
+  the user and added to "My files" are followed into their drive; listed children are cached so opening them costs no
+  request.
+- Uploads: up to 4 MiB in one request, larger files through an upload session (10 MiB chunks, chunk requests without
+  the bearer token as Graph requires, session deleted on failure/cancel). `conflictBehavior=fail` everywhere: never
+  overwrites. Delete moves to the OneDrive recycle bin.
+
 ## Verification
 
+- Unit tests (`CloudTests`): Cloud group merging/order/command routing/subscriptions, scoped secrets with memory
+  fallback, https-only browser, token parsing, the full PKCE loopback sign-in against a local token server, denied
+  consent, account store, error mapping, Drive name mapping and item parsing, Graph references and item parsing.
+  Not yet exercised against the live Google and Microsoft services (needs registered OAuth clients).
 - Unit tests (`PluginTests`, `FtpProtocolTests`): contract versions, manifest and package validation (path escapes,
   links), catalog signing and tampering, release catalog generation, host behavior (permanent built-ins, failing
   plugins, invalid packages), remote addresses, connection pool, FTP reply/listing parsing.

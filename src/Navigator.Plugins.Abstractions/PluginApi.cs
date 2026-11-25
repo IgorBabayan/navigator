@@ -9,8 +9,12 @@ public static class PluginApi
 {
     public const int Major = 1;
 
-    /// <summary>1.1: <see cref="IRemoteLocationMapper"/>.</summary>
-    public const int Minor = 1;
+    /// <summary>
+    /// 1.1: <see cref="IRemoteLocationMapper"/>.
+    /// 1.2: sidebar groups (<see cref="IPluginSidebarGroupMember"/>), <see cref="IPluginContext.Secrets"/>,
+    /// <see cref="IPluginContext.OpenInBrowser"/> and the cloud helpers in <c>Navigator.Plugins.Cloud</c>.
+    /// </summary>
+    public const int Minor = 2;
 
     public static string Version => $"{Major}.{Minor}";
 

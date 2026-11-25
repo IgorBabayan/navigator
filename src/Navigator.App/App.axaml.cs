@@ -40,7 +40,12 @@ public sealed partial class App : Application
             desktop.ShutdownRequested += (_, _) => windows.SaveSession();
 
             var update = _services.GetRequiredService<UpdateViewModel>();
-            update.ExitRequested += (_, _) => desktop.Shutdown();
+            update.ExitRequested += (_, _) =>
+            {
+                // The shortcut agent runs from the same program files; the updated app starts a new one.
+                _services.GetRequiredService<GlobalHotkeyController>().StopAgentForUpdate();
+                desktop.Shutdown();
+            };
 
             // Creates nothing unless Settings → General → "Keep running in the background" is on.
             _services.GetRequiredService<BackgroundModeService>().Start(desktop);

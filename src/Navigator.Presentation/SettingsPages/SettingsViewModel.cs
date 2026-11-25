@@ -484,11 +484,21 @@ public sealed class SettingsViewModel : ObservableObject
         }
     }
 
+    /// <summary>The shortcut also opens Navigator when it is not running (a small agent started at sign-in holds the key).</summary>
+    public bool GlobalShortcutWhenClosed
+    {
+        get => S.General.GlobalShortcutWhenClosed;
+        set => Set("general", value, s => s.General.GlobalShortcutWhenClosed, (s, v) => s.General.GlobalShortcutWhenClosed = v);
+    }
+
     /// <summary>What the global "open Navigator" shortcut does right now, or why it does not work.</summary>
     public string GlobalShortcutStatus => _globalHotkey.State switch
     {
+        // Pending: the shortcut agent has not reported yet (a moment after a change).
+        null when _globalHotkey.Gesture.Length > 0 => _localizer.Format("Settings.GlobalShortcutApplying", _globalHotkey.Gesture),
         null => _localizer["Settings.GlobalShortcutNotSet"],
-        // Without background mode, closing the last window exits Navigator, and then no shortcut can open it.
+        HotkeyRegistrationResult.Registered when _globalHotkey.WorksWhenClosed => _localizer.Format("Settings.GlobalShortcutActiveAlways", _globalHotkey.Gesture),
+        // Without the agent or background mode, closing the last window exits Navigator, and then no shortcut can open it.
         HotkeyRegistrationResult.Registered => _localizer.Format(KeepRunningInBackground ? "Settings.GlobalShortcutActive" : "Settings.GlobalShortcutActiveWhileRunning", _globalHotkey.Gesture),
         HotkeyRegistrationResult.InUse => _localizer.Format("Settings.GlobalShortcutInUse", _globalHotkey.Gesture),
         HotkeyRegistrationResult.InvalidGesture => _localizer.Format("Settings.GlobalShortcutInvalid", _globalHotkey.Gesture),
@@ -497,9 +507,9 @@ public sealed class SettingsViewModel : ObservableObject
 
     public bool HasGlobalShortcutProblem => _globalHotkey.State is not (null or HotkeyRegistrationResult.Registered);
 
-    /// <summary>What a desktop-level shortcut should run where apps cannot register one (Wayland).</summary>
+    /// <summary>What a desktop-level shortcut should run where apps cannot register one (Wayland outside GNOME).</summary>
     private static string LaunchCommand
-        => Environment.GetEnvironmentVariable("APPIMAGE") is { Length: > 0 } appImage ? appImage : Environment.ProcessPath ?? "Navigator";
+        => (Environment.GetEnvironmentVariable("APPIMAGE") is { Length: > 0 } appImage ? appImage : Environment.ProcessPath ?? "Navigator") + " " + ShortcutAgentFiles.ActivateSwitch;
 
     public string CodeEditorCommand { get => S.General.CodeEditorCommand ?? string.Empty; set => Set("general", string.IsNullOrWhiteSpace(value) ? null : value.Trim(), s => s.General.CodeEditorCommand, (s, v) => s.General.CodeEditorCommand = v); }
 
@@ -662,6 +672,8 @@ public sealed class SettingsViewModel : ObservableObject
 
     public bool SidebarShowNetwork { get => S.Sidebar.ShowNetwork; set => Set("sidebarOptions", value, s => s.Sidebar.ShowNetwork, (s, v) => s.Sidebar.ShowNetwork = v); }
 
+    public bool SidebarShowCloud { get => S.Sidebar.ShowCloud; set => Set("sidebarOptions", value, s => s.Sidebar.ShowCloud, (s, v) => s.Sidebar.ShowCloud = v); }
+
     public bool SidebarShowTags { get => S.Sidebar.ShowTags; set => Set("sidebarOptions", value, s => s.Sidebar.ShowTags, (s, v) => s.Sidebar.ShowTags = v); }
 
     public bool SidebarShowTrash { get => S.Sidebar.ShowTrash; set => Set("sidebarOptions", value, s => s.Sidebar.ShowTrash, (s, v) => s.Sidebar.ShowTrash = v); }
@@ -797,6 +809,7 @@ public sealed class SettingsViewModel : ObservableObject
         Register(nameof(Startup), "general", (s, d) => s.General.Startup = d.General.Startup);
         Register(nameof(OpenFoldersInNewTab), "general", (s, d) => s.General.OpenFoldersInNewTab = d.General.OpenFoldersInNewTab);
         Register(nameof(KeepRunningInBackground), "general", (s, d) => s.General.KeepRunningInBackground = d.General.KeepRunningInBackground);
+        Register(nameof(GlobalShortcutWhenClosed), "general", (s, d) => s.General.GlobalShortcutWhenClosed = d.General.GlobalShortcutWhenClosed);
         Register(nameof(Theme), "appearance", (s, d) => s.Appearance.Theme = d.Appearance.Theme);
         Register(nameof(AccentColor), "appearance", (s, d) => s.Appearance.AccentColor = d.Appearance.AccentColor);
         Register(nameof(BackgroundColor), "appearance", (s, d) => s.Appearance.BackgroundColor = d.Appearance.BackgroundColor);

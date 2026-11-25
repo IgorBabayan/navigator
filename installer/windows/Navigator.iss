@@ -76,3 +76,33 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopico
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
 ; Relaunch after a silent automatic update (the updater passes /VERYSILENT).
 Filename: "{app}\{#AppExe}"; Flags: nowait; Check: WizardSilent
+
+[Registry]
+; The global shortcut agent's sign-in entry is written by Navigator itself (per user); remove it with the app.
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "Navigator shortcut"; Flags: uninsdeletevalue dontcreatekey
+
+[Code]
+// The global shortcut agent ("Navigator.exe --shortcut-agent") has no window, so the Restart Manager cannot ask it to
+// close. Stop just that process (never a Navigator window) before files are replaced or removed; Navigator starts a new
+// agent the next time it runs.
+procedure StopShortcutAgent();
+var
+  ResultCode: Integer;
+begin
+  Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
+    '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "Get-CimInstance Win32_Process -Filter ''Name=''''{#AppExe}'''''' | ' +
+    'Where-Object { $_.CommandLine -like ''*--shortcut-agent*'' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"',
+    '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  StopShortcutAgent();
+  Result := '';
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usUninstall then
+    StopShortcutAgent();
+end;

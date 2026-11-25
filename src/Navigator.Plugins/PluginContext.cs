@@ -30,6 +30,14 @@ internal sealed class PluginContext(string pluginId, string dataDirectory, IPlug
 
     public IPlatformInfo Platform => services.Platform;
 
+    public IPluginSecretStore Secrets { get; } = new PluginSecretStore(pluginId, services.Secrets);
+
+    public bool OpenInBrowser(Uri address)
+    {
+        ArgumentNullException.ThrowIfNull(address);
+        return IsAttached && address.IsAbsoluteUri && address.Scheme == Uri.UriSchemeHttps && services.OpenInBrowser(address);
+    }
+
     /// <summary>False after the plugin was removed: late registrations are ignored.</summary>
     public bool IsAttached { get; private set; } = true;
 

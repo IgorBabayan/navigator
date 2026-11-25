@@ -6,8 +6,9 @@ using Navigator.Presentation.Panes;
 
 namespace Navigator.Presentation.Plugins;
 
-/// <summary>Connects the plugin host to the application: dialogs, volumes, localization and logging.</summary>
-public sealed class PluginHostServices(PluginUi ui, IVolumeProvider volumes, IPlatformInfo platform, Localizer localizer, ILoggerFactory loggers) : IPluginHostServices
+/// <summary>Connects the plugin host to the application: dialogs, volumes, localization, logging, secrets and the browser.</summary>
+public sealed class PluginHostServices(PluginUi ui, IVolumeProvider volumes, IPlatformInfo platform, Localizer localizer, ILoggerFactory loggers, ISecretStore secrets, IFileLauncher launcher)
+    : IPluginHostServices
 {
     public IPluginUi Ui { get; } = ui;
 
@@ -26,6 +27,21 @@ public sealed class PluginHostServices(PluginUi ui, IVolumeProvider volumes, IPl
     }
 
     public IPluginLog CreateLog(string pluginId) => new PluginLog(loggers.CreateLogger("Plugin." + pluginId));
+
+    public ISecretStore Secrets { get; } = secrets;
+
+    /// <summary>Starts the default browser (the launcher opens URLs like files: ShellExecute, xdg-open, open).</summary>
+    public bool OpenInBrowser(Uri address)
+    {
+        ArgumentNullException.ThrowIfNull(address);
+        var opening = launcher.OpenAsync(address.AbsoluteUri);
+        if (opening.IsCompletedSuccessfully)
+            return opening.GetAwaiter().GetResult(); // completed: no blocking (the launchers start the browser synchronously)
+        _ = opening.ContinueWith(
+            task => loggers.CreateLogger<PluginHostServices>().LogWarning(task.Exception, "The browser could not be opened"),
+            CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
+        return !opening.IsFaulted;
+    }
 
     private sealed class PluginLog(ILogger logger) : IPluginLog
     {

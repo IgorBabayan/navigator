@@ -44,3 +44,22 @@ public interface IPluginSidebarSection
     /// <summary>Raise (from any thread) when the entries or commands changed.</summary>
     event EventHandler? Changed;
 }
+
+/// <summary>
+/// Optional for an <see cref="IPluginSidebarSection"/> (plugin API 1.2): the section is shown inside a shared group
+/// instead of as a section of its own. The host merges every member of a group into one sidebar section (title, icon and
+/// position belong to the group); each member keeps its own entries and commands. An unknown group id is ignored and
+/// the section is shown on its own.
+/// </summary>
+public interface IPluginSidebarGroupMember
+{
+    /// <summary>One of <see cref="PluginSidebarGroups"/>.</summary>
+    string GroupId { get; }
+}
+
+/// <summary>Sidebar groups the host knows.</summary>
+public static class PluginSidebarGroups
+{
+    /// <summary>"Cloud", right below "Network": cloud storage accounts (Google Drive, OneDrive…).</summary>
+    public const string Cloud = "cloud";
+}

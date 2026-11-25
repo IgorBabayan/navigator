@@ -17,6 +17,8 @@
     <ProjectReference Include="..\..\src\Navigator.Plugins\Navigator.Plugins.csproj" />
     <ProjectReference Include="..\..\plugins\Navigator.Plugin.Ftp\Navigator.Plugin.Ftp.csproj" />
     <ProjectReference Include="..\..\plugins\Navigator.Plugin.Network\Navigator.Plugin.Network.csproj" />
+    <ProjectReference Include="..\..\plugins\Navigator.Plugin.GoogleDrive\Navigator.Plugin.GoogleDrive.csproj" />
+    <ProjectReference Include="..\..\plugins\Navigator.Plugin.OneDrive\Navigator.Plugin.OneDrive.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Shared\*.cs" Link="Shared\%(Filename)%(Extension)" />

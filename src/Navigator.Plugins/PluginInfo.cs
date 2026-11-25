@@ -48,4 +48,10 @@ public interface IPluginHostServices
     VolumeDisplay DescribeVolume(VolumeInfo volume);
 
     IPluginLog CreateLog(string pluginId);
+
+    /// <summary>The OS credential store behind <see cref="IPluginContext.Secrets"/>.</summary>
+    ISecretStore Secrets { get; }
+
+    /// <summary>Opens a web address in the default browser.</summary>
+    bool OpenInBrowser(Uri address);
 }

@@ -267,6 +267,10 @@ jobs:
         env:
           NAVIGATOR_UPDATE_SIGNING_KEY: ${{ secrets.NAVIGATOR_UPDATE_SIGNING_KEY }}
           UPDATE_PUBLIC_KEY: ${{ vars.NAVIGATOR_UPDATE_PUBLIC_KEY }}
+          # OAuth clients of the cloud plugins (public desktop clients; embedded into the plugin packages).
+          NAVIGATOR_GOOGLE_CLIENT_ID: ${{ vars.NAVIGATOR_GOOGLE_CLIENT_ID }}
+          NAVIGATOR_GOOGLE_CLIENT_SECRET: ${{ vars.NAVIGATOR_GOOGLE_CLIENT_SECRET }}
+          NAVIGATOR_ONEDRIVE_CLIENT_ID: ${{ vars.NAVIGATOR_ONEDRIVE_CLIENT_ID }}
         run: |
           set -euo pipefail
           dotnet build tools/Navigator.ReleaseTool -c Release -o .tool > /dev/null

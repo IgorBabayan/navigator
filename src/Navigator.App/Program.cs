@@ -8,6 +8,18 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        // The global shortcut agent never touches Avalonia: it only holds the system-wide key (Services/ShortcutAgentHost).
+        if (args.Length > 0 && args[0] == Navigator.Core.Platform.ShortcutAgentFiles.AgentSwitch)
+            return Services.ShortcutAgentHost.Run();
+
+        // "--activate" (desktop shortcuts, e.g. GNOME on Wayland): bring a running Navigator to the front, or start normally.
+        if (Array.IndexOf(args, Navigator.Core.Platform.ShortcutAgentFiles.ActivateSwitch) >= 0)
+        {
+            var socket = Navigator.Core.Platform.ActivationChannel.SocketPath(Navigator.Core.Platform.AppDirectories.Resolve());
+            if (Navigator.Core.Platform.ActivationChannel.TrySignal(socket, TimeSpan.FromSeconds(2)))
+                return 0;
+        }
+
         StartupTimer.Start();
 
         // Lets Avalonia publish its layout/render timing metrics ("Avalonia.Diagnostic.Meter"), read by the status bar

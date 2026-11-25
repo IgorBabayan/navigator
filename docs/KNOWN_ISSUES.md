@@ -28,6 +28,8 @@ Honest list of what is missing, partial or unverified. Keep it current.
 | Open with | Windows uses the system "Open with" dialog (no in-app handler list); macOS has no handler enumeration (uses `open -a`). |
 | macOS trash | Restore works only for items trashed by Navigator (Finder's "put back" metadata is private). |
 | Windows notifications | Finished-operation notifications are in-app toasts only. |
+| Global shortcut when closed | Needs the shortcut agent (≈7 MB private memory, no CPU while idle, measured on Linux/X11) or, on GNOME/Wayland, a GNOME custom shortcut. Other Wayland desktops (KDE, Sway…) cannot get it automatically. The Linux autostart entry and macOS LaunchAgent stay behind if the app is deleted without turning the setting off (harmless: they point to a missing file); the Windows uninstaller removes its entry. |
+| Cloud plugins | Need OAuth clients (`docs/PLUGINS.md`); not yet tested against the live services. Google Drive: "My Drive" only (no "Shared with me" or shared drives root), Google Docs show no size. Refresh tokens stay in the OS keychain when a cloud plugin is removed without signing out first. |
 | Thumbnails | Images only, memory cache only (no disk cache); no video/PDF/OS shell thumbnails. |
 | Archives | ZIP create/extract, TAR and TAR.GZ extract only; no 7z, RAR, XZ, BZip2. |
 | Preview | Markdown is shown as source; no PDF, audio/video, Office previews. |

@@ -219,3 +219,21 @@ public interface IFileOwnershipProvider
     /// <summary>Owner and group names, or null where the platform does not expose them.</summary>
     (string? Owner, string? Group) GetOwnership(string path);
 }
+
+/// <summary>
+/// The operating system's credential store: Windows DPAPI (per-user encrypted files), the macOS login Keychain, or the
+/// freedesktop Secret Service (GNOME Keyring, KWallet) on Linux. A secret is identified by a service and an account
+/// name. Implementations never log or write secrets in plain text; when the platform has no store,
+/// <see cref="IsPersistent"/> is false and writes fail (callers keep the secret in memory).
+/// </summary>
+public interface ISecretStore
+{
+    bool IsPersistent { get; }
+
+    Task<string?> ReadAsync(string service, string account, CancellationToken cancellationToken = default);
+
+    /// <summary>Stores or replaces a secret. False when it could not be stored.</summary>
+    Task<bool> WriteAsync(string service, string account, string secret, CancellationToken cancellationToken = default);
+
+    Task DeleteAsync(string service, string account, CancellationToken cancellationToken = default);
+}

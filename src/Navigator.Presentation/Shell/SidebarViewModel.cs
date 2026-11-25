@@ -104,7 +104,7 @@ public sealed class SidebarSectionViewModel(string id, string title, string icon
 }
 
 /// <summary>
-/// Navigation sidebar: Home, pinned folders, drives, plugin sections (Network, SSH, FTP…), tags, trash.
+/// Navigation sidebar: Home, pinned folders, drives, plugin sections (Network, Cloud, SSH, FTP…), tags, trash.
 /// Shared look, per-window instance. Plugin entries are fetched off the UI thread and each section refreshes on its own.
 /// </summary>
 public sealed class SidebarViewModel : ObservableObject, IDisposable
@@ -289,8 +289,8 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
         var settings = _services.Settings.Current.Sidebar;
         foreach (var source in _services.Plugins.SidebarSections)
         {
-            // The Network section keeps its own switch in Settings → Sidebar.
-            if (source.Id == "network" && !settings.ShowNetwork)
+            // The Network section and the Cloud group keep their own switches in Settings → Sidebar.
+            if ((source.Id == "network" && !settings.ShowNetwork) || (source.Id == PluginSidebarGroups.Cloud && !settings.ShowCloud))
                 continue;
 
             source.Changed += OnPluginSectionChanged;

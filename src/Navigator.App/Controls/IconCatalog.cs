@@ -43,6 +43,7 @@ internal static class IconCatalog
         Line("Paste", "M9,4 H15 V7 H9 Z M7,5.5 H5.5 V20 H18.5 V5.5 H17 M9,12 H15 M9,16 H13");
         Line("Rename", "M4,17 V20 H7 L18,9 L15,6 Z M13,8 L16,11 M14,20 H20");
         Line("Delete", "M5,7 H19 M10,4 H14 M7,7 L8,20 H16 L17,7 M10.5,11 V16 M13.5,11 V16");
+        Line("SignOut", "M10,5 H6 C5.4,5 5,5.4 5,6 V18 C5,18.6 5.4,19 6,19 H10 M14,8 L18,12 L14,16 M18,12 H9");
         Line("Share", "M12,4 V15 M8,8 L12,4 L16,8 M6,12 V20 H18 V12");
         Line("Sort", "M7,5 V19 M4,16 L7,19 L10,16 M17,19 V5 M14,8 L17,5 L20,8");
         Line("Group", "M4,5 H20 M7,9 H20 M7,13 H20 M4,17 H20 M7,21 H20");
@@ -141,6 +142,14 @@ internal static class IconCatalog
         map["Server"] = new IconDefinition(lights, [(rackTop, Brush("#94A3B8")), (rackBottom, Brush("#64748B"))]);
         map["ServerSsh"] = new IconDefinition(lights, [(rackTop, Brush("#818CF8")), (rackBottom, Brush("#6366F1"))]);
         map["ServerFtp"] = new IconDefinition(lights, [(rackTop, Brush("#FBBF24")), (rackBottom, Brush("#F59E0B"))]);
+
+        // Cloud storage (the sidebar's Cloud group and its accounts): one cloud shape, colored per service. Navigator's own
+        // drawing; no service logos.
+        var cloud = Geometry.Parse("M7,19 C4.2,19 2,16.9 2,14.3 C2,11.9 3.8,10 6.1,9.7 C6.9,6.9 9.4,5 12.4,5 C15.8,5 18.6,7.5 19,10.8 C21.2,11.3 22.6,13.1 22.6,15.1 C22.6,17.3 20.8,19 18.5,19 Z");
+        var cloudShade = Geometry.Parse("M2.3,15.8 C2.9,17.7 4.8,19 7,19 H18.5 C20.4,19 22,17.8 22.4,16 C21.6,16.6 20.6,17 19.5,17 H7 C5,17 3.3,16.6 2.3,15.8 Z");
+        map["Cloud"] = new IconDefinition(null, [(cloud, Brush("#7DD3FC")), (cloudShade, Brush("#38BDF8"))]);
+        map["CloudGoogleDrive"] = new IconDefinition(null, [(cloud, Brush("#86EFAC")), (cloudShade, Brush("#22C55E"))]);
+        map["CloudOneDrive"] = new IconDefinition(null, [(cloud, Brush("#93C5FD")), (cloudShade, Brush("#3B82F6"))]);
 
         return map.ToFrozenDictionary(StringComparer.Ordinal);
     }

@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    OneDrive plugin (Cloud group in the sidebar): browse, download, upload, rename and delete files of signed-in
+    Microsoft accounts, personal and work or school (Microsoft Graph, OAuth 2.0 with PKCE in the system browser).
+    Base class library only. Installed from the plugin shop; NOT part of the app build.
+    `dotnet publish -c Release` produces artifacts/plugins/navigator-plugin-onedrive-{version}.navplugin.
+
+    OAuth client: a Microsoft Entra app registration ("Mobile and desktop applications" platform, redirect URI
+    http://localhost, accounts in any organization and personal accounts). Release builds embed its id from the
+    repository variable NAVIGATOR_ONEDRIVE_CLIENT_ID; the same environment variable overrides it at run time.
+  -->
+  <PropertyGroup>
+    <RootNamespace>Navigator.Plugin.OneDrive</RootNamespace>
+    <NavigatorPluginId>onedrive</NavigatorPluginId>
+    <NavigatorPluginVersion>1.0.0</NavigatorPluginVersion>
+    <NavigatorPluginName>OneDrive</NavigatorPluginName>
+    <NavigatorPluginDescription>Browse, upload and download files in OneDrive. Accounts appear in the sidebar's Cloud group.</NavigatorPluginDescription>
+    <NavigatorPluginAuthor>Navigator</NavigatorPluginAuthor>
+    <NavigatorPluginEntryType>Navigator.Plugin.OneDrive.OneDrivePlugin</NavigatorPluginEntryType>
+    <NavigatorPluginIconKey>CloudOneDrive</NavigatorPluginIconKey>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The host provides the contract (and Navigator.Core) at run time: never copied into the package. -->
+    <ProjectReference Include="..\..\src\Navigator.Plugins.Abstractions\Navigator.Plugins.Abstractions.csproj" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Strings\*.json" LogicalName="Strings.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(NAVIGATOR_ONEDRIVE_CLIENT_ID)' != ''">
+    <AssemblyMetadata Include="OAuthClientId" Value="$(NAVIGATOR_ONEDRIVE_CLIENT_ID)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Navigator.UnitTests" />
+  </ItemGroup>
+</Project>

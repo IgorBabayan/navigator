@@ -68,6 +68,71 @@ internal static class ProcessRunner
         }
     }
 
+    /// <summary>
+    /// Runs a short command, writes <paramref name="input"/> (if any) to its standard input and closes it, and returns
+    /// the exit code and standard output. Secrets are passed this way, never as arguments (which other users can see).
+    /// Returns null when the command could not be started or timed out.
+    /// </summary>
+    public static async Task<(int ExitCode, string Output)?> RunAsync(string fileName, IEnumerable<string> arguments, string? input, TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var info = new ProcessStartInfo(fileName)
+            {
+                UseShellExecute = false,
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+            };
+            foreach (var argument in arguments)
+                info.ArgumentList.Add(argument);
+
+            using var process = Process.Start(info);
+            if (process is null)
+                return null;
+
+            using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutSource.CancelAfter(timeout);
+            try
+            {
+                if (input is not null)
+                    await process.StandardInput.WriteAsync(input.AsMemory(), timeoutSource.Token).ConfigureAwait(false);
+                process.StandardInput.Close();
+                var output = process.StandardOutput.ReadToEndAsync(timeoutSource.Token);
+                var errors = process.StandardError.ReadToEndAsync(timeoutSource.Token);
+                await process.WaitForExitAsync(timeoutSource.Token).ConfigureAwait(false);
+                await errors.ConfigureAwait(false);
+                return (process.ExitCode, await output.ConfigureAwait(false));
+            }
+            catch (OperationCanceledException)
+            {
+                TryKill(process);
+                throw;
+            }
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return null;
+        }
+        catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or FileNotFoundException or IOException)
+        {
+            return null;
+        }
+    }
+
+    private static void TryKill(Process process)
+    {
+        try
+        {
+            process.Kill(entireProcessTree: true);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or Win32Exception or NotSupportedException)
+        {
+            // Already gone.
+        }
+    }
+
     /// <summary>Finds an executable on PATH.</summary>
     public static string? FindOnPath(string executable)
     {
