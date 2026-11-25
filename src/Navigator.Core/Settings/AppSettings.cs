@@ -176,6 +176,23 @@ public sealed class GeneralSettings
 
     public bool ShowOpenTerminalInContextMenu { get; set; } = true;
 
+    public bool ShowOpenInNewTabInContextMenu { get; set; } = true;
+
+    public bool ShowOpenInOtherPaneInContextMenu { get; set; } = true;
+
+    public bool ShowCreateFolderWithSelectionInContextMenu { get; set; } = true;
+
+    public bool ShowCreateShortcutInContextMenu { get; set; } = true;
+
+    /// <summary>The Compress and Extract sub-menus.</summary>
+    public bool ShowCompressionInContextMenu { get; set; } = true;
+
+    public bool ShowSendToInContextMenu { get; set; } = true;
+
+    public bool ShowPinToSidebarInContextMenu { get; set; } = true;
+
+    public bool ShowEditTagsInContextMenu { get; set; } = true;
+
     public string? CodeEditorCommand { get; set; }
 
     /// <summary>Addresses typed into the omnibar, most recent first (its history drop-down); bounded by the omnibar.</summary>

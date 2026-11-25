@@ -59,19 +59,26 @@ Navigator's window follows the familiar Files-app layout. Everything is styled t
   headers with sort indicator, resizable columns (48–1200 px) and a column visibility menu; rubber-band
   selection; keyboard type-to-select; empty-folder and error states with retry. Column reordering is not
   implemented.
-- **Item context menu** (right-click on items; trash and server folders keep their own short menus):
-  - Top: a row of icon buttons — Cut, Copy, Paste, Rename (bulk rename for several items), Delete, Properties — with
-    tooltips and shortcuts; Paste greys out when the clipboard holds no files. Read-only locations show Copy and
-    Properties only.
-  - Launch, by type: Open always; folders add Open in new tab / new window; a single program on Windows adds Run as
-    administrator and Run as another user; any other single file gets an "Open with" sub-menu (registered apps where
-    the OS lists them, then "Choose another application…"); archives get "Extract" (here / to “name”).
-  - Organize: Paste into folder (one folder), Copy path, Create folder with selection, Create shortcut.
-  - Sub-menus: Compress (to “name.zip”, or each item to its own ZIP), Send to (Desktop, Documents, Downloads,
-    removable drives), Tags (check marks), then Pin to sidebar for folders, and "More options" (duplicate, terminal,
-    code editor, show in system file manager, delete permanently).
-  - Separators never lead, trail or double, whatever entries a selection drops. Sub-menus that need disk or process
-    work fill the first time they open.
+- **Context menus** (structure follows the Files app):
+  - One model for every pane menu: items, empty area, Recycle Bin / Trash and server folders differ only by which
+    entries apply to that location.
+  - Icon strip on top: Cut, Copy, Paste (into the folder when one folder is selected), Rename (bulk rename for
+    several), Delete, Properties. Entries stay in place and turn grey when they cannot run; Paste greys out when the
+    clipboard holds no files. The empty-area menu shows Paste and Properties.
+  - Item rows, in order: Open; Open with (sub-menu: the shell's list on Windows, registered applications elsewhere,
+    then "Choose another application…"; not for programs or shortcuts); Open file location (search results, tags);
+    Open in new tab / new window / other pane (folders); Run as administrator / as another user (Windows programs);
+    Copy path; Create folder with selection; Create shortcut; Pin to / Unpin from sidebar; Compress (to “name.zip”,
+    each to its own ZIP); Extract (files…, here (smart), here, to “name”); Send to; Open in code editor (text, code,
+    one folder); Open in terminal; Edit tags; Show more options.
+  - "Show more options" holds Duplicate, Show in system file manager and Delete permanently — they join the main
+    list while Shift is held — followed, on Windows, by Explorer's own entries (7-Zip, Defender, Git, …) with their
+    icons. Explorer entries that duplicate Navigator commands are hidden.
+  - Empty area: Layout, Sort (with ascending/descending), Group, Refresh, New (folder, file), Open in terminal / code
+    editor, Pin, Select all, Show more options (Explorer's folder background menu on Windows). Trash adds Empty trash;
+    server folders add New folder and Upload.
+  - Settings → General → Context menu hides individual entries. Separators never lead, trail or double. Sub-menus
+    that need disk, process or shell work fill the first time they open.
 - **Split view**: two panes side by side (Ctrl+Shift+S / toolbar), focused pane highlighted; drag between panes.
 - **Preview pane**: image, text and Markdown source (first 64 KB), folder summary, multi-selection summary,
   metadata for other files; **details** with

@@ -82,7 +82,7 @@ internal static class SystemIcons
         }
     }
 
-    private static Bitmap ToBitmap(SystemIconImage image, int size)
+    internal static Bitmap ToBitmap(SystemIconImage image, int size)
     {
         var handle = GCHandle.Alloc(image.Pixels, GCHandleType.Pinned);
         Bitmap bitmap;

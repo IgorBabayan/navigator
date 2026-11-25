@@ -271,3 +271,53 @@ public interface ISecretStore
 
     Task DeleteAsync(string service, string account, CancellationToken cancellationToken = default);
 }
+
+/// <summary>
+/// One entry of the operating system's own context menu (Explorer's classic menu on Windows). <see cref="Key"/> is
+/// unique within the menu it came from and is what <see cref="IShellMenu"/> needs to expand or run the entry.
+/// </summary>
+public sealed record ShellMenuItem(
+    int Key,
+    string Label,
+    string? Verb,
+    bool IsSeparator,
+    bool IsEnabled,
+    bool IsChecked,
+    bool HasChildren,
+    SystemIconImage? Icon)
+{
+    public static ShellMenuItem Separator(int key) => new(key, string.Empty, null, true, false, false, false, null);
+}
+
+/// <summary>What to ask the shell for.</summary>
+/// <param name="Background">The menu of the folder itself (right-click on empty space), not of items in it.</param>
+/// <param name="ExtendedVerbs">Shift was held: include the verbs the shell normally hides.</param>
+/// <param name="HiddenVerbs">Verbs (or labels) left out because Navigator offers the same command itself.</param>
+public sealed record ShellMenuRequest(bool Background, bool ExtendedVerbs, IReadOnlySet<string> HiddenVerbs);
+
+/// <summary>
+/// A live shell context menu. Its handlers stay loaded until it is disposed, so a menu is opened per right-click and
+/// disposed when the Navigator menu closes. All members may be called from any thread.
+/// </summary>
+public interface IShellMenu : IDisposable
+{
+    IReadOnlyList<ShellMenuItem> Items { get; }
+
+    /// <summary>Entries of a sub-menu; the shell fills some of them ("Send to", "Open with") only when asked.</summary>
+    Task<IReadOnlyList<ShellMenuItem>> GetChildrenAsync(ShellMenuItem parent, CancellationToken cancellationToken = default);
+
+    /// <summary>Runs the entry. <paramref name="ownerWindow"/> parents any dialog the handler shows (0 for none).</summary>
+    Task<bool> InvokeAsync(ShellMenuItem item, nint ownerWindow, CancellationToken cancellationToken = default);
+}
+
+/// <summary>The operating system's own context menu for files and folders, where the platform has one.</summary>
+public interface IShellMenuProvider
+{
+    bool IsSupported { get; }
+
+    /// <summary>
+    /// Builds the shell menu for <paramref name="paths"/> (items, or one folder for <see cref="ShellMenuRequest.Background"/>).
+    /// Null when unsupported or when the shell could not produce one. Third-party handlers run off the caller's thread.
+    /// </summary>
+    Task<IShellMenu?> OpenAsync(IReadOnlyList<string> paths, ShellMenuRequest request, CancellationToken cancellationToken = default);
+}

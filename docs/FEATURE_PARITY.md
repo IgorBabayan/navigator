@@ -94,7 +94,7 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Delete to Recycle Bin / Trash | ✅ | 🟦 | 🟦 | ✅ | 🟦 | Linux freedesktop trash tested; Windows `SHFileOperationW`; macOS `NSFileManager` |
 | Permanent delete (with confirmation) | ✅ | 🟦 | ✓ | ✓ | ✓ | |
 | Trash browsing, restore, empty | 🟨 | 🟦 | 🟦 | ✅ | 🟨 | macOS restore only for items Navigator trashed |
-| Archives: create ZIP; extract ZIP/TAR/TAR.GZ (smart destination, zip-slip safe) | 🟨 | 🟦 | ✓ | ✓ | ✓ | ZIP round trip and traversal tested; TAR paths untested; context menu adds "extract to own folder" and "compress each to its own ZIP" |
+| Archives: create ZIP; extract ZIP/TAR/TAR.GZ (smart destination, zip-slip safe) | 🟨 | 🟦 | ✓ | ✓ | ✓ | ZIP round trip and traversal tested; TAR paths untested; context menu: extract files… (pick folder), here (smart), here, to own folder; compress together or each |
 | 7z / RAR / other archive formats | ⬜ | ⬜ | | | | |
 | Hashes (MD5, SHA-1, SHA-256/384/512, compare) | ✅ | 🟦 | ✓ | ✓ | ✓ | `FileHasher` |
 
@@ -108,10 +108,11 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Open in code editor | 🟦 | 🟦 | 🟦 | 🟦 | 🟦 | configurable command |
 | Reveal in system file manager | 🟦 | 🟦 | 🟦 | 🟦 | 🟦 | |
 | Open in new tab / new window | 🟦 | 🟦 | ✓ | ✓ | ✓ | |
-| Type-aware item context menu (icon strip; launch entries per type; organize; Compress/Extract, Send to, Tags, More options sub-menus) | ✅ | 🟦 | 🟦 | 🟦 | 🟦 | `ItemMenuPlanner` (tested) + `ItemMenuBuilder`; costly sub-menus fill on first open |
+| Pane context menus as in Files (icon strip; entries by item type and location; Shift moves rare entries into the main list; background, trash and server variants) | ✅ | 🟦 | 🟦 | 🟦 | 🟦 | `PaneMenuComposer` + `MenuEntry`/`CommandEntry` (tested) + `PaneMenuView`; costly sub-menus fill on first open |
+| Open in other pane; open file location (search, tags); edit tags; per-entry visibility settings | 🟦 | 🟦 | ✓ | ✓ | ✓ | Settings → General → Context menu |
 | Run as administrator / as another user | 🟦 | 🟦 | 🟦 | ➖ | ➖ | Windows shell verbs `runas` / `runasuser` for .exe/.com/.bat/.cmd/.msi; not offered elsewhere |
-| Create shortcut; create folder with selection; send to (known folders, removable drives) | 🟦 | 🟦 | 🟦 | 🟦 | 🟦 | Windows `.lnk` via Windows PowerShell + WScript.Shell; Linux/macOS symbolic link; never overwrites |
-| Shell context menu extensions (Explorer/Nautilus/Finder) | ⬜ | ⬜ | | | | Navigator's own "More options" sub-menu stands in; the native Explorer menu is not hosted yet |
+| Create shortcut; create folder with selection; send to | 🟦 | 🟦 | 🟦 | 🟦 | 🟦 | Windows `.lnk` via Windows PowerShell + WScript.Shell; Linux/macOS symbolic link; never overwrites. Send to: the shell's list on Windows, known folders + removable drives elsewhere |
+| Shell context menu extensions — "Show more options" (Explorer) | 🟦 | 🟦 | 🟦 | ➖ | ➖ | `WindowsShellMenus`: classic IContextMenu on a per-menu STA thread, lazy sub-menus, entry bitmaps; duplicates of Navigator commands hidden. Windows 11 packaged-app commands (IExplorerCommand) are not hosted yet. Linux/macOS have no hostable shell menu |
 | Set as default file manager | ⬜ | ⬜ | | | | Linux desktop file declares `inode/directory` |
 | Native notifications for finished operations | 🟨 | 🟦 | 🟨 | 🟦 | 🟦 | `notify-send`, `osascript`; Windows in-app toast only |
 

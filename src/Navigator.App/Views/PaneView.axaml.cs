@@ -24,7 +24,7 @@ public sealed partial class PaneView : UserControl
 {
     private const double DragThreshold = 6;
     private readonly PaneServices _services = App.Services.GetRequiredService<PaneServices>();
-    private ItemMenuBuilder? _itemMenus;
+    private PaneMenuView? _menus;
     private PaneViewModel? _pane;
     private Point? _bandStart;
     private IReadOnlyCollection<FileItemViewModel>? _bandBaseline;
@@ -72,9 +72,16 @@ public sealed partial class PaneView : UserControl
 
     private Localizer Text => _services.Localizer;
 
-    /// <summary>Renders the type-aware item menu; created on the first right-click on an item.</summary>
-    private ItemMenuBuilder ItemMenus
-        => _itemMenus ??= new ItemMenuBuilder(_services, App.Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ItemMenuBuilder>>());
+    /// <summary>Draws the pane's context menus; created on the first right-click.</summary>
+    private PaneMenuView Menus
+        => _menus ??= new PaneMenuView(_services, App.Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger<PaneMenuView>>());
+
+    /// <summary>Native handle of the window, so dialogs of Explorer menu entries are owned by it (0 where there is none).</summary>
+    private nint OwnerWindow() => TopLevel.GetTopLevel(this)?.TryGetPlatformHandle()?.Handle ?? 0;
+
+    private void ShowItemMenu(bool shiftHeld) => Menus.Render(_pane!.CreateItemMenu(shiftHeld, OwnerWindow)).Open(this);
+
+    private void ShowBackgroundMenu(bool shiftHeld) => Menus.Render(_pane!.CreateBackgroundMenu(shiftHeld, OwnerWindow)).Open(this);
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
@@ -241,7 +248,7 @@ public sealed partial class PaneView : UserControl
         if (point.Properties.IsRightButtonPressed)
         {
             _pane.Selection.PrepareContextMenu(item);
-            BuildItemMenu().Open(this);
+            ShowItemMenu(shift);
             e.Handled = true;
             return;
         }
@@ -282,7 +289,7 @@ public sealed partial class PaneView : UserControl
         if (point.Properties.IsRightButtonPressed)
         {
             _pane.Selection.Clear();
-            BuildBackgroundMenu().Open(this);
+            ShowBackgroundMenu(e.KeyModifiers.HasFlag(KeyModifiers.Shift));
             e.Handled = true;
             return;
         }
@@ -431,7 +438,10 @@ public sealed partial class PaneView : UserControl
         }
         else if (e.Key == Key.Apps || (e.Key == Key.F10 && shift))
         {
-            (_pane.Selection.Count > 0 ? BuildItemMenu() : BuildBackgroundMenu()).Open(this);
+            if (_pane.Selection.Count > 0)
+                ShowItemMenu(shiftHeld: false);
+            else
+                ShowBackgroundMenu(shiftHeld: false);
             e.Handled = true;
         }
     }
@@ -466,122 +476,6 @@ public sealed partial class PaneView : UserControl
 
     // ── Context menus (built on demand; cheap and always in sync with the selection) ──
 
-    /// <summary>
-    /// Item menu. Trash and server folders keep their own short menus; everywhere else the entries depend on what is
-    /// selected (see <see cref="Presentation.Items.ItemMenuPlanner"/>).
-    /// </summary>
-    private ContextMenu BuildItemMenu()
-    {
-        var pane = _pane!;
-        if (pane.IsTrash)
-        {
-            var menu = new ContextMenu();
-            menu.Items.Add(Item("Command.Restore", "Restore", pane.RestoreCommand));
-            menu.Items.Add(Item("Command.DeletePermanently", "Delete", pane.DeleteCommand));
-            menu.Items.Add(new Separator());
-            menu.Items.Add(Item("Command.Properties", "Properties", pane.PropertiesCommand));
-            return menu;
-        }
-
-        return pane.IsRemote ? BuildRemoteItemMenu(pane, pane.Selection.SelectedItems) : ItemMenus.Build(pane);
-    }
-
-    /// <summary>Items in a server folder (plugin file system): only what a server supports, plus Download.</summary>
-    private ContextMenu BuildRemoteItemMenu(PaneViewModel pane, IReadOnlyList<FileItemViewModel> selected)
-    {
-        var menu = new ContextMenu();
-        menu.Items.Add(Item("Command.Open", "Forward", pane.OpenSelectedCommand));
-        if (selected.Any(i => i.IsDirectory))
-            menu.Items.Add(Item("Command.OpenInNewTab", "Add", pane.OpenSelectedInNewTabCommand));
-        menu.Items.Add(new Separator());
-        menu.Items.Add(Item("Remote.Download", "Download", pane.DownloadCommand));
-        menu.Items.Add(Item("Command.Rename", "Rename", pane.RenameCommand, "item.rename"));
-        menu.Items.Add(Item("Command.CopyPath", "Copy", pane.CopyPathCommand, "item.copyPath"));
-        menu.Items.Add(new Separator());
-        menu.Items.Add(Item("Command.Delete", "Delete", pane.DeleteCommand, "item.delete"));
-        return menu;
-    }
-
-    private ContextMenu BuildBackgroundMenu()
-    {
-        var pane = _pane!;
-        var menu = new ContextMenu();
-        if (pane.IsTrash)
-        {
-            menu.Items.Add(Item("Command.EmptyTrash", "Delete", pane.EmptyTrashCommand));
-            menu.Items.Add(Item("Command.Refresh", "Refresh", pane.RefreshCommand));
-            return menu;
-        }
-
-        var layout = new MenuItem { Header = Text["Command.Layout"] };
-        foreach (var value in new[] { Core.Settings.FolderLayout.Details, Core.Settings.FolderLayout.List, Core.Settings.FolderLayout.Tiles, Core.Settings.FolderLayout.MediumIcons, Core.Settings.FolderLayout.LargeIcons })
-            layout.Items.Add(new MenuItem { Header = Text["Layout." + value], Command = pane.SetLayoutCommand, CommandParameter = value, ToggleType = MenuItemToggleType.Radio, IsChecked = pane.Layout == value });
-        menu.Items.Add(layout);
-
-        var sort = new MenuItem { Header = Text["Command.Sort"] };
-        foreach (var value in Enum.GetValues<Core.Sorting.SortColumn>())
-            sort.Items.Add(new MenuItem { Header = Text["Sort." + value], Command = pane.SortByCommand, CommandParameter = value, ToggleType = MenuItemToggleType.Radio, IsChecked = pane.SortColumn == value });
-        menu.Items.Add(sort);
-
-        var group = new MenuItem { Header = Text["Command.Group"] };
-        foreach (var value in Enum.GetValues<Core.Sorting.GroupBy>())
-            group.Items.Add(new MenuItem { Header = Text["GroupBy." + value], Command = pane.SetGroupByCommand, CommandParameter = value, ToggleType = MenuItemToggleType.Radio, IsChecked = pane.GroupBy == value });
-        menu.Items.Add(group);
-        menu.Items.Add(Item("Command.Refresh", "Refresh", pane.RefreshCommand, "nav.refresh"));
-        menu.Items.Add(new Separator());
-
-        if (pane.IsRemote)
-        {
-            menu.Items.Add(Item("Command.NewFolder", "Folder", pane.NewFolderCommand, "item.newFolder"));
-            menu.Items.Add(Item("Remote.Upload", "Upload", pane.UploadCommand));
-            menu.Items.Add(new Separator());
-        }
-
-        if (pane.CanCreateItems)
-        {
-            var create = new MenuItem { Header = Text["Command.New"] };
-            create.Items.Add(Item("Command.NewFolder", "Folder", pane.NewFolderCommand, "item.newFolder"));
-            create.Items.Add(Item("Command.NewFile", "File", pane.NewFileCommand, "item.newFile"));
-            menu.Items.Add(create);
-            menu.Items.Add(Item("Command.Paste", "Paste", pane.PasteCommand, "item.paste"));
-            menu.Items.Add(new Separator());
-            menu.Items.Add(Item("Command.PinToSidebar", "Pin", pane.PinSelectedCommand));
-            menu.Items.Add(Item("Command.OpenTerminal", "Terminal", pane.OpenTerminalCommand));
-            menu.Items.Add(Item("Command.OpenInCodeEditor", "Terminal", pane.OpenInCodeEditorCommand));
-        }
-
-        menu.Items.Add(Item("Command.SelectAll", "Check", pane.SelectAllCommand, "item.selectAll"));
-        menu.Items.Add(Item("Command.Properties", "Properties", pane.PropertiesCommand, "item.properties"));
-        return menu;
-    }
-
-    private MenuItem Item(string textKey, string icon, System.Windows.Input.ICommand command, string? commandId = null)
-    {
-        var item = new MenuItem
-        {
-            Header = Text[textKey],
-            Command = command,
-            Icon = new Controls.IconView { Kind = icon, Width = 16, Height = 16 },
-        };
-
-        if (commandId is not null)
-        {
-            var gestures = Presentation.Commands.CommandRegistry.GesturesFor(commandId, _services.Settings.Current, OperatingSystem.IsMacOS());
-            if (gestures.Count > 0)
-            {
-                try
-                {
-                    item.InputGesture = KeyGesture.Parse(gestures[0].Replace("Cmd", "Meta", StringComparison.Ordinal));
-                }
-                catch (ArgumentException)
-                {
-                }
-            }
-        }
-
-        return item;
-    }
-
     /// <summary>The OS has no "Open with" chooser (Linux/macOS): list the registered applications.</summary>
     private async void OnOpenWithRequested(object? sender, FileItemViewModel item)
     {
@@ -600,7 +494,7 @@ public sealed partial class PaneView : UserControl
 
         menu.Items.Add(new Separator());
         var choose = new MenuItem { Header = Text["OpenWith.Choose"] };
-        choose.Click += async (_, _) => await ItemMenus.ChooseApplicationAsync(item.FullPath).ConfigureAwait(true);
+        choose.Click += async (_, _) => await (_pane?.ChooseApplicationCommand.ExecuteAsync(item.FullPath) ?? Task.CompletedTask).ConfigureAwait(true);
         menu.Items.Add(choose);
         menu.Open(this);
     }

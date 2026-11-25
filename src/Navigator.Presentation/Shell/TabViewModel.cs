@@ -117,6 +117,22 @@ public sealed class TabViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>"Open in other pane": the pane that did not ask shows the location; split view opens if it was closed.</summary>
+    private void ShowInOtherPane(PaneViewModel requester, Location location)
+    {
+        if (_secondary is null)
+        {
+            EnableSplit(location);
+            _secondary!.Start();
+            ActivePane = _secondary;
+            return;
+        }
+
+        var other = ReferenceEquals(requester, Primary) ? _secondary : Primary;
+        other.Navigate(location);
+        ActivePane = other;
+    }
+
     private void EnableSplit(Location location)
     {
         _secondary = CreatePane(location);
@@ -129,6 +145,7 @@ public sealed class TabViewModel : ObservableObject, IDisposable
     {
         var pane = new PaneViewModel(_services, _pins, location);
         pane.OpenInNewTabRequested += (_, target) => OpenInNewTabRequested?.Invoke(this, target);
+        pane.OpenInOtherPaneRequested += (sender, target) => ShowInOtherPane((PaneViewModel)sender!, target);
         // Either pane changes the header in split view (it shows both titles).
         pane.Navigated += (_, _) => RaiseHeader();
         return pane;

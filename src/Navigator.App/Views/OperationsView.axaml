@@ -39,7 +39,7 @@
                                 Foreground="{DynamicResource Accent.Brush}" />
                   </Border>
                   <Border Classes="op-badge" IsVisible="{Binding HasStateIcon}">
-                    <c:IconView Kind="{Binding StateIconKey}" Width="14" Height="14" StrokeThickness="2" HorizontalAlignment="Center" VerticalAlignment="Center"
+                    <c:IconView Kind="{Binding StateIconKey}" Width="14" Height="14" HorizontalAlignment="Center" VerticalAlignment="Center"
                                 Classes.tone-success="{Binding Tone, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Success}"
                                 Classes.tone-warning="{Binding Tone, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Warning}"
                                 Classes.tone-error="{Binding Tone, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Error}"

@@ -68,6 +68,7 @@ internal static class CompositionRoot
         services.AddSingleton<INativeNotificationService, NativeNotificationService>();
         services.AddSingleton<IFileOwnershipProvider, FileOwnershipProvider>();
         services.AddSingleton(_ => PlatformServices.CreateSystemIcons());
+        services.AddSingleton(_ => PlatformServices.CreateShellMenus());
         services.AddSingleton(provider => PlatformServices.CreateGlobalHotkey(provider.GetRequiredService<IPlatformInfo>()));
         services.AddSingleton(_ => PlatformServices.CreateLoginItems());
         services.AddSingleton(provider => PlatformServices.CreateDesktopShortcut(provider.GetRequiredService<IPlatformInfo>()));

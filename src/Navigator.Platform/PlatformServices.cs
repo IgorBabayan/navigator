@@ -40,6 +40,10 @@ public static class PlatformServices
     public static ISystemIconProvider CreateSystemIcons()
         => OperatingSystem.IsWindows() ? new WindowsShellIcons() : new UnsupportedSystemIcons();
 
+    /// <summary>The OS context menu shown under "Show more options" (Windows Explorer's classic menu; none elsewhere).</summary>
+    public static IShellMenuProvider CreateShellMenus()
+        => OperatingSystem.IsWindows() ? new Shell.WindowsShellMenus() : new Shell.UnsupportedShellMenus();
+
     /// <summary>
     /// The OS credential store for secrets that must survive a restart (OAuth refresh tokens of cloud plugins).
     /// <paramref name="directory"/> holds the DPAPI-encrypted files on Windows; other platforms keep secrets in the

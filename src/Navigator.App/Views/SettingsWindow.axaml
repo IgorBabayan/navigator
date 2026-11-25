@@ -104,7 +104,15 @@
             <Border Classes="setting"><StackPanel Spacing="4">
               <CheckBox Content="{c:Tr Command.OpenInNewWindow}" IsChecked="{Binding ShowOpenInNewWindowInContextMenu}" />
               <CheckBox Content="{c:Tr Command.CopyPath}" IsChecked="{Binding ShowCopyPathInContextMenu}" />
-              <CheckBox Content="{c:Tr Command.OpenTerminal}" IsChecked="{Binding ShowOpenTerminalInContextMenu}" /></StackPanel></Border>
+              <CheckBox Content="{c:Tr Command.OpenTerminal}" IsChecked="{Binding ShowOpenTerminalInContextMenu}" />
+              <CheckBox Content="{c:Tr Command.OpenInNewTab}" IsChecked="{Binding ShowOpenInNewTabInContextMenu}" />
+              <CheckBox Content="{c:Tr Command.OpenInOtherPane}" IsChecked="{Binding ShowOpenInOtherPaneInContextMenu}" />
+              <CheckBox Content="{c:Tr Command.CreateFolderWithSelection}" IsChecked="{Binding ShowCreateFolderWithSelectionInContextMenu}" />
+              <CheckBox Content="{c:Tr Command.CreateShortcut}" IsChecked="{Binding ShowCreateShortcutInContextMenu}" />
+              <CheckBox Content="{c:Tr Settings.ContextMenuCompression}" IsChecked="{Binding ShowCompressionInContextMenu}" />
+              <CheckBox Content="{c:Tr Command.SendTo}" IsChecked="{Binding ShowSendToInContextMenu}" />
+              <CheckBox Content="{c:Tr Command.PinToSidebar}" IsChecked="{Binding ShowPinToSidebarInContextMenu}" />
+              <CheckBox Content="{c:Tr Command.EditTags}" IsChecked="{Binding ShowEditTagsInContextMenu}" /></StackPanel></Border>
             <Border Classes="setting"><Grid ColumnDefinitions="*,Auto"><StackPanel VerticalAlignment="Center"><TextBlock Text="{c:Tr Settings.CodeEditor}" /><TextBlock Classes="description" Text="{c:Tr Settings.CodeEditorDescription}" /></StackPanel>
               <TextBox Grid.Column="1" Width="220" Text="{Binding CodeEditorCommand}" PlaceholderText="code" /></Grid></Border>
             <Border Classes="setting"><Grid ColumnDefinitions="*,Auto"><StackPanel VerticalAlignment="Center"><TextBlock Text="{c:Tr Omnibar.ClearHistory}" /><TextBlock Classes="description" Text="{c:Tr Settings.AddressHistoryDescription}" /></StackPanel>

@@ -101,7 +101,7 @@ public sealed partial class PaneViewModel
         RevealInSystemCommand = new AsyncRelayCommand(RevealInSystemAsync);
         PinSelectedCommand = new RelayCommand(PinSelected);
         CompressCommand = new AsyncRelayCommand(CompressAsync, () => CanModifySelection);
-        ExtractCommand = new AsyncRelayCommand(() => ExtractArchivesAsync(intoOwnFolder: false), () => !IsRemote && Selection.SelectedItems.Any(i => ArchiveService.IsSupportedArchive(i.FullPath)));
+        ExtractCommand = new AsyncRelayCommand(() => ExtractArchivesAsync(ExtractTarget.Smart), () => !IsRemote && Selection.SelectedItems.Any(i => ArchiveService.IsSupportedArchive(i.FullPath)));
         RestoreCommand = new AsyncRelayCommand(RestoreAsync, () => IsTrash && HasSelection);
         EmptyTrashCommand = new AsyncRelayCommand(EmptyTrashAsync, () => IsTrash && _ordered.Count > 0);
         ToggleTagCommand = new RelayCommand<string>(ToggleTag);
@@ -544,20 +544,39 @@ public sealed partial class PaneViewModel
     }
 
     /// <summary>
-    /// Extracts every selected archive next to itself: "smart" (a single top-level entry lands directly in the parent) or,
-    /// with <paramref name="intoOwnFolder"/>, always into a new folder named after the archive.
+    /// Extracts every selected archive. <see cref="ExtractTarget.Smart"/>: a single top-level entry lands next to the
+    /// archive, several go into a folder named after it; <see cref="ExtractTarget.Beside"/>: always next to the archive;
+    /// <see cref="ExtractTarget.OwnFolder"/>: always into a new folder named after it; <see cref="ExtractTarget.Chosen"/>:
+    /// into a folder the user picks (each archive in its own sub-folder there when several are selected).
     /// </summary>
-    private async Task ExtractArchivesAsync(bool intoOwnFolder)
+    private async Task ExtractArchivesAsync(ExtractTarget target)
     {
-        foreach (var archive in Selection.SelectedItems.Where(i => ArchiveService.IsSupportedArchive(i.FullPath)).ToList())
+        var archives = Selection.SelectedItems.Where(i => ArchiveService.IsSupportedArchive(i.FullPath)).ToList();
+        if (archives.Count == 0)
+            return;
+
+        string? picked = null;
+        if (target == ExtractTarget.Chosen)
+        {
+            picked = await _services.Dialogs.PickFolderAsync(_services.Localizer["Command.ExtractFiles"]).ConfigureAwait(true);
+            if (picked is null)
+                return;
+        }
+
+        foreach (var archive in archives)
         {
             var parent = Path.GetDirectoryName(archive.FullPath)!;
             string destination;
             try
             {
-                destination = await Task.Run(() => intoOwnFolder
-                    ? ArchiveService.ChooseFolderDestination(archive.FullPath, parent)
-                    : ArchiveService.ChooseSmartDestination(archive.FullPath, parent)).ConfigureAwait(true);
+                destination = await Task.Run(() => target switch
+                {
+                    ExtractTarget.Beside => parent,
+                    ExtractTarget.OwnFolder => ArchiveService.ChooseFolderDestination(archive.FullPath, parent),
+                    ExtractTarget.Chosen when archives.Count > 1 => ArchiveService.ChooseFolderDestination(archive.FullPath, picked!),
+                    ExtractTarget.Chosen => picked!,
+                    _ => ArchiveService.ChooseSmartDestination(archive.FullPath, parent),
+                }).ConfigureAwait(true);
             }
             catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
             {

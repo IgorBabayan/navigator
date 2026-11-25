@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.Input;
 using Navigator.Core.Archives;
 using Navigator.Core.IO;
 using Navigator.Core.Platform;
+using Navigator.Core.Navigation;
 using Navigator.Presentation.Items;
 using Navigator.Presentation.Services;
 
@@ -34,13 +35,37 @@ public sealed partial class PaneViewModel
 
     public IAsyncRelayCommand OpenSelectionInCodeEditorCommand { get; private set; } = null!;
 
+    /// <summary>Shows the selected folder in the other pane of the tab (opening split view when needed).</summary>
+    public IRelayCommand OpenInOtherPaneCommand { get; private set; } = null!;
+
+    /// <summary>Search results and tag views: goes to the folder that contains the item and selects it.</summary>
+    public IRelayCommand OpenFileLocationCommand { get; private set; } = null!;
+
+    /// <summary>Extracts into a folder the user picks.</summary>
+    public IAsyncRelayCommand ExtractFilesCommand { get; private set; } = null!;
+
+    /// <summary>Extracts right next to the archive, whatever it contains.</summary>
+    public IAsyncRelayCommand ExtractHereCommand { get; private set; } = null!;
+
+    /// <summary>Opens a file with the application given as <see cref="OpenWithChoice"/>.</summary>
+    public IAsyncRelayCommand<OpenWithChoice> OpenWithApplicationCommand { get; private set; } = null!;
+
+    /// <summary>The OS "Open with" chooser where there is one, otherwise a file picker for the program.</summary>
+    public IAsyncRelayCommand<string> ChooseApplicationCommand { get; private set; } = null!;
+
     private bool HasSingleLocalFile => !IsRemote && !IsTrash && Selection.SelectedItems is [{ IsDirectory: false }];
 
     private void InitializeItemMenuCommands()
     {
         RunAsAdministratorCommand = new AsyncRelayCommand(() => RunSelectionElevatedAsync(ElevationOptions.Administrator), () => HasSingleLocalFile);
         RunAsOtherUserCommand = new AsyncRelayCommand(() => RunSelectionElevatedAsync(ElevationOptions.OtherUser), () => HasSingleLocalFile);
-        ExtractToFolderCommand = new AsyncRelayCommand(() => ExtractArchivesAsync(intoOwnFolder: true), () => ExtractCommand.CanExecute(null));
+        ExtractToFolderCommand = new AsyncRelayCommand(() => ExtractArchivesAsync(ExtractTarget.OwnFolder), () => ExtractCommand.CanExecute(null));
+        ExtractFilesCommand = new AsyncRelayCommand(() => ExtractArchivesAsync(ExtractTarget.Chosen), () => ExtractCommand.CanExecute(null));
+        ExtractHereCommand = new AsyncRelayCommand(() => ExtractArchivesAsync(ExtractTarget.Beside), () => ExtractCommand.CanExecute(null));
+        OpenInOtherPaneCommand = new RelayCommand(OpenSelectionInOtherPane, () => !IsRemote && !IsTrash && Selection.SelectedItems is [{ IsDirectory: true }]);
+        OpenFileLocationCommand = new RelayCommand(OpenSelectionLocation, () => (IsSearch || _location.Kind == LocationKind.Tag) && Selection.Count == 1);
+        OpenWithApplicationCommand = new AsyncRelayCommand<OpenWithChoice>(LaunchWithAsync);
+        ChooseApplicationCommand = new AsyncRelayCommand<string>(ChooseApplicationAsync);
         CompressEachCommand = new AsyncRelayCommand(CompressEachAsync, () => CanModifySelection && Selection.Count > 1);
         PasteIntoFolderCommand = new AsyncRelayCommand(PasteIntoSelectedFolderAsync, () => CanModifySelection && Selection.SelectedItems is [{ IsDirectory: true }]);
         CreateFolderWithSelectionCommand = new AsyncRelayCommand(CreateFolderWithSelectionAsync, () => CanModifySelection && CanCreateItems);
@@ -62,23 +87,10 @@ public sealed partial class PaneViewModel
         CreateShortcutCommand.NotifyCanExecuteChanged();
         SendToCommand.NotifyCanExecuteChanged();
         OpenSelectionInCodeEditorCommand.NotifyCanExecuteChanged();
-    }
-
-    /// <summary>Summarizes the current selection for the context menu planner (one pass, no disk access).</summary>
-    public SelectionTraits DescribeSelection()
-        => SelectionTraits.Collect(Selection.SelectedItems, ArchiveService.IsSupportedArchive,
-            IsRemote ? static _ => ElevationOptions.None : _services.Launcher.GetElevationOptions);
-
-    /// <summary>Settings and location rules that shape the item context menu.</summary>
-    public ItemMenuOptions GetItemMenuOptions()
-    {
-        var general = _services.Settings.Current.General;
-        return new ItemMenuOptions(
-            general.ShowOpenInNewWindowInContextMenu,
-            general.ShowCopyPathInContextMenu,
-            general.ShowOpenTerminalInContextMenu,
-            CanModifySelection,
-            CanCreateItems);
+        OpenInOtherPaneCommand.NotifyCanExecuteChanged();
+        OpenFileLocationCommand.NotifyCanExecuteChanged();
+        ExtractFilesCommand.NotifyCanExecuteChanged();
+        ExtractHereCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>

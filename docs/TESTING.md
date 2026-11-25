@@ -26,6 +26,7 @@ publishes all six RIDs as a smoke test. `release.yml` repeats the tests before b
 |---|---|---|---|
 | 2026-11-24 | Ubuntu 24.04 container, .NET 10.0.15, **no nuget.org access** | All unit + integration tests compiled against a minimal MSTest-compatible shim (attributes + `Assert` subset) and the presentation layer against a CommunityToolkit.Mvvm shim; run three times | **124 passed, 0 failed** (each run) |
 | 2026-11-25 | Ubuntu 24.04 container, .NET 10.0.115, **no nuget.org access** | New `ItemMenuPlannerTests` run against the same kind of shims (full suite not re-run in this session) | **11 passed, 0 failed** |
+| 2026-11-25 (later) | same | Whole `Navigator.UnitTests` suite (incl. new `PaneMenuTests`, `ExtractDestinationTests`; `ItemMenuPlannerTests` removed) against MSTest / CommunityToolkit.Mvvm / Logging shims | **245 passed, 0 failed** |
 
 Caveats:
 

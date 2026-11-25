@@ -62,7 +62,7 @@ public sealed class OperationItemViewModel : ObservableObject
             FileOperationKind.Delete => "Delete",
             FileOperationKind.Recycle => "Trash",
             FileOperationKind.Restore => "Restore",
-            FileOperationKind.CreateArchive => "Archive",
+            FileOperationKind.CreateArchive => "Compress",
             FileOperationKind.ExtractArchive => "Extract",
             _ => "Multiple",
         };

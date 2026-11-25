@@ -23,6 +23,7 @@ public sealed class PaneServices(
     ITrashService trash,
     TrashStatus trashStatus,
     IFileLauncher launcher,
+    IShellMenuProvider shellMenus,
     IKnownFolderProvider knownFolders,
     IVolumeProvider volumes,
     IPlatformInfo platform,
@@ -58,6 +59,9 @@ public sealed class PaneServices(
     public TrashStatus TrashStatus { get; } = trashStatus;
 
     public IFileLauncher Launcher { get; } = launcher;
+
+    /// <summary>The OS context menu behind "Show more options" (Windows); unsupported elsewhere.</summary>
+    public IShellMenuProvider ShellMenus { get; } = shellMenus;
 
     public IKnownFolderProvider KnownFolders { get; } = knownFolders;
 
