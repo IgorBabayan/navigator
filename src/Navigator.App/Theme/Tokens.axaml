@@ -27,6 +27,9 @@
       <SolidColorBrush x:Key="Brush.TabSelected" Color="#D9FFFFFF" />
       <SolidColorBrush x:Key="Brush.Overlay" Color="#4C000000" />
       <SolidColorBrush x:Key="Brush.Danger" Color="#C42B1C" />
+      <SolidColorBrush x:Key="Brush.DangerHover" Color="#AE2616" />
+      <SolidColorBrush x:Key="Brush.DangerPressed" Color="#992114" />
+      <SolidColorBrush x:Key="Brush.DangerForeground" Color="#FFFFFF" />
       <SolidColorBrush x:Key="Brush.Warning" Color="#9D5D00" />
       <SolidColorBrush x:Key="Brush.Success" Color="#0F7B0F" />
       <SolidColorBrush x:Key="Brush.ProgressTrack" Color="#14000000" />
@@ -51,6 +54,9 @@
       <SolidColorBrush x:Key="Brush.TabSelected" Color="#E62E2E2E" />
       <SolidColorBrush x:Key="Brush.Overlay" Color="#73000000" />
       <SolidColorBrush x:Key="Brush.Danger" Color="#FF99A4" />
+      <SolidColorBrush x:Key="Brush.DangerHover" Color="#FFADB6" />
+      <SolidColorBrush x:Key="Brush.DangerPressed" Color="#FFC2C8" />
+      <SolidColorBrush x:Key="Brush.DangerForeground" Color="#1A1A1A" />
       <SolidColorBrush x:Key="Brush.Warning" Color="#FCE100" />
       <SolidColorBrush x:Key="Brush.Success" Color="#6CCB5F" />
       <SolidColorBrush x:Key="Brush.ProgressTrack" Color="#1FFFFFFF" />
@@ -68,6 +74,9 @@
   <SolidColorBrush x:Key="Accent.SelectionHoverBrush" Color="#4D0078D4" />
   <SolidColorBrush x:Key="Accent.SelectionBorderBrush" Color="#B80078D4" />
   <SolidColorBrush x:Key="Accent.ForegroundBrush" Color="#FFFFFF" />
+  <!-- Filled accent buttons: hover/pressed move away from the text color, so the label only gains contrast -->
+  <SolidColorBrush x:Key="Accent.HoverBrush" Color="#006ABB" />
+  <SolidColorBrush x:Key="Accent.PressedBrush" Color="#005DA5" />
   <SolidColorBrush x:Key="TextControlSelectionForegroundBrush" Color="#FFFFFF" />
   <x:Double x:Key="Window.TintOpacity">0.7</x:Double>
 

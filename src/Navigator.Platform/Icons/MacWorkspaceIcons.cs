@@ -44,13 +44,23 @@ internal sealed unsafe partial class MacWorkspaceIcons : ISystemIconProvider, ID
 
     public Task<SystemIconImage?> GetIconAsync(string key, int pixelSize, CancellationToken cancellationToken = default)
     {
-        var target = Resolve(key);
-        if (target is null || _work.IsAddingCompleted)
+        var size = Math.Clamp(pixelSize, 16, 512);
+        Func<SystemIconImage?>? render = null;
+        if (SystemIconKey.TryParseAction(key, out var command))
+        {
+            if (SymbolFor(command) is { } symbol)
+                render = () => RenderSymbol(symbol, size);
+        }
+        else if (Resolve(key) is { } target)
+        {
+            render = () => Render(target, size);
+        }
+
+        if (render is null || _work.IsAddingCompleted)
             return Task.FromResult<SystemIconImage?>(null);
 
         _ = _worker.Value;
         var done = new TaskCompletionSource<SystemIconImage?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var size = Math.Clamp(pixelSize, 16, 512);
         try
         {
             if (!_work.TryAdd(() =>
@@ -61,7 +71,7 @@ internal sealed unsafe partial class MacWorkspaceIcons : ISystemIconProvider, ID
                         return;
                     }
 
-                    done.TrySetResult(Render(target.Value, size));
+                    done.TrySetResult(render());
                 }))
             {
                 done.TrySetResult(null);
@@ -140,7 +150,61 @@ internal sealed unsafe partial class MacWorkspaceIcons : ISystemIconProvider, ID
         }
     }
 
-    private static SystemIconImage? Draw(nint picture, int size)
+    /// <summary>SF Symbols (macOS 11+) for toolbar commands, as Finder's own toolbar uses them.</summary>
+    private static string? SymbolFor(string command) => command switch
+    {
+        "New" => "plus.circle",
+        "Cut" => "scissors",
+        "Copy" => "doc.on.doc",
+        "Paste" => "doc.on.clipboard",
+        "Rename" => "pencil",
+        "Delete" => "trash",
+        "Share" => "square.and.arrow.up",
+        "Sort" => "arrow.up.arrow.down",
+        "Group" => "square.grid.3x1.below.line.grid.1x2",
+        "Layout" => "list.bullet",
+        "More" => "ellipsis.circle",
+        "Properties" => "info.circle",
+        "Download" => "arrow.down.circle",
+        "Upload" => "arrow.up.circle",
+        _ => null,
+    };
+
+    /// <summary>A symbol drawn black into a square, centred with its aspect ratio kept; the UI tints it (template image).</summary>
+    private static SystemIconImage? RenderSymbol(string symbol, int size)
+    {
+        var pool = objc_autoreleasePoolPush();
+        try
+        {
+            var imageClass = Class("NSImage");
+            var factory = Selector("imageWithSystemSymbolName:accessibilityDescription:");
+            if (imageClass == 0 || (Send(imageClass, Selector("respondsToSelector:"), factory) & 0xFF) == 0)
+                return null; // before macOS 11
+            var image = Send(imageClass, factory, NativeString(symbol), 0);
+            if (image == 0)
+                return null;
+
+            var proposed = new Rect(0, 0, size, size);
+            var picture = SendRect(image, Selector("CGImageForProposedRect:context:hints:"), &proposed, 0, 0);
+            if (picture == 0)
+                return null;
+
+            double width = CGImageGetWidth(picture), height = CGImageGetHeight(picture);
+            if (width <= 0 || height <= 0)
+                return null;
+            var scale = size / Math.Max(width, height);
+            var fitted = new Rect((size - (width * scale)) / 2, (size - (height * scale)) / 2, width * scale, height * scale);
+            return Draw(picture, size, fitted) is { } drawn ? drawn with { IsTemplate = true } : null;
+        }
+        finally
+        {
+            objc_autoreleasePoolPop(pool);
+        }
+    }
+
+    private static SystemIconImage? Draw(nint picture, int size) => Draw(picture, size, new Rect(0, 0, size, size));
+
+    private static SystemIconImage? Draw(nint picture, int size, Rect area)
     {
         var pixels = new byte[size * size * 4];
         var colors = CGColorSpaceCreateDeviceRGB();
@@ -153,7 +217,7 @@ internal sealed unsafe partial class MacWorkspaceIcons : ISystemIconProvider, ID
                     return null;
                 try
                 {
-                    CGContextDrawImage(context, new Rect(0, 0, size, size), picture);
+                    CGContextDrawImage(context, area, picture);
                 }
                 finally
                 {
@@ -229,6 +293,15 @@ internal sealed unsafe partial class MacWorkspaceIcons : ISystemIconProvider, ID
 
     [LibraryImport(ObjC, EntryPoint = "objc_msgSend")]
     private static partial nint Send(nint receiver, nint selector, nint argument);
+
+    [LibraryImport(ObjC, EntryPoint = "objc_msgSend")]
+    private static partial nint Send(nint receiver, nint selector, nint first, nint second);
+
+    [LibraryImport(CoreGraphics)]
+    private static partial nuint CGImageGetWidth(nint image);
+
+    [LibraryImport(CoreGraphics)]
+    private static partial nuint CGImageGetHeight(nint image);
 
     [LibraryImport(ObjC, EntryPoint = "objc_msgSend")]
     private static partial nint SendText(nint receiver, nint selector, byte* text);

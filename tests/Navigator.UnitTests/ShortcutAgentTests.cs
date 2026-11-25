@@ -77,6 +77,33 @@ public sealed class ShortcutAgentTests
     }
 
     [TestMethod]
+    public void ActivationChannel_HandsFoldersToTheRunningInstance()
+    {
+        if (OperatingSystem.IsWindows() && !System.Net.Sockets.Socket.OSSupportsUnixDomainSockets)
+            Assert.Inconclusive("No Unix domain sockets.");
+        using var temp = new TempDirectory();
+        var socket = ActivationChannel.SocketPath(Directories(temp));
+        string[] folders = [Path.Combine(temp.Path, "a b"), Path.Combine(temp.Path, "ünï")];
+
+        IReadOnlyList<string>? received = null;
+        using var activated = new SemaphoreSlim(0);
+        using var listener = ActivationChannel.Listen(socket, (IReadOnlyList<string> paths) =>
+        {
+            received = paths;
+            activated.Release();
+        });
+        Assert.IsNotNull(listener);
+
+        Assert.IsTrue(ActivationChannel.TrySignal(socket, TimeSpan.FromSeconds(2), folders));
+        Assert.IsTrue(activated.Wait(TimeSpan.FromSeconds(2)));
+        CollectionAssert.AreEqual(folders, received!.ToArray());
+
+        Assert.IsTrue(ActivationChannel.TrySignal(socket, TimeSpan.FromSeconds(2), []));
+        Assert.IsTrue(activated.Wait(TimeSpan.FromSeconds(2)));
+        Assert.AreEqual(0, received!.Count, "a plain launch only activates");
+    }
+
+    [TestMethod]
     public void ActivationChannel_UsesAShortPathWhenTheCacheFolderIsDeep()
     {
         var deep = new AppDirectories("/c", "/" + new string('x', 120), "/l");

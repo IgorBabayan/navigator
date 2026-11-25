@@ -8,6 +8,20 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
 
 ### Added
 
+- Windows: paste files copied in other applications. Files copied or cut in Explorer are pasted through the usual
+  copy/move queue (a cut empties the clipboard afterwards, like Explorer). Files copied inside a Remote Desktop
+  session (and other clipboard-only files such as zip contents or mail attachments) are streamed straight into the
+  folder in 1 MiB chunks, with no temporary copy; taken names get a " (2)" suffix and a failed or cancelled item
+  leaves no partial file. The context menu's Paste state is probed without fetching clipboard data.
+- Drag and drop everywhere: between the panes of a tab, between tabs (rest on a tab to switch to it, or drop on the
+  tab to put the items in its active folder), onto the sidebar (drop folders on the pinned group's header or between
+  pinned entries to pin them; drop items on a pinned folder, drive or server entry to copy/move/upload them), out to
+  other applications (real files) and in from other applications. Folders under the pointer are outlined, the list
+  scrolls near its edges, and a folder can never be dropped into itself. Files coming from another application are
+  always reported back to it as copied, so the source never deletes originals that Navigator is still moving.
+- Drop overlay: while files are dragged over a pane, a dashed, tinted frame and a card ("Move to “Documents”",
+  "Copy to…", "Upload to…", with the Ctrl/Shift hint) show where the items will land. Tabs and the pinned group's
+  header light up with the accent color when they accept the drop.
 - Recycle Bin / Trash in the sidebar: its context menu starts with "Empty trash" (with confirmation), followed by a
   separator and the other actions. The item is disabled while the trash is empty; the state is re-checked off the UI
   thread when the menu opens. Linux and macOS now answer "is the trash empty?" cheaply too, so the full-bin icon

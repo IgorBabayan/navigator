@@ -93,7 +93,7 @@ internal sealed class GlobalHotkeyController : IGlobalHotkeyStatus, IDisposable
     {
         try
         {
-            var listener = await Task.Run(() => ActivationChannel.Listen(_socketPath, () => Dispatcher.UIThread.Post(Activate))).ConfigureAwait(true);
+            var listener = await Task.Run(() => ActivationChannel.Listen(_socketPath, folders => Dispatcher.UIThread.Post(() => Activate(folders)))).ConfigureAwait(true);
             if (_disposed)
                 listener?.Dispose();
             else
@@ -319,6 +319,17 @@ internal sealed class GlobalHotkeyController : IGlobalHotkeyStatus, IDisposable
     {
         if (!_disposed)
             _windows.ShowOrActivate();
+    }
+
+    // A second launch of the app (or the agent) reached this instance; it may pass folders to open.
+    private void Activate(IReadOnlyList<string> folders)
+    {
+        if (_disposed)
+            return;
+        if (folders.Count == 0)
+            _windows.ShowOrActivate();
+        else
+            _windows.OpenFolders(folders);
     }
 
     // Called on the hotkey thread (Windows, X11) or the main thread (macOS).

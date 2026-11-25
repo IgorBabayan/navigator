@@ -11,6 +11,9 @@ public enum ArchiveFormat
     Zip,
     Tar,
     TarGz,
+
+    /// <summary>Written through an installed 7-Zip / libarchive program (<see cref="SevenZipTool"/>); not extracted.</summary>
+    SevenZip,
 }
 
 /// <summary>
@@ -340,7 +343,7 @@ public static class ArchiveService
         }
     }
 
-    private static void Collect(string path, string baseDirectory, List<(string, string, bool, long)> entries)
+    internal static void Collect(string path, string baseDirectory, List<(string FullPath, string EntryName, bool IsDirectory, long Length)> entries)
     {
         var relative = Path.GetRelativePath(baseDirectory, path).Replace(Path.DirectorySeparatorChar, '/');
         var directory = new DirectoryInfo(path);

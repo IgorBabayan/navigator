@@ -99,6 +99,12 @@ public interface IDialogService
 
     Task<ConflictChoice> ResolveConflictAsync(ConflictInfo conflict);
 
+    /// <summary>
+    /// "Conflicting file name": every incoming item whose name is taken, each with its own choice and one choice for
+    /// all. Returns the choice per source path, or null when the user cancels the whole paste.
+    /// </summary>
+    Task<IReadOnlyDictionary<string, NameConflictAction>?> ResolveNameConflictsAsync(IReadOnlyList<NameConflict> conflicts);
+
     Task<ErrorChoice> ResolveErrorAsync(string path, FileOperationErrorKind kind, string message, bool canRetry);
 
     Task ShowMessageAsync(string title, string message);
@@ -117,8 +123,17 @@ public interface IClipboardService
 {
     Task SetFilesAsync(IReadOnlyList<string> paths, bool cut);
 
-    /// <summary>Paths currently on the clipboard and whether they were cut (null when the clipboard holds no files).</summary>
-    Task<(IReadOnlyList<string> Paths, bool IsCut)?> GetFilesAsync();
+    /// <summary>
+    /// Files on the clipboard: Navigator's own copy/cut, or files another application put there (Explorer, a Remote
+    /// Desktop session). Null when the clipboard holds no files.
+    /// </summary>
+    Task<ClipboardFileList?> GetFilesAsync();
+
+    /// <summary>Whether Paste has anything to paste; does not fetch the files themselves (menu probes).</summary>
+    Task<bool> HasFilesAsync();
+
+    /// <summary>Writes streamed clipboard files (<see cref="ClipboardFileList.IsStreamed"/>) into a local folder; returns the new top-level items.</summary>
+    Task<IReadOnlyList<string>> PasteStreamedAsync(string destination, CancellationToken cancellationToken);
 
     Task SetTextAsync(string text);
 

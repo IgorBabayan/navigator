@@ -24,7 +24,7 @@ public sealed class UnsupportedShellMenus : IShellMenuProvider
 /// </para>
 /// </summary>
 [SupportedOSPlatform("windows")]
-internal sealed class WindowsShellMenus : IShellMenuProvider
+internal sealed partial class WindowsShellMenus : IShellMenuProvider
 {
     public bool IsSupported => true;
 
@@ -55,6 +55,41 @@ internal sealed class WindowsShellMenus : IShellMenuProvider
         finally
         {
             // Without a menu nobody else will ever end this thread.
+            if (menu is null)
+                apartment.Close();
+        }
+    }
+}
+
+/// <summary>Windows: the shell's Open With handler on its own, for files whose item menu has no "Open with" sub-menu.</summary>
+[SupportedOSPlatform("windows")]
+internal sealed partial class WindowsShellMenus
+{
+    public async Task<IShellMenu?> OpenWithListAsync(string path, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(path);
+        if (cancellationToken.IsCancellationRequested)
+            return null;
+
+        var apartment = new ShellApartment();
+        NativeShellMenu? menu = null;
+        try
+        {
+            menu = await apartment.RunAsync(() => NativeShellMenu.BuildOpenWith(apartment, path)).ConfigureAwait(false);
+            if (menu is not null && cancellationToken.IsCancellationRequested)
+            {
+                menu.Dispose();
+                menu = null;
+            }
+
+            return menu;
+        }
+        catch (Exception refusal) when (refusal is COMException or ArgumentException or InvalidOperationException or OperationCanceledException)
+        {
+            return null;
+        }
+        finally
+        {
             if (menu is null)
                 apartment.Close();
         }
@@ -149,6 +184,11 @@ internal sealed unsafe partial class NativeShellMenu : IShellMenu
     private static readonly Guid ShellItemId = new("43826D1E-E718-42EE-BC55-A1E261C37BFE");
     private static readonly Guid UiObjectHandler = new("3981E225-F559-11D3-8E3A-00C04F6837D5");   // BHID_SFUIObject
     private static readonly Guid ViewObjectHandler = new("3981E226-F559-11D3-8E3A-00C04F6837D5"); // BHID_SFViewObject
+    private static readonly Guid DataObjectHandler = new("B8C0BD9F-ED24-455C-83E6-D5390C4FE8C4"); // BHID_DataObject
+    private static readonly Guid DataObjectId = new("0000010E-0000-0000-C000-000000000046");      // IDataObject
+    private static readonly Guid ShellExtInitId = new("000214E8-0000-0000-C000-000000000046");    // IShellExtInit
+    private static readonly Guid OpenWithHandlerClass = new("09799AFB-AD67-11D1-ABCD-00C04FC30936"); // CLSID_OpenWithMenu
+    private const uint InProcessServer = 0x1; // CLSCTX_INPROC_SERVER
 
     private readonly ShellApartment _apartment;
     private readonly nint _handler;
@@ -207,34 +247,137 @@ internal sealed unsafe partial class NativeShellMenu : IShellMenu
         return menu;
     }
 
+    /// <summary>
+    /// Runs on the apartment thread. The Open With handler (the object behind Explorer's own "Open with" entry) is
+    /// created directly and initialised with the file's data object, so its list exists even for types whose item menu
+    /// only shows a plain "Open with…" command. The single "Open with" pop-up it adds is flattened: the result's items
+    /// are the applications plus the store / chooser entries, each runnable through <see cref="InvokeAsync"/>.
+    /// </summary>
+    public static NativeShellMenu? BuildOpenWith(ShellApartment apartment, string path)
+    {
+        var dataObject = DataObjectFor(path);
+        if (dataObject == 0)
+            return null;
+
+        nint handler = 0;
+        try
+        {
+            var handlerClass = OpenWithHandlerClass;
+            var wanted = ContextMenuId;
+            if (CoCreateInstance(&handlerClass, 0, InProcessServer, &wanted, &handler) < 0 || handler == 0)
+                return null;
+
+            var initializer = QueryInterface(handler, ShellExtInitId);
+            if (initializer == 0)
+                return Abandon(ref handler);
+            try
+            {
+                // IShellExtInit::Initialize(folder list, data object, ProgID key): only the data object matters here.
+                var initialize = (delegate* unmanaged[Stdcall]<nint, nint, nint, nint, int>)(*(nint**)initializer)[3];
+                if (initialize(initializer, 0, dataObject, 0) < 0)
+                    return Abandon(ref handler);
+            }
+            finally
+            {
+                Release(initializer);
+            }
+        }
+        finally
+        {
+            Release(dataObject);
+        }
+
+        var popup = CreatePopupMenu();
+        if (popup == 0)
+            return Abandon(ref handler);
+
+        var queryContextMenu = (delegate* unmanaged[Stdcall]<nint, nint, uint, uint, uint, uint, int>)(*(nint**)handler)[3];
+        if (queryContextMenu(handler, popup, 0, FirstId, LastId, CmfNormal) < 0)
+        {
+            _ = DestroyMenu(popup);
+            return Abandon(ref handler);
+        }
+
+        var menu = new NativeShellMenu(apartment, handler, popup, Path.GetDirectoryName(path), EmptyVerbs);
+        var top = menu.Read(popup);
+        var listParent = top.Find(static item => item.HasChildren);
+        menu.Items = listParent is null ? top : menu.LoadChildren(listParent.Key);
+        return menu;
+    }
+
+    private static readonly IReadOnlySet<string> EmptyVerbs = new HashSet<string>(0);
+
+    private static NativeShellMenu? Abandon(ref nint handler)
+    {
+        if (handler != 0)
+            Release(handler);
+        handler = 0;
+        return null;
+    }
+
+    /// <summary>IDataObject of one file (BHID_DataObject on its shell item); 0 when the shell does not know the path.</summary>
+    private static nint DataObjectFor(string path)
+    {
+        nint list;
+        if (SHParseDisplayName(path, 0, &list, 0, null) < 0 || list == 0)
+            return 0;
+        try
+        {
+            nint item;
+            var itemId = ShellItemId;
+            if (SHCreateItemFromIDList(list, &itemId, &item) < 0 || item == 0)
+                return 0;
+            try
+            {
+                var kind = DataObjectHandler;
+                var wanted = DataObjectId;
+                nint result;
+                var bind = (delegate* unmanaged[Stdcall]<nint, nint, Guid*, Guid*, nint*, int>)(*(nint**)item)[3];
+                return bind(item, 0, &kind, &wanted, &result) < 0 ? 0 : result;
+            }
+            finally
+            {
+                Release(item);
+            }
+        }
+        finally
+        {
+            Marshal.FreeCoTaskMem(list);
+        }
+    }
+
     public Task<IReadOnlyList<ShellMenuItem>> GetChildrenAsync(ShellMenuItem parent, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(parent);
         return _apartment.RunAsync<IReadOnlyList<ShellMenuItem>>(() =>
+            _released || cancellationToken.IsCancellationRequested ? [] : LoadChildren(parent.Key));
+    }
+
+    /// <summary>Apartment thread only: the entries of a sub-menu, asking its handler to fill it the first time.</summary>
+    private IReadOnlyList<ShellMenuItem> LoadChildren(int parentKey)
+    {
+        if (!_children.TryGetValue(parentKey, out var child))
+            return [];
+        if (_loadedChildren.TryGetValue(parentKey, out var known))
+            return known;
+
+        // "Send to", "Open with" and similar sub-menus are empty until their handler sees WM_INITMENUPOPUP.
+        var position = (nint)child.Position;
+        if (_handler3 != 0)
         {
-            if (_released || cancellationToken.IsCancellationRequested || !_children.TryGetValue(parent.Key, out var child))
-                return [];
-            if (_loadedChildren.TryGetValue(parent.Key, out var known))
-                return known;
+            nint ignored;
+            var handleMenuMessage2 = (delegate* unmanaged[Stdcall]<nint, uint, nuint, nint, nint*, int>)(*(nint**)_handler3)[7];
+            _ = handleMenuMessage2(_handler3, WmInitMenuPopup, (nuint)child.Handle, position, &ignored);
+        }
+        else if (_handler2 != 0)
+        {
+            var handleMenuMessage = (delegate* unmanaged[Stdcall]<nint, uint, nuint, nint, int>)(*(nint**)_handler2)[6];
+            _ = handleMenuMessage(_handler2, WmInitMenuPopup, (nuint)child.Handle, position);
+        }
 
-            // "Send to", "Open with" and similar sub-menus are empty until their handler sees WM_INITMENUPOPUP.
-            var position = (nint)child.Position;
-            if (_handler3 != 0)
-            {
-                nint ignored;
-                var handleMenuMessage2 = (delegate* unmanaged[Stdcall]<nint, uint, nuint, nint, nint*, int>)(*(nint**)_handler3)[7];
-                _ = handleMenuMessage2(_handler3, WmInitMenuPopup, (nuint)child.Handle, position, &ignored);
-            }
-            else if (_handler2 != 0)
-            {
-                var handleMenuMessage = (delegate* unmanaged[Stdcall]<nint, uint, nuint, nint, int>)(*(nint**)_handler2)[6];
-                _ = handleMenuMessage(_handler2, WmInitMenuPopup, (nuint)child.Handle, position);
-            }
-
-            var entries = Read(child.Handle);
-            _loadedChildren[parent.Key] = entries;
-            return entries;
-        });
+        var entries = Read(child.Handle);
+        _loadedChildren[parentKey] = entries;
+        return entries;
     }
 
     public Task<bool> InvokeAsync(ShellMenuItem item, nint ownerWindow, CancellationToken cancellationToken = default)
@@ -523,6 +666,9 @@ internal sealed unsafe partial class NativeShellMenu : IShellMenu
 
     [LibraryImport("shell32.dll")]
     private static partial int SHCreateItemFromIDList(nint idList, Guid* interfaceId, nint* item);
+
+    [LibraryImport("ole32.dll")]
+    private static partial int CoCreateInstance(Guid* classId, nint outer, uint context, Guid* interfaceId, nint* instance);
 
     [LibraryImport("user32.dll")]
     private static partial nint CreatePopupMenu();

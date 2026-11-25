@@ -51,6 +51,16 @@ internal sealed class PaneMenuView(PaneServices services, ILogger logger)
         return menu;
     }
 
+    /// <summary>A menu dropped down from a toolbar button (the command bar's "New").</summary>
+    public void OpenBelow(PaneMenu model, Control anchor)
+    {
+        ArgumentNullException.ThrowIfNull(anchor);
+        var menu = Render(model);
+        menu.Placement = PlacementMode.BottomEdgeAlignedLeft;
+        menu.PlacementTarget = anchor;
+        menu.Open(anchor);
+    }
+
     // ── Icon strip ──
 
     private MenuItem Strip(ContextMenu menu, List<MenuEntry> entries)
@@ -60,7 +70,8 @@ internal sealed class PaneMenuView(PaneServices services, ILogger logger)
         {
             var tool = new Button
             {
-                Content = new IconView { Kind = action.Glyph, Width = GlyphSize, Height = GlyphSize },
+                // The strip's commands (Cut, Copy, Paste, Rename, Delete, Properties) use the OS's own pictures.
+                Content = new IconView { Kind = action.Glyph, OsGlyph = action.Glyph, Width = GlyphSize, Height = GlyphSize },
                 Command = action.Command,
                 CommandParameter = action.Parameter,
             };
@@ -87,7 +98,7 @@ internal sealed class PaneMenuView(PaneServices services, ILogger logger)
     {
         try
         {
-            if (await services.Clipboard.GetFilesAsync().ConfigureAwait(true) is not { } content || content.Paths.Count == 0)
+            if (!await services.Clipboard.HasFilesAsync().ConfigureAwait(true))
                 paste.IsEnabled = false;
         }
         catch (Exception ex) when (ex is InvalidOperationException or System.Runtime.InteropServices.ExternalException or TimeoutException)
@@ -193,9 +204,9 @@ internal sealed class PaneMenuView(PaneServices services, ILogger logger)
             return new Image { Source = bitmap, Width = GlyphSize, Height = GlyphSize };
         }
 
-        if (entry.Glyph is null)
+        if (entry.Glyph is null && entry.SystemIcon is null)
             return null;
-        var glyph = new IconView { Kind = entry.Glyph, Width = GlyphSize, Height = GlyphSize };
+        var glyph = new IconView { Kind = entry.Glyph, SystemIcon = entry.SystemIcon, Width = GlyphSize, Height = GlyphSize };
         if (entry.Tint is { } tint && Color.TryParse(tint, out var color))
             glyph.Foreground = new ImmutableSolidColorBrush(color); // tags show in their own color
         return glyph;

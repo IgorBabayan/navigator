@@ -51,6 +51,8 @@ internal sealed partial class FreedesktopIcons : ISystemIconProvider, IDisposabl
     {
         if (!IsSupported)
             return null;
+        if (SystemIconKey.TryParseThemed(key, out var themed) && Path.IsPathRooted(themed))
+            return await DecodeFileAsync(themed, pixelSize, cancellationToken).ConfigureAwait(false);
         var names = NamesFor(key);
         if (names.Length == 0)
             return null;
@@ -63,8 +65,9 @@ internal sealed partial class FreedesktopIcons : ISystemIconProvider, IDisposabl
             {
                 foreach (var file in theme.Find(names, pixelSize))
                 {
+                    // "-symbolic" icons are single-color glyphs meant to be painted in the text color.
                     if (Decode(file, pixelSize) is { } image)
-                        return image;
+                        return Path.GetFileNameWithoutExtension(file).EndsWith("-symbolic", StringComparison.Ordinal) ? image with { IsTemplate = true } : image;
                 }
 
                 return null;
@@ -76,9 +79,26 @@ internal sealed partial class FreedesktopIcons : ISystemIconProvider, IDisposabl
         }
     }
 
+    private async Task<SystemIconImage?> DecodeFileAsync(string file, int pixelSize, CancellationToken cancellationToken)
+    {
+        await _decoders.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await Task.Run(() => File.Exists(file) ? Decode(file, pixelSize) : null, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _decoders.Release();
+        }
+    }
+
     /// <summary>Theme icon names for a key, most specific first.</summary>
     private string[] NamesFor(string key)
     {
+        if (SystemIconKey.TryParseAction(key, out var command))
+            return ActionNames(command);
+        if (SystemIconKey.TryParseThemed(key, out var themed))
+            return [themed];
         if (SystemIconKey.TryParseFileType(key, out var extension))
             return _namesByType.GetOrAdd(extension, NamesForType);
         if (!SystemIconKey.TryParse(key, out var kind, out var path))
@@ -89,6 +109,26 @@ internal sealed partial class FreedesktopIcons : ISystemIconProvider, IDisposabl
             return known;
         return Directory.Exists(path) ? ["folder"] : _namesByType.GetOrAdd(Path.GetExtension(path).ToLowerInvariant(), NamesForType);
     }
+
+    /// <summary>freedesktop action icon names for toolbar commands; the recolorable symbolic variant first.</summary>
+    private static string[] ActionNames(string command) => command switch
+    {
+        "New" => ["list-add-symbolic", "document-new-symbolic", "list-add", "document-new"],
+        "Cut" => ["edit-cut-symbolic", "edit-cut"],
+        "Copy" => ["edit-copy-symbolic", "edit-copy"],
+        "Paste" => ["edit-paste-symbolic", "edit-paste"],
+        "Rename" => ["edit-rename-symbolic", "document-edit-symbolic", "edit-rename", "document-edit"],
+        "Delete" => ["edit-delete-symbolic", "user-trash-symbolic", "edit-delete"],
+        "Share" => ["emblem-shared-symbolic", "document-send-symbolic", "emblem-shared"],
+        "Sort" => ["view-sort-ascending-symbolic", "view-sort-symbolic", "view-sort-ascending"],
+        "Group" => ["view-group-symbolic", "view-list-tree-symbolic", "view-group"],
+        "Layout" => ["view-list-details-symbolic", "view-list-symbolic", "view-list-details"],
+        "More" => ["view-more-symbolic", "open-menu-symbolic", "view-more-horizontal-symbolic", "application-menu"],
+        "Properties" => ["document-properties-symbolic", "document-properties"],
+        "Download" => ["folder-download-symbolic", "download-symbolic"],
+        "Upload" => ["document-send-symbolic", "upload-symbolic"],
+        _ => [],
+    };
 
     private static string[] StockNames(SystemIconKind kind) => kind switch
     {

@@ -43,6 +43,9 @@ public sealed class ShellMenuBridge(IShellMenu menu, Func<nint> ownerWindow, ILo
         return Translate(children);
     }
 
+    /// <summary>Every entry of the menu, translated (a menu that is a list on its own, such as the Open With handler's).</summary>
+    public IReadOnlyList<MenuEntry> Everything() => Translate(menu.Items);
+
     /// <summary>Everything that belongs under "Show more options".</summary>
     public IReadOnlyList<MenuEntry> Remainder()
     {

@@ -80,8 +80,8 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 |---|---|---|---|---|---|---|
 | Copy / cut / paste (in-app clipboard) | 🟦 | 🟦 | ✓ | ✓ | ✓ | |
 | Paste files from/to other apps (OS file clipboard) | ⬜ | ⬜ | | | | text clipboard only |
-| Drag and drop inside Navigator (panes, tabs, sidebar) | 🟦 | 🟦 | ✓ | ✓ | ✓ | `ShouldMoveOnDrop` (same volume = move) |
-| Drag and drop to/from other apps | ⬜ | ⬜ | | | | |
+| Drag and drop inside Navigator (panes, tabs, sidebar) | ✅ | 🟦 | ✓ | ✓ | ✓ | `DropPlanner` (same volume = move), `ItemDragDrop`; hover a tab to switch to it, drop on a tab, pin by dropping on the pinned group |
+| Drag and drop to/from other apps | 🟦 | 🟦 | ✓ | ✓ | ✓ | Avalonia `DataFormat.File`; files from other apps are copied unless Shift is held (Windows: same volume = move) |
 | Queue, concurrency limit, pause/resume, cancel | ✅ | 🟦 | ✓ | ✓ | ✓ | `FileOperationQueue`, `PauseGate` |
 | Progress, speed, ETA, status center (toolbar ring, cards, speed graph, dismiss/clear/cancel all) | 🟦 | 🟦 | ✓ | ✓ | ✓ | `OperationsViewModel`, `OperationsView`, `ProgressRing`, `SpeedGraph` |
 | Conflict resolution (replace/skip/keep both/merge, apply to all) | ✅ | 🟦 | ✓ | ✓ | ✓ | never silent overwrite |

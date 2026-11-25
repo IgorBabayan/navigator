@@ -196,9 +196,9 @@ public sealed class MacFileLauncher : IFileLauncher
     public Task<bool> OpenAsync(string path, CancellationToken cancellationToken = default)
         => Task.FromResult(ProcessRunner.Start("/usr/bin/open", [path]));
 
-    // LaunchServices enumeration (LSCopyApplicationURLsForURL) is not wrapped yet: the UI offers "Choose application…".
+    /// <summary>The applications Finder lists under "Open With" (LaunchServices), the default one first.</summary>
     public Task<IReadOnlyList<AppHandler>> GetHandlersAsync(string path, CancellationToken cancellationToken = default)
-        => Task.FromResult<IReadOnlyList<AppHandler>>([]);
+        => Task.Run(() => MacLaunchServices.ApplicationsFor(path), cancellationToken);
 
     public Task<bool> OpenWithAsync(string path, AppHandler handler, CancellationToken cancellationToken = default)
         => Task.FromResult(ProcessRunner.Start("/usr/bin/open", ["-a", handler.Id, path]));

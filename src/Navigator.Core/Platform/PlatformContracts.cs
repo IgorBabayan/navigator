@@ -102,6 +102,8 @@ public static class SystemIconKey
     private const string StockPrefix = "stock:";
     private const string PathPrefix = "path:";
     private const string TypePrefix = "type:";
+    private const string ActionPrefix = "action:";
+    private const string ThemePrefix = "icon:";
 
     private static readonly string[] StockKeys = Enum.GetNames<SystemIconKind>().Select(name => StockPrefix + name).ToArray();
 
@@ -132,6 +134,47 @@ public static class SystemIconKey
         return false;
     }
 
+    /// <summary>
+    /// Key of the OS picture for a toolbar command ("Cut", "Copy", "Paste"…): the icon theme's action icon on Linux, an
+    /// SF Symbol on macOS. Windows draws these from its icon font in the UI layer, so its provider ignores them.
+    /// </summary>
+    public static string Action(string command)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(command);
+        return ActionPrefix + command;
+    }
+
+    public static bool TryParseAction(string? key, out string command)
+    {
+        if (key is not null && key.Length > ActionPrefix.Length && key.StartsWith(ActionPrefix, StringComparison.Ordinal))
+        {
+            command = key[ActionPrefix.Length..];
+            return true;
+        }
+
+        command = string.Empty;
+        return false;
+    }
+
+    /// <summary>Key of an icon known by its theme name or file ("firefox", "/usr/share/pixmaps/gimp.png"), as desktop entries name them.</summary>
+    public static string Themed(string nameOrFile)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(nameOrFile);
+        return ThemePrefix + nameOrFile;
+    }
+
+    public static bool TryParseThemed(string? key, out string nameOrFile)
+    {
+        if (key is not null && key.Length > ThemePrefix.Length && key.StartsWith(ThemePrefix, StringComparison.Ordinal))
+        {
+            nameOrFile = key[ThemePrefix.Length..];
+            return true;
+        }
+
+        nameOrFile = string.Empty;
+        return false;
+    }
+
     public static bool TryParse(string? key, out SystemIconKind kind, out string? path)
     {
         kind = default;
@@ -151,7 +194,14 @@ public static class SystemIconKey
 }
 
 /// <summary>A decoded system icon: 32-bit BGRA pixels, straight (not premultiplied) alpha, rows packed (stride = Width * 4).</summary>
-public sealed record SystemIconImage(int Width, int Height, byte[] Pixels);
+public sealed record SystemIconImage(int Width, int Height, byte[] Pixels)
+{
+    /// <summary>
+    /// Only the alpha channel matters (SF Symbols, "-symbolic" theme icons): the UI paints it in the current text color,
+    /// so the picture follows light/dark themes and disabled states.
+    /// </summary>
+    public bool IsTemplate { get; init; }
+}
 
 /// <summary>Icons drawn by the operating system. Where unsupported, callers keep Navigator's own icons.</summary>
 public interface ISystemIconProvider
@@ -351,4 +401,71 @@ public interface IShellMenuProvider
     /// Null when unsupported or when the shell could not produce one. Third-party handlers run off the caller's thread.
     /// </summary>
     Task<IShellMenu?> OpenAsync(IReadOnlyList<string> paths, ShellMenuRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The shell's own "Open with" list for one file, built by the shell's Open With handler alone: the applications,
+    /// "Search the Microsoft Store" and "Choose another app", ready to run. Used when the full item menu has no
+    /// "Open with" sub-menu (types with a single handler show a plain command there). Null where unsupported.
+    /// </summary>
+    Task<IShellMenu?> OpenWithListAsync(string path, CancellationToken cancellationToken = default) => Task.FromResult<IShellMenu?>(null);
+}
+
+/// <summary>Where the content of a new item comes from.</summary>
+public enum NewItemContent
+{
+    /// <summary>An empty file.</summary>
+    Empty,
+
+    /// <summary>The bytes in <see cref="NewItemTemplate.Data"/>.</summary>
+    Bytes,
+
+    /// <summary>A copy of the file at <see cref="NewItemTemplate.TemplatePath"/>.</summary>
+    CopyOfFile,
+}
+
+/// <summary>
+/// An entry of the "New" menu beyond folder, file and shortcut: a document type the system can create
+/// (Windows ShellNew registrations, files of the XDG Templates folder on Linux and macOS).
+/// </summary>
+/// <param name="DisplayName">Type name shown in the menu ("Microsoft Word Document", "Rich Text Format").</param>
+/// <param name="Extension">Extension with its dot (".docx"); empty for a template without one.</param>
+public sealed record NewItemTemplate(string DisplayName, string Extension, NewItemContent Content, byte[]? Data = null, string? TemplatePath = null)
+{
+    /// <summary>Default name of a new item: "New Microsoft Word Document.docx"; a template file keeps its own name.</summary>
+    public string SuggestedName(string newPrefix)
+        => Content == NewItemContent.CopyOfFile && TemplatePath is not null && !OperatingSystem.IsWindows()
+            ? Path.GetFileName(TemplatePath)
+            : $"{newPrefix} {DisplayName}{Extension}";
+}
+
+/// <summary>The document types the "New" menu can create. Scanned once in the background; later calls are free.</summary>
+public interface INewItemTemplates
+{
+    Task<IReadOnlyList<NewItemTemplate>> GetAsync(CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Files on the clipboard. <paramref name="Paths"/> are real files (Explorer's copy/cut, Navigator's own list).
+/// <paramref name="IsStreamed"/> marks files that exist only as data on the clipboard: Remote Desktop copies, archive
+/// viewers, mail attachments; <paramref name="Paths"/> is empty then and the content is written out on paste.
+/// </summary>
+public sealed record ClipboardFileList(IReadOnlyList<string> Paths, bool IsCut, bool IsStreamed = false);
+
+/// <summary>Files other applications put on the OS clipboard (Windows: CF_HDROP, FileGroupDescriptorW/FileContents).</summary>
+public interface ISystemFileClipboard
+{
+    /// <summary>Cheap check (format availability only, no data is fetched): safe for menu probes and key handlers.</summary>
+    bool HasFiles();
+
+    /// <summary>The files on the OS clipboard; null when it holds none.</summary>
+    Task<ClipboardFileList?> ReadAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Writes streamed clipboard files into <paramref name="destination"/>. Names already taken get a " (2)" suffix,
+    /// nothing is overwritten. Returns the created top-level items.
+    /// </summary>
+    Task<IReadOnlyList<string>> PasteStreamedAsync(string destination, CancellationToken cancellationToken = default);
+
+    /// <summary>After files cut in another application were moved: empties the clipboard if it still holds that cut.</summary>
+    void ForgetCut();
 }

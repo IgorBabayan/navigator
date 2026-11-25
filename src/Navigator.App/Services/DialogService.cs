@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
+using Navigator.App.Controls;
 using Navigator.App.Views;
 using Navigator.App.Views.Dialogs;
 using Navigator.Core.Formatting;
@@ -217,6 +218,159 @@ internal sealed class DialogService(WindowService windows, Localizer localizer, 
             _ => ConflictResolution.Cancel,
         };
         return new ConflictChoice(resolution, applyAll.IsChecked == true);
+    }
+
+    /// <summary>
+    /// The reference app's "Conflicting file name" dialog: one choice that applies to every conflict ("Custom" while the
+    /// rows disagree), a count line, then one row per conflict with its own choice. A row whose item cannot replace the
+    /// existing one (file onto folder or the reverse) offers only a new name or skipping.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<string, NameConflictAction>?> ResolveNameConflictsAsync(IReadOnlyList<NameConflict> conflicts)
+    {
+        ArgumentNullException.ThrowIfNull(conflicts);
+        var dialog = new DialogWindow(localizer["NameConflict.Title"], null) { Width = 640 };
+        var rows = new List<(NameConflict Conflict, ComboBox Choice)>(conflicts.Count);
+        var syncing = false;
+
+        ComboBoxItem Option(string key, NameConflictAction? action) => new() { Content = localizer[key], Tag = action };
+
+        var everything = new ComboBox { MinWidth = 200, VerticalAlignment = VerticalAlignment.Center };
+        everything.Items.Add(Option("NameConflict.Custom", null));
+        everything.Items.Add(Option("NameConflict.GenerateNewName", NameConflictAction.GenerateNewName));
+        everything.Items.Add(Option("NameConflict.ReplaceExisting", NameConflictAction.ReplaceExisting));
+        everything.Items.Add(Option("NameConflict.Skip", NameConflictAction.Skip));
+
+        var header = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+        header.Children.Add(new TextBlock { Text = localizer["NameConflict.ApplyToAll"], VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap });
+        Grid.SetColumn(everything, 1);
+        header.Children.Add(everything);
+        dialog.AddContent(header);
+        dialog.AddContent(new TextBlock
+        {
+            Classes = { "warning" },
+            Text = conflicts.Count == 1 ? localizer["NameConflict.CountOne"] : localizer.Format("NameConflict.CountMany", conflicts.Count),
+        });
+        dialog.AddContent(new Separator());
+
+        static NameConflictAction? ChoiceOf(ComboBox box) => (box.SelectedItem as ComboBoxItem)?.Tag as NameConflictAction?;
+
+        static void Select(ComboBox box, NameConflictAction action)
+        {
+            foreach (var entry in box.Items)
+            {
+                if (entry is ComboBoxItem { Tag: NameConflictAction tagged } item && tagged == action)
+                {
+                    box.SelectedItem = item;
+                    return;
+                }
+            }
+        }
+
+        // The "all" choice mirrors the rows: their common choice, or "Custom" when they differ.
+        void ReflectRows()
+        {
+            NameConflictAction? common = null;
+            var mixed = false;
+            foreach (var (_, choice) in rows)
+            {
+                var action = ChoiceOf(choice);
+                if (common is null)
+                    common = action;
+                else if (common != action)
+                    mixed = true;
+            }
+
+            syncing = true;
+            if (mixed || common is null)
+                everything.SelectedIndex = 0;
+            else
+                Select(everything, common.Value);
+            syncing = false;
+        }
+
+        var list = new StackPanel { Spacing = 12 };
+        foreach (var conflict in conflicts)
+        {
+            var choice = new ComboBox { MinWidth = 200, VerticalAlignment = VerticalAlignment.Center };
+            choice.Items.Add(Option("NameConflict.GenerateNewName", NameConflictAction.GenerateNewName));
+            if (conflict.CanReplace)
+                choice.Items.Add(Option("NameConflict.ReplaceExisting", NameConflictAction.ReplaceExisting));
+            choice.Items.Add(Option("NameConflict.Skip", NameConflictAction.Skip));
+            Select(choice, conflict.CanReplace ? NameConflictAction.ReplaceExisting : NameConflictAction.GenerateNewName);
+            choice.SelectionChanged += (_, _) =>
+            {
+                if (!syncing)
+                    ReflectRows();
+            };
+            rows.Add((conflict, choice));
+            list.Children.Add(ConflictRow(conflict, choice));
+        }
+
+        everything.SelectionChanged += (_, _) =>
+        {
+            if (syncing || ChoiceOf(everything) is not { } action)
+                return;
+            syncing = true;
+            foreach (var (conflict, choice) in rows)
+                Select(choice, action == NameConflictAction.ReplaceExisting && !conflict.CanReplace ? NameConflictAction.GenerateNewName : action);
+            syncing = false;
+            ReflectRows();
+        };
+        ReflectRows();
+
+        dialog.AddContent(new ScrollViewer { Content = list, MaxHeight = 360, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled });
+        dialog.AddButton(localizer["NameConflict.Continue"], "continue", isDefault: true);
+        dialog.AddButton(localizer["Dialog.Cancel"], "cancel", isCancel: true);
+
+        if (await dialog.ShowFor(Owner).ConfigureAwait(true) != "continue")
+            return null;
+
+        var answers = new Dictionary<string, NameConflictAction>(rows.Count, StringComparer.Ordinal);
+        foreach (var (conflict, choice) in rows)
+            answers[conflict.SourcePath] = ChoiceOf(choice) ?? NameConflictAction.Skip;
+        return answers;
+    }
+
+    /// <summary>Icon, "name → name" and "Downloads → Documents" on the left, the row's own choice on the right.</summary>
+    private static Grid ConflictRow(NameConflict conflict, ComboBox choice)
+    {
+        static string FolderOf(string path)
+        {
+            var parent = Path.GetDirectoryName(path) ?? path;
+            var name = Path.GetFileName(parent.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            return string.IsNullOrEmpty(name) ? parent : name;
+        }
+
+        var icon = new IconView
+        {
+            Kind = conflict.SourceIsDirectory ? "Folder" : "File",
+            SystemIcon = conflict.SourceIsDirectory ? SystemIconKey.Stock(SystemIconKind.Folder) : SystemIconKey.ForPath(conflict.SourcePath),
+            Width = 32,
+            Height = 32,
+            Margin = new Avalonia.Thickness(0, 0, 12, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        var names = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Spacing = 2 };
+        names.Children.Add(new TextBlock
+        {
+            Text = $"{Path.GetFileName(conflict.SourcePath)} \u2192 {Path.GetFileName(conflict.DestinationPath)}",
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        });
+        names.Children.Add(new TextBlock
+        {
+            Classes = { "route" },
+            Text = $"{FolderOf(conflict.SourcePath)} \u2192 {FolderOf(conflict.DestinationPath)}",
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        });
+
+        var row = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto") };
+        Grid.SetColumn(names, 1);
+        Grid.SetColumn(choice, 2);
+        choice.Margin = new Avalonia.Thickness(12, 0, 0, 0);
+        row.Children.Add(icon);
+        row.Children.Add(names);
+        row.Children.Add(choice);
+        return row;
     }
 
     public async Task<ErrorChoice> ResolveErrorAsync(string path, FileOperationErrorKind kind, string message, bool canRetry)

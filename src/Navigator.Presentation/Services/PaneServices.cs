@@ -25,6 +25,7 @@ public sealed class PaneServices(
     TrashStatus trashStatus,
     IFileLauncher launcher,
     IShellMenuProvider shellMenus,
+    INewItemTemplates newItems,
     IKnownFolderProvider knownFolders,
     IVolumeProvider volumes,
     IPlatformInfo platform,
@@ -66,6 +67,9 @@ public sealed class PaneServices(
 
     /// <summary>The OS context menu behind "Show more options" (Windows); unsupported elsewhere.</summary>
     public IShellMenuProvider ShellMenus { get; } = shellMenus;
+
+    /// <summary>Document types for the "New" menu (Windows ShellNew registrations, the Templates folder elsewhere).</summary>
+    public INewItemTemplates NewItems { get; } = newItems;
 
     public IKnownFolderProvider KnownFolders { get; } = knownFolders;
 

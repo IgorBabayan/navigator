@@ -1,10 +1,12 @@
 using System.IO.Compression;
+using System.Runtime.InteropServices;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Navigator.Core.Archives;
 using Navigator.Core.IO;
 using Navigator.Core.Navigation;
 using Navigator.Core.Operations;
+using Navigator.Core.Platform;
 using Navigator.Presentation.Items;
 using Navigator.Presentation.Services;
 
@@ -112,6 +114,7 @@ public sealed partial class PaneViewModel
         OpenInCodeEditorCommand = new AsyncRelayCommand(OpenInCodeEditorAsync, () => CurrentDirectory is not null);
         InitializeRemoteCommands();
         InitializeItemMenuCommands();
+        InitializeCreationCommands();
     }
 
     private void RaiseItemCommandState()
@@ -137,6 +140,7 @@ public sealed partial class PaneViewModel
         OpenInCodeEditorCommand.NotifyCanExecuteChanged();
         RaiseRemoteCommandState();
         RaiseItemMenuCommandState();
+        RaiseCreationCommandState();
     }
 
     /// <summary>Double-click / Enter on an item: folders navigate, archives and files open with the default app.</summary>
@@ -385,32 +389,114 @@ public sealed partial class PaneViewModel
 
     private async Task PasteAsync()
     {
-        if (CurrentDirectory is not { } destination)
-            return;
+        if (CurrentDirectory is { } destination)
+            await PasteIntoAsync(destination).ConfigureAwait(true);
+    }
 
-        var clipboard = await _services.Clipboard.GetFilesAsync().ConfigureAwait(true);
-        if (clipboard is not { } content || content.Paths.Count == 0)
+    /// <summary>Paste into a folder: real files go through the operation queue; streamed files are written out directly.</summary>
+    private async Task PasteIntoAsync(string destination)
+    {
+        ClipboardFileList? clipboard;
+        try
+        {
+            clipboard = await _services.Clipboard.GetFilesAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is IOException or ExternalException or TimeoutException)
+        {
+            await ReportPasteErrorAsync(ex).ConfigureAwait(true);
             return;
+        }
 
+        if (clipboard is not { } content)
+            return;
+        if (content.IsStreamed)
+        {
+            await PasteStreamedAsync(destination).ConfigureAwait(true);
+            return;
+        }
+
+        if (content.Paths.Count == 0)
+            return;
         await TransferIntoAsync(content.Paths, destination, move: content.IsCut).ConfigureAwait(true);
         if (content.IsCut)
             await _services.Clipboard.ClearCutStateAsync().ConfigureAwait(true);
     }
 
-    /// <summary>Copy/move into a folder (paste and drag-and-drop). Selects the new items when they land in this pane.</summary>
-    public Task TransferIntoAsync(IReadOnlyList<string> sources, string destination, bool move)
+    /// <summary>
+    /// Files that exist only as clipboard data (copied inside a Remote Desktop session, zip contents, attachments).
+    /// They are streamed straight into the folder, with no temporary copy; taken names get a " (2)" suffix.
+    /// </summary>
+    private async Task PasteStreamedAsync(string destination)
+    {
+        if (RemoteUri.IsRemote(destination))
+            return; // the stream is written to a local file; servers are reached through Upload
+
+        var localizer = _services.Localizer;
+        _services.Notifications.Show(new InAppNotification(localizer["Clipboard.Pasting"], localizer["Clipboard.PastingStreamed"], NotificationSeverity.Information));
+        try
+        {
+            var created = await _services.Clipboard.PasteStreamedAsync(destination, _remoteWork.Token).ConfigureAwait(true);
+            if (created.Count == 0)
+                return;
+            if (PathUtil.AreEqual(CurrentDirectory, destination))
+                SelectWhenAvailable([.. created]);
+            _services.Notifications.Show(new InAppNotification(localizer["Clipboard.PasteDone"], localizer.Format("Remote.ItemsCount", created.Count), NotificationSeverity.Success));
+        }
+        catch (OperationCanceledException)
+        {
+            // The pane was closed.
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ExternalException)
+        {
+            await ReportPasteErrorAsync(ex).ConfigureAwait(true);
+        }
+    }
+
+    private Task ReportPasteErrorAsync(Exception ex)
+    {
+        _logger.LogWarning(ex, "Pasting from the clipboard failed");
+        return _services.Dialogs.ShowMessageAsync(_services.Localizer["Error.OperationTitle"], ex.Message);
+    }
+
+    /// <summary>
+    /// Copy/move into a folder (paste and drag-and-drop). Names already taken in the destination are settled first, all
+    /// at once, in the "Conflicting file name" dialog; items pasted into their own folder keep the usual flow (a copy gets
+    /// a "- Copy" name). Selects the new items when they land in this pane.
+    /// </summary>
+    public async Task TransferIntoAsync(IReadOnlyList<string> sources, string destination, bool move)
     {
         ArgumentNullException.ThrowIfNull(sources);
         // The local engine must never see a plugin address: on Unix "sftp://host/x" is a valid *relative* local path.
         // Local items dropped on a server folder are uploaded; server items are only copied out by Download.
         if (RemoteUri.IsRemote(destination))
-            return sources.Any(RemoteUri.IsRemote) ? Task.CompletedTask : UploadPathsAsync(sources, destination);
-        if (sources.Any(RemoteUri.IsRemote))
-            return Task.CompletedTask;
+        {
+            if (!sources.Any(RemoteUri.IsRemote))
+                await UploadPathsAsync(sources, destination).ConfigureAwait(true);
+            return;
+        }
 
-        var operation = move
-            ? _services.Operations.Move(sources, destination, _services.CreateInteraction())
-            : _services.Operations.Copy(sources, destination, _services.CreateInteraction());
+        if (sources.Any(RemoteUri.IsRemote))
+            return;
+
+        // One stat per incoming item, off the UI thread (the destination may be a slow share).
+        var conflicts = await Task.Run(() => NameConflictPlanner.Find(sources, destination)).ConfigureAwait(true);
+        FileOperation operation;
+        if (conflicts.Count == 0)
+        {
+            operation = move
+                ? _services.Operations.Move(sources, destination, _services.CreateInteraction())
+                : _services.Operations.Copy(sources, destination, _services.CreateInteraction());
+        }
+        else
+        {
+            if (await _services.Dialogs.ResolveNameConflictsAsync(conflicts).ConfigureAwait(true) is not { } answers)
+                return;
+            var replaced = new HashSet<string>(PathUtil.Comparer);
+            var pairs = await Task.Run(() => NameConflictPlanner.Apply(sources, destination, answers, replaced)).ConfigureAwait(true);
+            if (pairs.Count == 0)
+                return;
+            operation = _services.Operations.Transfer(pairs, move, new PlannedConflictInteraction(replaced, _services.CreateInteraction()), recordUndo: true);
+        }
 
         _ = operation.Completion.ContinueWith(_ =>
             _services.Dispatcher.Post(() =>
@@ -419,7 +505,6 @@ public sealed partial class PaneViewModel
                     SelectWhenAvailable([.. operation.TransferredItems.Select(t => t.DestinationPath)]);
                 ReportFinished(operation);
             }), TaskScheduler.Default);
-        return Task.CompletedTask;
     }
 
     private void Duplicate()
@@ -530,8 +615,7 @@ public sealed partial class PaneViewModel
         if (selected.Count == 0)
             return;
         var directory = Path.GetDirectoryName(selected[0].FullPath)!;
-        var baseName = selected.Count == 1 ? PathUtil.SplitName(selected[0].Name, selected[0].IsDirectory).Stem : Path.GetFileName(directory);
-        await CompressToZipAsync([.. selected.Select(i => i.FullPath)], directory, baseName).ConfigureAwait(true);
+        await CompressToZipAsync([.. selected.Select(i => i.FullPath)], directory, ArchiveBaseName()).ConfigureAwait(true);
     }
 
     /// <summary>Queues "<paramref name="baseName"/>.zip" (made unique) in <paramref name="directory"/> and selects it when done.</summary>

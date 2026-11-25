@@ -35,6 +35,14 @@
     <Setter Property="Foreground" Value="{DynamicResource Brush.Danger}" />
     <Setter Property="FontSize" Value="{DynamicResource Font.Caption}" />
   </Style>
+  <!-- "Conflicting file name" dialog: the count line and the "from → to" folder line -->
+  <Style Selector="TextBlock.warning">
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Warning}" />
+  </Style>
+  <Style Selector="TextBlock.route">
+    <Setter Property="Foreground" Value="{DynamicResource Accent.Brush}" />
+    <Setter Property="FontSize" Value="{DynamicResource Font.Caption}" />
+  </Style>
   <Style Selector="TextBlock.section">
     <Setter Property="FontSize" Value="{DynamicResource Font.Body}" />
     <Setter Property="FontWeight" Value="SemiBold" />
@@ -46,18 +54,43 @@
     <Setter Property="CornerRadius" Value="{StaticResource Radius.Control}" />
     <Setter Property="MinHeight" Value="{DynamicResource Size.Control}" />
     <Setter Property="Padding" Value="12,4" />
+    <!-- Labels sit in the middle of the button, also when MinWidth/MinHeight make it larger than its text -->
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
   </Style>
+
+  <!-- Filled buttons: the template part draws the fill, so every state is set there with a matching label color
+       (the base theme would otherwise swap in its own neutral hover/pressed colors or a light accent shade) -->
   <Style Selector="Button.accent">
     <Setter Property="Background" Value="{DynamicResource Accent.Brush}" />
     <Setter Property="Foreground" Value="{DynamicResource Accent.ForegroundBrush}" />
   </Style>
+  <Style Selector="Button.accent /template/ ContentPresenter#PART_ContentPresenter, Button.danger /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Transitions" Value="{DynamicResource Motion.Hover}" />
+  </Style>
   <Style Selector="Button.accent:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-    <Setter Property="Background" Value="{DynamicResource SystemAccentColorLight1}" />
+    <Setter Property="Background" Value="{DynamicResource Accent.HoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent.HoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource Accent.ForegroundBrush}" />
+  </Style>
+  <Style Selector="Button.accent:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Accent.PressedBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent.PressedBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource Accent.ForegroundBrush}" />
   </Style>
   <Style Selector="Button.danger">
     <Setter Property="Background" Value="{DynamicResource Brush.Danger}" />
-    <Setter Property="Foreground" Value="White" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.DangerForeground}" />
+  </Style>
+  <Style Selector="Button.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Brush.DangerHover}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.DangerHover}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.DangerForeground}" />
+  </Style>
+  <Style Selector="Button.danger:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Brush.DangerPressed}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.DangerPressed}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.DangerForeground}" />
   </Style>
 
   <!-- Subtle (toolbar, title bar, row actions): transparent until hovered -->
@@ -227,6 +260,26 @@
   <Style Selector="Border.hoverable.selected">
     <Setter Property="Background" Value="{DynamicResource Accent.SubtleBrush}" />
   </Style>
+  <!-- Drag and drop on sidebar entries: outline = drop into the folder; top/bottom line = pin before/after it.
+       Entries have a fixed height, so the border only shifts the content by a pixel and never relays out the list. -->
+  <Style Selector="Border.hoverable.droptarget">
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent.Brush}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  <Style Selector="Border.hoverable.dropbefore">
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent.Brush}" />
+    <Setter Property="BorderThickness" Value="0,2,0,0" />
+  </Style>
+  <!-- Pinned group header while folders are dragged over it: dropping pins them at the end. -->
+  <Style Selector="Button.subtle.droptarget">
+    <Setter Property="Background" Value="{DynamicResource Accent.SubtleBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent.Brush}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  <Style Selector="Border.hoverable.dropafter">
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent.Brush}" />
+    <Setter Property="BorderThickness" Value="0,0,0,2" />
+  </Style>
 
   <!-- Selection pill shown left of the selected sidebar / settings entry -->
   <Style Selector="Border.pill">
@@ -282,6 +335,12 @@
   </Style>
   <Style Selector="Border.tab.selected">
     <Setter Property="Background" Value="{DynamicResource Brush.TabSelected}" />
+  </Style>
+  <!-- Items dragged over a tab: they will land in that tab's active pane folder. -->
+  <Style Selector="Border.tab.droptarget">
+    <Setter Property="Background" Value="{DynamicResource Accent.SubtleBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent.Brush}" />
+    <Setter Property="BorderThickness" Value="1,1,1,0" />
   </Style>
   <Style Selector="Border.tab Button.tabclose">
     <Setter Property="Opacity" Value="0" />

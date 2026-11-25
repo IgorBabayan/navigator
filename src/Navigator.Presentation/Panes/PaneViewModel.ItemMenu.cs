@@ -131,13 +131,7 @@ public sealed partial class PaneViewModel
         if (Selection.SelectedItems is not [{ IsDirectory: true } folder])
             return;
 
-        var clipboard = await _services.Clipboard.GetFilesAsync().ConfigureAwait(true);
-        if (clipboard is not { } content || content.Paths.Count == 0)
-            return;
-
-        await TransferIntoAsync(content.Paths, folder.FullPath, move: content.IsCut).ConfigureAwait(true);
-        if (content.IsCut)
-            await _services.Clipboard.ClearCutStateAsync().ConfigureAwait(true);
+        await PasteIntoAsync(folder.FullPath).ConfigureAwait(true);
     }
 
     /// <summary>Asks for a name, creates the folder next to the selection and moves the selection into it.</summary>

@@ -59,6 +59,9 @@ public sealed class MenuEntry
     /// <summary>Color of the glyph as "#RRGGBB" (tags); null for the text color.</summary>
     public string? Tint { get; init; }
 
+    /// <summary>A <see cref="SystemIconKey"/> the OS draws (application and file-type icons); <see cref="Glyph"/> shows until it loads.</summary>
+    public string? SystemIcon { get; init; }
+
     /// <summary>A bitmap from the operating system (shell menu entries); preferred over <see cref="Glyph"/>.</summary>
     public SystemIconImage? Picture { get; init; }
 

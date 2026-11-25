@@ -200,32 +200,29 @@
       <!-- ── Command bar ────────────────────────────────────── -->
       <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="8,2,8,4">
         <StackPanel x:Name="CommandBar" Orientation="Horizontal" Spacing="2">
-          <Button Classes="subtle" IsEnabled="{Binding ActivePane.CanCreateFolders}" ToolTip.Tip="{c:Tr Command.New}">
+          <!-- Icons: OsGlyph draws the operating system's own picture (Explorer's icon font on Windows, the icon theme on
+               Linux, SF Symbols on macOS); Kind is the Material fallback. -->
+          <!-- "New" builds its menu when clicked: Folder, File, Shortcut and the document types the system registers. -->
+          <Button x:Name="NewButton" Classes="subtle" IsEnabled="{Binding ActivePane.CanCreateFolders}" ToolTip.Tip="{c:Tr Command.New}" Click="OnNewMenuClick">
             <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-              <c:IconView Kind="Add" VerticalAlignment="Center" />
+              <c:IconView Kind="Add" OsGlyph="New" VerticalAlignment="Center" />
               <TextBlock Classes="toolbarLabel" Text="{c:Tr Command.New}" VerticalAlignment="Center" />
               <c:IconView Kind="ChevronDown" Width="10" Height="10" VerticalAlignment="Center" />
             </StackPanel>
-            <Button.Flyout>
-              <MenuFlyout Placement="BottomEdgeAlignedLeft">
-                <MenuItem c:MenuIcon.Kind="FolderAdd" Header="{c:Tr Command.NewFolder}" Command="{Binding ActivePane.NewFolderCommand}" InputGesture="Ctrl+Shift+N" />
-                <MenuItem c:MenuIcon.Kind="FilePlusOutline" Header="{c:Tr Command.NewFile}" Command="{Binding ActivePane.NewFileCommand}" />
-              </MenuFlyout>
-            </Button.Flyout>
           </Button>
           <Border Width="1" Margin="4,6" Background="{DynamicResource Brush.Stroke}" />
-          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Cut}" Command="{Binding ActivePane.CutCommand}"><c:IconView Kind="Cut" /></Button>
-          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Copy}" Command="{Binding ActivePane.CopyCommand}"><c:IconView Kind="Copy" /></Button>
-          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Paste}" Command="{Binding ActivePane.PasteCommand}"><c:IconView Kind="Paste" /></Button>
-          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Rename}" Command="{Binding ActivePane.RenameCommand}"><c:IconView Kind="Rename" /></Button>
-          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Delete}" Command="{Binding ActivePane.DeleteCommand}"><c:IconView Kind="Delete" /></Button>
+          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Cut}" Command="{Binding ActivePane.CutCommand}"><c:IconView Kind="Cut" OsGlyph="Cut" /></Button>
+          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Copy}" Command="{Binding ActivePane.CopyCommand}"><c:IconView Kind="Copy" OsGlyph="Copy" /></Button>
+          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Paste}" Command="{Binding ActivePane.PasteCommand}"><c:IconView Kind="Paste" OsGlyph="Paste" /></Button>
+          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Rename}" Command="{Binding ActivePane.RenameCommand}"><c:IconView Kind="Rename" OsGlyph="Rename" /></Button>
+          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Delete}" Command="{Binding ActivePane.DeleteCommand}"><c:IconView Kind="Delete" OsGlyph="Delete" /></Button>
           <!-- Server folders (SSH, FTP plugins): copy to and from this computer. -->
-          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Remote.Download}" Command="{Binding ActivePane.DownloadCommand}" IsVisible="{Binding ActivePane.IsRemote}"><c:IconView Kind="Download" /></Button>
-          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Remote.Upload}" Command="{Binding ActivePane.UploadCommand}" IsVisible="{Binding ActivePane.IsRemote}"><c:IconView Kind="Upload" /></Button>
+          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Remote.Download}" Command="{Binding ActivePane.DownloadCommand}" IsVisible="{Binding ActivePane.IsRemote}"><c:IconView Kind="Download" OsGlyph="Download" /></Button>
+          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Remote.Upload}" Command="{Binding ActivePane.UploadCommand}" IsVisible="{Binding ActivePane.IsRemote}"><c:IconView Kind="Upload" OsGlyph="Upload" /></Button>
           <Border Width="1" Margin="4,6" Background="{DynamicResource Brush.Stroke}" />
           <Button Classes="subtle" ToolTip.Tip="{c:Tr Command.Sort}">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <c:IconView Kind="Sort" />
+              <c:IconView Kind="Sort" OsGlyph="Sort" />
               <TextBlock Classes="toolbarLabel" Text="{c:Tr Command.Sort}" VerticalAlignment="Center" />
             </StackPanel>
             <Button.Flyout>
@@ -243,7 +240,7 @@
           </Button>
           <Button Classes="subtle" ToolTip.Tip="{c:Tr Command.Group}">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <c:IconView Kind="Group" />
+              <c:IconView Kind="Group" OsGlyph="Group" />
               <TextBlock Classes="toolbarLabel" Text="{c:Tr Command.Group}" VerticalAlignment="Center" />
             </StackPanel>
             <Button.Flyout>
@@ -259,7 +256,7 @@
           </Button>
           <Button Classes="subtle" ToolTip.Tip="{c:Tr Command.Layout}">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <c:IconView Kind="LayoutDetails" />
+              <c:IconView Kind="LayoutDetails" OsGlyph="Layout" />
               <TextBlock Classes="toolbarLabel" Text="{c:Tr Command.Layout}" VerticalAlignment="Center" />
             </StackPanel>
             <Button.Flyout>
@@ -275,7 +272,7 @@
             </Button.Flyout>
           </Button>
           <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Command.More}">
-            <c:IconView Kind="More" />
+            <c:IconView Kind="More" OsGlyph="More" />
             <Button.Flyout>
               <MenuFlyout Placement="BottomEdgeAlignedLeft">
                 <MenuItem c:MenuIcon.Kind="SelectAll" Header="{c:Tr Command.SelectAll}" Command="{Binding ActivePane.SelectAllCommand}" />
