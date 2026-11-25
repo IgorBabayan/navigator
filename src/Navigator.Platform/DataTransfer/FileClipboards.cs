@@ -99,11 +99,11 @@ internal sealed unsafe partial class WindowsFileClipboard : ISystemFileClipboard
         {
             // Explorer does the same after pasting a cut: the moved files are gone, a second paste must not find them.
             if (GetClipboardSequenceNumber() == sequence)
-                EmptyClipboard();
+                _ = EmptyClipboard();
         }
         finally
         {
-            CloseClipboard();
+            _ = CloseClipboard();
         }
     }
 
@@ -169,7 +169,7 @@ internal sealed unsafe partial class WindowsFileClipboard : ISystemFileClipboard
         }
         finally
         {
-            CloseClipboard();
+            _ = CloseClipboard();
         }
     }
 
@@ -190,7 +190,7 @@ internal sealed unsafe partial class WindowsFileClipboard : ISystemFileClipboard
         }
         finally
         {
-            GlobalUnlock(handle);
+            _ = GlobalUnlock(handle);
         }
     }
 
@@ -280,7 +280,7 @@ internal sealed unsafe partial class WindowsFileClipboard : ISystemFileClipboard
             }
             finally
             {
-                GlobalUnlock(medium.Handle);
+                _ = GlobalUnlock(medium.Handle);
             }
         }
         finally
@@ -410,7 +410,7 @@ internal sealed unsafe partial class WindowsFileClipboard : ISystemFileClipboard
         }
         finally
         {
-            GlobalUnlock(handle);
+            _ = GlobalUnlock(handle);
         }
     }
 
