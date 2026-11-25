@@ -8,6 +8,7 @@ using Avalonia.VisualTree;
 using Microsoft.Extensions.DependencyInjection;
 using Navigator.App.Controls;
 using Navigator.App.Services;
+using Navigator.Core.IO;
 using Navigator.Core.Settings;
 using Navigator.Presentation.Commands;
 using Navigator.Presentation.Panes;
@@ -24,6 +25,12 @@ public sealed partial class MainWindow : Window
     private bool _closeConfirmed;
     private TabViewModel? _draggedTab;
     private Point _dragStart;
+    private readonly DropEvaluator _tabDrop;
+    private readonly IVolumeLocator _volumes;
+    private readonly Avalonia.Threading.DispatcherTimer _tabHoverTimer;
+    private TabViewModel? _tabHoverTarget;
+    private TabViewModel? _tabHoverPending;
+    private Border? _tabDropHighlight;
     private PaneViewModel? _mouseNavigationPane;
     private string? _addressBeforeBrowsing;
     private int _crumbMenuVersion;
@@ -44,6 +51,18 @@ public sealed partial class MainWindow : Window
         _theme = App.Services.GetRequiredService<ThemeService>();
         DataContext = shell;
         InitializeComponent();
+
+        // Items dragged over a tab: hovering switches to it (so its panes can take the drop), dropping on it puts the
+        // items into that tab's active pane folder.
+        _volumes = App.Services.GetRequiredService<IVolumeLocator>();
+        _tabDrop = new DropEvaluator(_volumes);
+        _tabHoverTimer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
+        _tabHoverTimer.Tick += OnTabHoverTick;
+        DragDrop.SetAllowDrop(TabStrip, true);
+        TabStrip.AddHandler(DragDrop.DragEnterEvent, OnTabDragOver);
+        TabStrip.AddHandler(DragDrop.DragOverEvent, OnTabDragOver);
+        TabStrip.AddHandler(DragDrop.DragLeaveEvent, OnTabDragLeave);
+        TabStrip.AddHandler(DragDrop.DropEvent, OnTabDrop);
 
         ConfigureCaptionInsets();
         ApplyBackdrop();
@@ -87,6 +106,7 @@ public sealed partial class MainWindow : Window
         Closing += OnClosing;
         Closed += (_, _) =>
         {
+            _tabHoverTimer.Stop();
             _theme.BackdropChanged -= OnBackdropChanged;
             _services.Settings.Changed -= OnSettingsChanged;
         };
@@ -224,6 +244,84 @@ public sealed partial class MainWindow : Window
                 break;
             }
         }
+    }
+
+    // ── Tabs: drop target ─────────────────────────────────────
+
+    private static Border? TabBorderFrom(object? source)
+    {
+        for (var visual = source as Visual; visual is not null; visual = visual.GetVisualParent())
+        {
+            if (visual is Border { DataContext: TabViewModel } border && border.Classes.Contains("tab"))
+                return border;
+            if (visual is ItemsControl)
+                return null;
+        }
+
+        return null;
+    }
+
+    private void OnTabDragOver(object? sender, DragEventArgs e)
+    {
+        var border = TabBorderFrom(e.Source);
+        var tab = border?.DataContext as TabViewModel;
+        _tabHoverTarget = tab;
+        e.Handled = true;
+        if (tab is null || !ItemDragDrop.CarriesFiles(e))
+        {
+            e.DragEffects = DragDropEffects.None;
+            SetTabDropHighlight(null);
+            return;
+        }
+
+        // Spring-loaded tab: resting on another tab for a moment selects it. The timer restarts only for a new tab,
+        // so the stream of drag-over events never postpones it.
+        if (!tab.IsSelected && !ReferenceEquals(tab, _tabHoverPending))
+        {
+            _tabHoverPending = tab;
+            _tabHoverTimer.Stop();
+            _tabHoverTimer.Start();
+        }
+
+        e.DragEffects = _tabDrop.Evaluate(e, tab.ActivePane.DropDestination);
+        SetTabDropHighlight(e.DragEffects == DragDropEffects.None ? null : border);
+    }
+
+    /// <summary>Raised for every child crossed inside a tab too (Enter follows at once), so only the hover target is cleared.</summary>
+    private void OnTabDragLeave(object? sender, DragEventArgs e)
+    {
+        _tabHoverTarget = null;
+        SetTabDropHighlight(null);
+    }
+
+    private void OnTabHoverTick(object? sender, EventArgs e)
+    {
+        _tabHoverTimer.Stop();
+        var pending = _tabHoverPending;
+        _tabHoverPending = null;
+        if (pending is not null && ReferenceEquals(pending, _tabHoverTarget) && Shell.Tabs.Contains(pending))
+            Shell.SelectedTab = pending;
+    }
+
+    private void OnTabDrop(object? sender, DragEventArgs e)
+    {
+        _tabHoverTimer.Stop();
+        _tabHoverPending = null;
+        _tabHoverTarget = null;
+        SetTabDropHighlight(null);
+        var pane = (TabBorderFrom(e.Source)?.DataContext as TabViewModel)?.ActivePane;
+        e.DragEffects = ItemDragDrop.Drop(e, pane?.DropDestination, pane, _volumes);
+        _tabDrop.Reset();
+        e.Handled = true;
+    }
+
+    private void SetTabDropHighlight(Border? tab)
+    {
+        if (ReferenceEquals(tab, _tabDropHighlight))
+            return;
+        _tabDropHighlight?.Classes.Remove("droptarget");
+        _tabDropHighlight = tab;
+        tab?.Classes.Add("droptarget");
     }
 
     // ── Omnibar and search ────────────────────────────────────

@@ -209,6 +209,31 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
             _pins.Move(path, newIndex);
     }
 
+    /// <summary>The quick access group is shown, so folders can be dropped on it to pin them.</summary>
+    public bool CanPin => _services.Settings.Current.Sidebar.ShowQuickAccess;
+
+    /// <summary>Number of pinned folders: the insertion index after the last one.</summary>
+    public int PinnedCount => _pins.Paths.Count;
+
+    /// <summary>Position of a pinned entry in the pin list; the trash (after the pins) maps to the end of the list.</summary>
+    public int PinIndexOf(SidebarItemViewModel item)
+    {
+        if (item.IsPinned && item.Path is { } path)
+        {
+            var paths = _pins.Paths;
+            for (var i = 0; i < paths.Count; i++)
+            {
+                if (PathUtil.AreEqual(paths[i], path))
+                    return i;
+            }
+        }
+
+        return _pins.Paths.Count;
+    }
+
+    /// <summary>Drag and drop onto the pinned group: pins the folders at <paramref name="index"/>.</summary>
+    public void PinFolders(IReadOnlyList<string> paths, int index) => _pins.PinAt(paths, index);
+
     /// <summary>Highlights the entry matching the active pane's location.</summary>
     public void SyncSelection(Location location)
     {

@@ -153,6 +153,9 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
     /// <summary>Folder in which new items are created and pasted (null for Home/Trash/Tag views).</summary>
     public string? CurrentDirectory => IsFolder ? _location.Path : null;
 
+    /// <summary>Folder that receives items dropped on the pane's empty area: a local folder or a server folder (upload).</summary>
+    public string? DropDestination => IsFolder || IsRemote ? _location.Path : null;
+
     public bool CanCreateItems => IsFolder;
 
     /// <summary>The "New" menu is available: local folders, and server folders (new folder only).</summary>

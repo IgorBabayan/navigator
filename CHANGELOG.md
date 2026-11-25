@@ -8,6 +8,12 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
 
 ### Added
 
+- Drag and drop everywhere: between the panes of a tab, between tabs (rest on a tab to switch to it, or drop on the
+  tab to put the items in its active folder), onto the sidebar (drop folders on the pinned group's header or between
+  pinned entries to pin them; drop items on a pinned folder, drive or server entry to copy/move/upload them), out to
+  other applications (real files) and in from other applications. Folders under the pointer are outlined, the list
+  scrolls near its edges, and a folder can never be dropped into itself. Files coming from another application are
+  always reported back to it as copied, so the source never deletes originals that Navigator is still moving.
 - Recycle Bin / Trash in the sidebar: its context menu starts with "Empty trash" (with confirmation), followed by a
   separator and the other actions. The item is disabled while the trash is empty; the state is re-checked off the UI
   thread when the menu opens. Linux and macOS now answer "is the trash empty?" cheaply too, so the full-bin icon

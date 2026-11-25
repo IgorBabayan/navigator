@@ -41,6 +41,40 @@ public sealed class PinnedFolders
         Save(list);
     }
 
+    /// <summary>
+    /// Pins folders at <paramref name="index"/> (drag and drop onto the pinned group). Folders that are already pinned
+    /// move to that position instead of being pinned twice. One settings write for the whole batch.
+    /// </summary>
+    public void PinAt(IReadOnlyList<string> paths, int index)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        var incoming = new List<string>(paths.Count);
+        foreach (var path in paths)
+        {
+            var trimmed = PathUtil.TrimTrailingSeparator(path);
+            if (trimmed.Length > 0 && !incoming.Exists(p => PathUtil.AreEqual(p, trimmed)))
+                incoming.Add(trimmed);
+        }
+
+        if (incoming.Count == 0)
+            return;
+
+        var list = Paths.ToList();
+        var insertAt = Math.Clamp(index, 0, list.Count);
+        for (var i = list.Count - 1; i >= 0; i--)
+        {
+            var existing = list[i];
+            if (!incoming.Exists(p => PathUtil.AreEqual(p, existing)))
+                continue;
+            if (i < insertAt)
+                insertAt--;
+            list.RemoveAt(i);
+        }
+
+        list.InsertRange(insertAt, incoming);
+        Save(list);
+    }
+
     public void Unpin(string path) => Save([.. Paths.Where(p => !PathUtil.AreEqual(p, path))]);
 
     public void Move(string path, int newIndex)

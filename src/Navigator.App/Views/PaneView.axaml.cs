@@ -23,7 +23,13 @@ namespace Navigator.App.Views;
 public sealed partial class PaneView : UserControl
 {
     private const double DragThreshold = 6;
+    private const double AutoScrollMargin = 28;
+    private const double AutoScrollStep = 24;
     private readonly PaneServices _services = App.Services.GetRequiredService<PaneServices>();
+    private readonly IVolumeLocator _volumes = App.Services.GetRequiredService<IVolumeLocator>();
+    private readonly DropEvaluator _drop;
+    private Border? _dropHighlight;
+    private PointerPressedEventArgs? _pressEvent;
     private PaneMenuView? _menus;
     private PaneViewModel? _pane;
     private Point? _bandStart;
@@ -37,6 +43,7 @@ public sealed partial class PaneView : UserControl
     public PaneView()
     {
         InitializeComponent();
+        _drop = new DropEvaluator(_volumes);
         ItemsHost.ItemTemplate = new RowTemplates(this);
         Columns.Load(_services.Settings.Current.FilesAndFolders.Columns, _services.Settings.Current.FilesAndFolders.ShowFileTagsColumn);
         Columns.PropertyChanged += (_, _) => SaveColumns();
@@ -56,6 +63,13 @@ public sealed partial class PaneView : UserControl
         Scroller.PointerMoved += OnPointerMoved;
         Scroller.PointerReleased += OnPointerReleased;
         Scroller.DoubleTapped += OnBackgroundDoubleTapped;
+
+        // Drop target: files and folders from other panes, other tabs, other windows and other applications.
+        DragDrop.SetAllowDrop(Scroller, true);
+        Scroller.AddHandler(DragDrop.DragEnterEvent, OnDragOver);
+        Scroller.AddHandler(DragDrop.DragOverEvent, OnDragOver);
+        Scroller.AddHandler(DragDrop.DragLeaveEvent, OnDragLeave);
+        Scroller.AddHandler(DragDrop.DropEvent, OnDrop);
         KeyDown += OnKeyDown;
         TextInput += OnTextInput;
     }
@@ -219,12 +233,15 @@ public sealed partial class PaneView : UserControl
             tab.ActivePane = _pane;
     }
 
-    private static FileItemViewModel? ItemFromSource(object? source)
+    private static FileItemViewModel? ItemFromSource(object? source) => ItemBorderFromSource(source)?.DataContext as FileItemViewModel;
+
+    /// <summary>The row/tile surface of the item under <paramref name="source"/>, or null on the empty area.</summary>
+    private static Border? ItemBorderFromSource(object? source)
     {
         for (var visual = source as Visual; visual is not null; visual = visual.GetVisualParent())
         {
-            if (visual is Border { DataContext: FileItemViewModel item } border && border.Classes.Contains("item"))
-                return item;
+            if (visual is Border { DataContext: FileItemViewModel } border && border.Classes.Contains("item"))
+                return border;
             if (visual is PaneView)
                 return null;
         }
@@ -277,6 +294,7 @@ public sealed partial class PaneView : UserControl
             _pane.Selection.Click(item, control, shift);
         _pressedItem = item;
         _pressPoint = point.Position;
+        _pressEvent = e;
         e.Handled = true;
     }
 
@@ -333,10 +351,35 @@ public sealed partial class PaneView : UserControl
         {
             var position = e.GetPosition(this);
             if (Math.Abs(position.X - _pressPoint.X) > DragThreshold || Math.Abs(position.Y - _pressPoint.Y) > DragThreshold)
-            {
-                _dragging = true;
-                Cursor = new Cursor(StandardCursorType.DragMove);
-            }
+                StartDrag();
+        }
+    }
+
+    /// <summary>
+    /// Starts an OS drag of the selection: it can be dropped on a folder in any pane of any tab or window, on a tab, on
+    /// the sidebar, or in another application. Trash items are not dragged (they are restored with "Restore").
+    /// </summary>
+    private async void StartDrag()
+    {
+        var pane = _pane;
+        var trigger = _pressEvent;
+        if (pane is null || trigger is null || pane.IsTrash || pane.Selection.Count == 0)
+        {
+            _pressedItem = null;
+            _pressEvent = null;
+            return;
+        }
+
+        _dragging = true;
+        try
+        {
+            await ItemDragDrop.StartAsync(trigger, this, [.. pane.Selection.SelectedItems]).ConfigureAwait(true);
+        }
+        finally
+        {
+            _dragging = false;
+            _pressedItem = null;
+            _pressEvent = null;
         }
     }
 
@@ -350,28 +393,82 @@ public sealed partial class PaneView : UserControl
             e.Pointer.Capture(null);
         }
 
-        if (_dragging && _pane is not null)
-        {
-            // In-window drag and drop: dropping the selection on a folder moves (same volume) or copies it.
-            var target = ItemFromSource(this.InputHitTest(e.GetPosition(this)));
-            var sources = _pane.Selection.SelectedItems.Select(i => i.FullPath).ToList();
-            if (target is { IsDirectory: true } folder && !_pane.Selection.IsSelected(folder) && sources.Count > 0)
-            {
-                var move = PaneViewModel.ShouldMoveOnDrop(sources, folder.FullPath,
-                    e.KeyModifiers.HasFlag(PrimaryModifier), e.KeyModifiers.HasFlag(KeyModifiers.Shift), App.Services.GetRequiredService<IVolumeLocator>());
-                _ = _pane.TransferIntoAsync(sources, folder.FullPath, move);
-            }
-        }
-        else if (_pressedItem is { } pressed && _pane is not null && e.InitialPressMouseButton == MouseButton.Left
-                 && !e.KeyModifiers.HasFlag(PrimaryModifier) && !e.KeyModifiers.HasFlag(KeyModifiers.Shift) && _pane.Selection.Count > 1)
+        // A drag in progress ends in its own drop handling (the OS owns the pointer until then).
+        if (_dragging)
+            return;
+
+        if (_pressedItem is { } pressed && _pane is not null && e.InitialPressMouseButton == MouseButton.Left
+            && !e.KeyModifiers.HasFlag(PrimaryModifier) && !e.KeyModifiers.HasFlag(KeyModifiers.Shift) && _pane.Selection.Count > 1)
         {
             // Click (no drag) on an item of a multi-selection selects just that item.
             _pane.Selection.Click(pressed, control: false, shift: false);
         }
 
-        _dragging = false;
         _pressedItem = null;
-        Cursor = Cursor.Default;
+        _pressEvent = null;
+    }
+
+    // ── Drop target ────────────────────────────────────────────
+
+    /// <summary>
+    /// Where a drop at the pointer lands: a folder item under it (highlighted), otherwise the pane's own folder.
+    /// Files under the pointer are not targets; the drop goes to the folder they are in.
+    /// </summary>
+    private (string? Destination, Border? Folder) DropTargetAt(DragEventArgs e)
+    {
+        if (ItemBorderFromSource(e.Source) is { DataContext: FileItemViewModel { IsDirectory: true } folder } border)
+            return (folder.FullPath, border);
+        return (_pane?.DropDestination, null);
+    }
+
+    private void OnDragOver(object? sender, DragEventArgs e)
+    {
+        var (destination, folder) = DropTargetAt(e);
+        e.DragEffects = _pane is null ? DragDropEffects.None : _drop.Evaluate(e, destination);
+        SetDropHighlight(e.DragEffects == DragDropEffects.None ? null : folder);
+        AutoScroll(e);
+        e.Handled = true;
+    }
+
+    /// <summary>
+    /// Leave is raised for every child the pointer crosses (followed at once by Enter on the next one), so it only
+    /// clears the highlight; the cached decision is keyed by destination and stays valid.
+    /// </summary>
+    private void OnDragLeave(object? sender, DragEventArgs e) => SetDropHighlight(null);
+
+    private void OnDrop(object? sender, DragEventArgs e)
+    {
+        var (destination, _) = DropTargetAt(e);
+        SetDropHighlight(null);
+        _drop.Reset();
+        e.DragEffects = ItemDragDrop.Drop(e, destination, _pane, _volumes);
+        e.Handled = true;
+    }
+
+    /// <summary>One highlighted folder at a time; only the class changes, so no relayout happens while dragging.</summary>
+    private void SetDropHighlight(Border? folder)
+    {
+        if (ReferenceEquals(folder, _dropHighlight))
+            return;
+        _dropHighlight?.Classes.Remove("droptarget");
+        _dropHighlight = folder;
+        folder?.Classes.Add("droptarget");
+    }
+
+    /// <summary>Dragging near the top or bottom edge scrolls the list, so any folder can be reached.</summary>
+    private void AutoScroll(DragEventArgs e)
+    {
+        var y = e.GetPosition(Scroller).Y;
+        var height = Scroller.Viewport.Height;
+        if (height <= AutoScrollMargin * 2)
+            return;
+        var delta = y < AutoScrollMargin ? -AutoScrollStep : y > height - AutoScrollMargin ? AutoScrollStep : 0;
+        if (delta == 0)
+            return;
+        var max = Math.Max(0, Scroller.Extent.Height - height);
+        var target = Math.Clamp(Scroller.Offset.Y + delta, 0, max);
+        if (target != Scroller.Offset.Y)
+            Scroller.Offset = new Vector(Scroller.Offset.X, target);
     }
 
     /// <summary>Items whose visuals intersect the band (realized containers only: the visible area).</summary>
@@ -395,7 +492,7 @@ public sealed partial class PaneView : UserControl
 
     // ── Keyboard ───────────────────────────────────────────────
 
-    private static KeyModifiers PrimaryModifier => OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control;
+    private static KeyModifiers PrimaryModifier => ItemDragDrop.PrimaryModifier;
 
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {

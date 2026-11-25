@@ -52,7 +52,9 @@ Navigator's window follows the familiar Files-app layout. Everything is styled t
 - **Search and palette**: Ctrl+F / F3 searches the current folder recursively; Ctrl+Shift+F filters the current
   listing; Ctrl+Shift+P opens the command palette.
 - **Sidebar**: collapsible sections, resizable with a splitter (clamped to 160–480 px, persisted), toggled
-  with the sidebar command; pinned folders are reorderable by drag; the Recycle Bin / Trash sits at the end of the
+  with the sidebar command; pinned folders are reorderable by drag; folders dragged from a pane or another app onto
+  the pinned section's header, or between pinned entries (insertion line), are pinned there, and items dropped on a
+  pinned folder, a drive or a server entry are copied/moved/uploaded into it; the Recycle Bin / Trash sits at the end of the
   pinned (quick access) section, or below the sections when quick access is hidden; drives show a usage bar; context menus
   per item.
 - **Pane**: layouts **Details, List, Tiles, Small/Medium/Large/Extra-large icons**; group headers; column
@@ -82,6 +84,10 @@ Navigator's window follows the familiar Files-app layout. Everything is styled t
   - Settings → General → Context menu hides individual entries. Separators never lead, trail or double. Sub-menus
     that need disk, process or shell work fill the first time they open.
 - **Split view**: two panes side by side (Ctrl+Shift+S / toolbar), focused pane highlighted; drag between panes.
+- **Drag and drop**: the selection drags as real files (other apps receive them); folders under the pointer are
+  outlined, the list scrolls near its edges. Same volume moves, other volumes copy; Ctrl copies, Shift moves.
+  Resting on a tab for a moment switches to it; dropping on a tab puts the items in its active pane's folder.
+  Files from other applications can be dropped on panes, tabs and the sidebar.
 - **Preview pane**: image, text and Markdown source (first 64 KB), folder summary, multi-selection summary,
   metadata for other files; **details** with
   properties, permissions, tags and hashes on demand.

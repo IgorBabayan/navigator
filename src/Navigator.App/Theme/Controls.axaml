@@ -260,6 +260,20 @@
   <Style Selector="Border.hoverable.selected">
     <Setter Property="Background" Value="{DynamicResource Accent.SubtleBrush}" />
   </Style>
+  <!-- Drag and drop on sidebar entries: outline = drop into the folder; top/bottom line = pin before/after it.
+       Entries have a fixed height, so the border only shifts the content by a pixel and never relays out the list. -->
+  <Style Selector="Border.hoverable.droptarget">
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent.Brush}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  <Style Selector="Border.hoverable.dropbefore">
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent.Brush}" />
+    <Setter Property="BorderThickness" Value="0,2,0,0" />
+  </Style>
+  <Style Selector="Border.hoverable.dropafter">
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent.Brush}" />
+    <Setter Property="BorderThickness" Value="0,0,0,2" />
+  </Style>
 
   <!-- Selection pill shown left of the selected sidebar / settings entry -->
   <Style Selector="Border.pill">
@@ -315,6 +329,10 @@
   </Style>
   <Style Selector="Border.tab.selected">
     <Setter Property="Background" Value="{DynamicResource Brush.TabSelected}" />
+  </Style>
+  <!-- Items dragged over a tab: they will land in that tab's active pane folder. -->
+  <Style Selector="Border.tab.droptarget">
+    <Setter Property="Background" Value="{DynamicResource Accent.SubtleBrush}" />
   </Style>
   <Style Selector="Border.tab Button.tabclose">
     <Setter Property="Opacity" Value="0" />
