@@ -114,8 +114,14 @@ internal sealed class ThemeService(SettingsService settings)
             return;
         _appliedAccent = color;
 
-        var foreground = new SolidColorBrush(Luminance(color) > 0.55 ? Colors.Black : Colors.White);
+        var darkText = Luminance(color) > 0.55;
+        var foreground = new SolidColorBrush(darkText ? Colors.Black : Colors.White);
         app.Resources["Accent.Brush"] = new SolidColorBrush(color);
+
+        // Filled accent buttons: hover and pressed shift the fill away from the label color (darker under white text,
+        // lighter under black text), so the label never loses contrast as Fluent's lighter accent shades made it do.
+        app.Resources["Accent.HoverBrush"] = new SolidColorBrush(darkText ? Mix(color, Colors.White, 0.2) : Mix(color, Colors.Black, 0.12));
+        app.Resources["Accent.PressedBrush"] = new SolidColorBrush(darkText ? Mix(color, Colors.White, 0.35) : Mix(color, Colors.Black, 0.22));
         // Alpha goes into the color, not into Opacity: BrushTransition interpolates both independently, which makes
         // a fade from a transparent brush overshoot (flash) when the target carries its translucency in Opacity.
         app.Resources["Accent.SubtleBrush"] = new SolidColorBrush(WithAlpha(color, 0.16));

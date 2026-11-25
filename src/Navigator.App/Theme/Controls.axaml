@@ -54,18 +54,43 @@
     <Setter Property="CornerRadius" Value="{StaticResource Radius.Control}" />
     <Setter Property="MinHeight" Value="{DynamicResource Size.Control}" />
     <Setter Property="Padding" Value="12,4" />
+    <!-- Labels sit in the middle of the button, also when MinWidth/MinHeight make it larger than its text -->
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
   </Style>
+
+  <!-- Filled buttons: the template part draws the fill, so every state is set there with a matching label color
+       (the base theme would otherwise swap in its own neutral hover/pressed colors or a light accent shade) -->
   <Style Selector="Button.accent">
     <Setter Property="Background" Value="{DynamicResource Accent.Brush}" />
     <Setter Property="Foreground" Value="{DynamicResource Accent.ForegroundBrush}" />
   </Style>
+  <Style Selector="Button.accent /template/ ContentPresenter#PART_ContentPresenter, Button.danger /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Transitions" Value="{DynamicResource Motion.Hover}" />
+  </Style>
   <Style Selector="Button.accent:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-    <Setter Property="Background" Value="{DynamicResource SystemAccentColorLight1}" />
+    <Setter Property="Background" Value="{DynamicResource Accent.HoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent.HoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource Accent.ForegroundBrush}" />
+  </Style>
+  <Style Selector="Button.accent:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Accent.PressedBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent.PressedBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource Accent.ForegroundBrush}" />
   </Style>
   <Style Selector="Button.danger">
     <Setter Property="Background" Value="{DynamicResource Brush.Danger}" />
-    <Setter Property="Foreground" Value="White" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.DangerForeground}" />
+  </Style>
+  <Style Selector="Button.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Brush.DangerHover}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.DangerHover}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.DangerForeground}" />
+  </Style>
+  <Style Selector="Button.danger:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Brush.DangerPressed}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.DangerPressed}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.DangerForeground}" />
   </Style>
 
   <!-- Subtle (toolbar, title bar, row actions): transparent until hovered -->

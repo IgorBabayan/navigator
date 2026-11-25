@@ -47,6 +47,28 @@ internal sealed class WindowService(IServiceProvider services, SettingsService s
         window.BringToFront();
     }
 
+    /// <summary>
+    /// Folders handed over by a second launch ("Open with Navigator", default file manager): opened as tabs of the most
+    /// recently used window, which comes to the front. Folders that vanished meanwhile are skipped.
+    /// </summary>
+    public void OpenFolders(IReadOnlyList<string> folders)
+    {
+        var window = ActiveWindow;
+        var created = window is null;
+        window ??= CreateWindow(null);
+        foreach (var folder in folders)
+        {
+            if (Directory.Exists(folder))
+                window.Shell.AddTab(Location.Folder(folder));
+        }
+
+        if (window.Shell.Tabs.Count == 0)
+            window.Shell.AddTab(Location.Home);
+        if (created)
+            window.Show();
+        window.BringToFront();
+    }
+
     public MainWindow CreateStartupWindows(string[] args)
     {
         var session = _sessionStore.Load();
