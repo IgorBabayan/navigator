@@ -40,7 +40,7 @@ internal sealed class PaneMenuView(PaneServices services, ILogger logger)
         }
 
         foreach (var entry in rows)
-            menu.Items.Add(Row(entry, model.Lifetime, pictures));
+            menu.Items.Add(Row(entry, pictures, model.Lifetime));
 
         menu.Closed += (_, _) =>
         {
@@ -99,7 +99,7 @@ internal sealed class PaneMenuView(PaneServices services, ILogger logger)
 
     // ── Rows ──
 
-    private Control Row(MenuEntry entry, CancellationToken lifetime, List<Bitmap> pictures)
+    private Control Row(MenuEntry entry, List<Bitmap> pictures, CancellationToken lifetime)
     {
         if (entry.IsSeparator)
             return new Separator();
@@ -136,15 +136,15 @@ internal sealed class PaneMenuView(PaneServices services, ILogger logger)
         if (entry.Children is { } fixedChildren)
         {
             foreach (var child in fixedChildren)
-                row.Items.Add(Row(child, lifetime, pictures));
+                row.Items.Add(Row(child, pictures, lifetime));
         }
 
         if (entry.LoadChildren is { } load)
-            FillOnFirstOpen(row, load, lifetime, pictures);
+            FillOnFirstOpen(row, load, pictures, lifetime);
         return row;
     }
 
-    private void FillOnFirstOpen(MenuItem row, Func<CancellationToken, Task<IReadOnlyList<MenuEntry>>> load, CancellationToken lifetime, List<Bitmap> pictures)
+    private void FillOnFirstOpen(MenuItem row, Func<CancellationToken, Task<IReadOnlyList<MenuEntry>>> load, List<Bitmap> pictures, CancellationToken lifetime)
     {
         // A trailing "Loading…" row is also what makes Avalonia treat the row as a sub-menu at all.
         var pending = new MenuItem { Header = Text["Menu.Loading"], IsEnabled = false };
@@ -178,7 +178,7 @@ internal sealed class PaneMenuView(PaneServices services, ILogger logger)
             if (loaded.Count > 0 && row.Items.Count > 0)
                 row.Items.Add(new Separator());
             foreach (var entry in loaded)
-                row.Items.Add(Row(entry, lifetime, pictures));
+                row.Items.Add(Row(entry, pictures, lifetime));
             if (row.Items.Count == 0)
                 row.Items.Add(new MenuItem { Header = Text["Menu.Empty"], IsEnabled = false });
         };
