@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using Avalonia;
+using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
@@ -17,6 +18,9 @@ internal static class SystemIcons
     private const int MaxEntries = 1024;
     private static readonly Dictionary<(string Key, int Size), Bitmap?> Cache = [];
     private static readonly Dictionary<(string Key, int Size), List<WeakReference<IconView>>> Pending = [];
+
+    /// <summary>Template icons (SF Symbols, "-symbolic" theme icons): drawn as a mask filled with the text color.</summary>
+    private static readonly Dictionary<Bitmap, IBrush> Masks = [];
     private static ISystemIconProvider? _provider;
 
     public static bool IsSupported => _provider is not null;
@@ -49,14 +53,21 @@ internal static class SystemIcons
         return false;
     }
 
+    /// <summary>The brush that paints a template icon's shape, or null for an ordinary (colored) icon. UI thread only.</summary>
+    public static IBrush? MaskOf(Bitmap bitmap) => Masks.GetValueOrDefault(bitmap);
+
     private static async Task LoadAsync(ISystemIconProvider provider, (string Key, int Size) cacheKey)
     {
         Bitmap? bitmap = null;
+        var isTemplate = false;
         try
         {
             var image = await provider.GetIconAsync(cacheKey.Key, cacheKey.Size).ConfigureAwait(false);
             if (image is not null)
+            {
                 bitmap = ToBitmap(image, cacheKey.Size);
+                isTemplate = image.IsTemplate;
+            }
         }
         catch (Exception)
         {
@@ -64,14 +75,20 @@ internal static class SystemIcons
             bitmap = null;
         }
 
-        Dispatcher.UIThread.Post(() => Complete(cacheKey, bitmap));
+        Dispatcher.UIThread.Post(() => Complete(cacheKey, bitmap, isTemplate));
     }
 
-    private static void Complete((string Key, int Size) cacheKey, Bitmap? bitmap)
+    private static void Complete((string Key, int Size) cacheKey, Bitmap? bitmap, bool isTemplate)
     {
         if (Cache.Count >= MaxEntries)
+        {
             Cache.Clear(); // bitmaps still on screen stay referenced by their views; the GC reclaims the rest
+            Masks.Clear();
+        }
+
         Cache[cacheKey] = bitmap;
+        if (bitmap is not null && isTemplate)
+            Masks[bitmap] = new ImageBrush(bitmap) { Stretch = Stretch.Fill };
 
         if (!Pending.Remove(cacheKey, out var waiters))
             return;

@@ -35,6 +35,14 @@
     <Setter Property="Foreground" Value="{DynamicResource Brush.Danger}" />
     <Setter Property="FontSize" Value="{DynamicResource Font.Caption}" />
   </Style>
+  <!-- "Conflicting file name" dialog: the count line and the "from → to" folder line -->
+  <Style Selector="TextBlock.warning">
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Warning}" />
+  </Style>
+  <Style Selector="TextBlock.route">
+    <Setter Property="Foreground" Value="{DynamicResource Accent.Brush}" />
+    <Setter Property="FontSize" Value="{DynamicResource Font.Caption}" />
+  </Style>
   <Style Selector="TextBlock.section">
     <Setter Property="FontSize" Value="{DynamicResource Font.Body}" />
     <Setter Property="FontWeight" Value="SemiBold" />

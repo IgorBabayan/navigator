@@ -62,6 +62,7 @@ public static class CommandRegistry
         new("item.properties", "Command.Properties", ["Alt+Enter"], "Items"),
         new("item.compress", "Command.Compress", [], "Items"),
         new("item.extract", "Command.Extract", ["Primary+Shift+E"], "Items"),
+        new("item.extractFiles", "Command.ExtractFiles", ["Primary+E"], "Items"),
         new("item.pin", "Command.PinToSidebar", [], "Items"),
         new("item.openTerminal", "Command.OpenTerminal", ["Primary+Shift+`"], "Items"),
         new("item.openInEditor", "Command.OpenInCodeEditor", [], "Items"),

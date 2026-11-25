@@ -28,6 +28,9 @@ public sealed partial class PaneViewModel
 
     private PaneMenuCommands? _menuCommands;
 
+    /// <summary>Window handle source of the last context menu; parents dialogs shown by shell entries.</summary>
+    private Func<nint>? _ownerWindow;
+
     /// <summary>Raised by "Open in other pane"; the tab shows the location in its other pane.</summary>
     public event EventHandler<Location>? OpenInOtherPaneRequested;
 
@@ -76,6 +79,9 @@ public sealed partial class PaneViewModel
         NewFile = NewFileCommand,
         EmptyTrash = EmptyTrashCommand,
         SelectAll = SelectAllCommand,
+        CreateArchive = CreateArchiveCommand,
+        CompressToSevenZip = CompressToSevenZipCommand,
+        NewShortcut = NewShortcutCommand,
     };
 
     private MenuScope CurrentScope => _location.Kind switch
@@ -97,6 +103,7 @@ public sealed partial class PaneViewModel
     public PaneMenu CreateItemMenu(bool shiftHeld, Func<nint> ownerWindow)
     {
         ArgumentNullException.ThrowIfNull(ownerWindow);
+        _ownerWindow = ownerWindow;
         var selected = Selection.SelectedItems.ToArray();
         var lifetime = new CancellationTokenSource();
         var scope = CurrentScope;
@@ -113,7 +120,8 @@ public sealed partial class PaneViewModel
             Selection = traits,
             IsPinned = traits.HasFolders && selected.Where(i => i.IsDirectory).All(i => _pins.IsPinned(i.FullPath)),
             ArchiveName = ArchiveNameFor(selected),
-            ExtractFolderName = selected is [var archive] ? ArchiveService.ArchiveStem(archive.Name) : null,
+            SevenZipArchiveName = SevenZipTool.IsAvailable ? ArchiveBaseNameOf(selected) + ".7z" : null,
+            ExtractFolderName = selected is [var archive] ? ArchiveService.ArchiveStem(archive.Name) + Path.DirectorySeparatorChar : null,
             Tags = TagChoicesFor(selected),
             OpenWithEntries = first is null || first.IsDirectory || scope == MenuScope.Remote ? null : token => OpenWithEntriesAsync(first.FullPath, bridge, token),
             SendToEntries = scope == MenuScope.Remote ? null : token => SendToEntriesAsync(bridge, token),
@@ -133,6 +141,7 @@ public sealed partial class PaneViewModel
         var input = BaseInput(CurrentScope, shiftHeld) with
         {
             IsPinned = CurrentDirectory is { } shown && _pins.IsPinned(shown),
+            NewItemEntries = CanCreateItems ? NewItemEntriesAsync : null,
             ShellEntries = bridge is null ? null : token => ShellRemainderAsync(bridge, token),
         };
 
@@ -183,7 +192,12 @@ public sealed partial class PaneViewModel
         return shell?.Remainder() ?? [];
     }
 
-    /// <summary>The shell's own "Open with" list where it has one (Windows), otherwise registered applications plus a chooser.</summary>
+    /// <summary>
+    /// "Open with", filled the way the reference app does it on Windows: the shell's own list (the item menu's "Open with"
+    /// sub-menu, or the shell's Open With handler asked directly when that menu only has a plain command), so packaged
+    /// apps, "Search the Microsoft Store" and "Choose another app" appear exactly as in Explorer. Elsewhere: the
+    /// applications registered for the type (LaunchServices on macOS, desktop entries on Linux) plus a chooser.
+    /// </summary>
     private async Task<IReadOnlyList<MenuEntry>> OpenWithEntriesAsync(string path, Task<ShellMenuBridge?>? bridge, CancellationToken cancellationToken)
     {
         if (bridge is not null && await bridge.WaitAsync(cancellationToken).ConfigureAwait(false) is { } shell
@@ -194,6 +208,9 @@ public sealed partial class PaneViewModel
                 return fromShell;
         }
 
+        if (_services.ShellMenus.IsSupported && await OpenWithHandlerEntriesAsync(path, cancellationToken).ConfigureAwait(false) is { Count: > 0 } direct)
+            return direct;
+
         var handlers = await _services.Launcher.GetHandlersAsync(path, cancellationToken).ConfigureAwait(false);
         var entries = new List<MenuEntry>(handlers.Count + 2);
         foreach (var handler in handlers)
@@ -202,6 +219,7 @@ public sealed partial class PaneViewModel
             {
                 Label = handler.IsDefault ? $"{handler.DisplayName} ({_services.Localizer["OpenWith.Default"]})" : handler.DisplayName,
                 Glyph = "ApplicationOutline",
+                SystemIcon = HandlerIconKey(handler),
                 Command = OpenWithApplicationCommand,
                 Parameter = new OpenWithChoice(path, handler),
                 Scopes = MenuScope.Anywhere,
@@ -219,6 +237,30 @@ public sealed partial class PaneViewModel
             Scopes = MenuScope.Anywhere,
         });
         return entries;
+    }
+
+    /// <summary>The shell's Open With handler on its own; the menu it holds lives until the context menu closes.</summary>
+    private async Task<IReadOnlyList<MenuEntry>?> OpenWithHandlerEntriesAsync(string path, CancellationToken cancellationToken)
+    {
+        var list = await _services.ShellMenus.OpenWithListAsync(path, cancellationToken).ConfigureAwait(false);
+        if (list is null)
+            return null;
+        if (cancellationToken.IsCancellationRequested || list.Items.Count == 0)
+        {
+            list.Dispose();
+            return null;
+        }
+
+        _ = cancellationToken.Register(list.Dispose);
+        return new ShellMenuBridge(list, () => _ownerWindow?.Invoke() ?? 0, _logger).Everything();
+    }
+
+    /// <summary>The application's own icon: its bundle on macOS, its theme icon (or icon file) on Linux.</summary>
+    private static string? HandlerIconKey(AppHandler handler)
+    {
+        if (string.IsNullOrEmpty(handler.IconPath))
+            return null;
+        return OperatingSystem.IsMacOS() ? SystemIconKey.ForPath(handler.IconPath) : SystemIconKey.Themed(handler.IconPath);
     }
 
     /// <summary>The shell's "Send to" list where it has one (Windows), otherwise known folders and removable drives.</summary>
@@ -266,10 +308,7 @@ public sealed partial class PaneViewModel
     {
         if (selected.Length == 0)
             return "Archive.zip";
-        var stem = selected is [var only]
-            ? PathUtil.SplitName(only.Name, only.IsDirectory).Stem
-            : Path.GetFileName(Path.GetDirectoryName(selected[0].FullPath));
-        return (string.IsNullOrEmpty(stem) ? "Archive" : stem) + ".zip";
+        return ArchiveBaseNameOf(selected) + ".zip";
     }
 
     private void OpenSelectionInOtherPane()

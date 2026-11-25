@@ -439,6 +439,27 @@ public sealed partial class MainWindow : Window
         await ShowLocationMenuAsync(button, pane, hidden, () => pane.GetRootLocationsAsync()).ConfigureAwait(true);
     }
 
+    private PaneMenuView? _paneMenus;
+
+    private PaneMenuView PaneMenus
+        => _paneMenus ??= new PaneMenuView(_services, App.Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger<PaneMenuView>>());
+
+    /// <summary>The command bar's "New": built on each click, so new document types appear without a restart.</summary>
+    private async void OnNewMenuClick(object? sender, RoutedEventArgs e)
+    {
+        if (Shell.ActivePane is not { } pane || sender is not Button button)
+            return;
+        if (pane.IsRemote)
+        {
+            // Server folders (plugins) only create folders.
+            if (pane.NewFolderCommand.CanExecute(null))
+                await pane.NewFolderCommand.ExecuteAsync(null).ConfigureAwait(true);
+            return;
+        }
+
+        PaneMenus.OpenBelow(await pane.CreateNewMenuAsync().ConfigureAwait(true), button);
+    }
+
     /// <summary>
     /// Builds a location menu and opens it under <paramref name="button"/>. The menu is opened explicitly rather than
     /// through <c>Button.Flyout</c>: a button opens its flyout before raising Click, and an empty MenuFlyout does not

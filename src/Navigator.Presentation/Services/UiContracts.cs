@@ -99,6 +99,12 @@ public interface IDialogService
 
     Task<ConflictChoice> ResolveConflictAsync(ConflictInfo conflict);
 
+    /// <summary>
+    /// "Conflicting file name": every incoming item whose name is taken, each with its own choice and one choice for
+    /// all. Returns the choice per source path, or null when the user cancels the whole paste.
+    /// </summary>
+    Task<IReadOnlyDictionary<string, NameConflictAction>?> ResolveNameConflictsAsync(IReadOnlyList<NameConflict> conflicts);
+
     Task<ErrorChoice> ResolveErrorAsync(string path, FileOperationErrorKind kind, string message, bool canRetry);
 
     Task ShowMessageAsync(string title, string message);

@@ -370,6 +370,7 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
             case "item.properties": pane?.PropertiesCommand.Execute(null); break;
             case "item.compress": pane?.CompressCommand.Execute(null); break;
             case "item.extract": pane?.ExtractCommand.Execute(null); break;
+            case "item.extractFiles": pane?.ExtractFilesCommand.Execute(null); break;
             case "item.pin": pane?.PinSelectedCommand.Execute(null); break;
             case "item.openTerminal": pane?.OpenTerminalCommand.Execute(null); break;
             case "item.openInEditor": pane?.OpenInCodeEditorCommand.Execute(null); break;

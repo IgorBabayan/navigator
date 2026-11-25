@@ -93,6 +93,51 @@ public sealed class FileOperationService
     /// <summary>Creates an empty file. Never truncates an existing file.</summary>
     public string CreateFile(string parentDirectory, string name) => Create(parentDirectory, name, isDirectory: false, recordUndo: true);
 
+    /// <summary>
+    /// Creates a file from a "New" menu template: empty, with the given bytes, or as a copy of a template file. Never
+    /// replaces an existing item; a half-written file is removed again. Undo deletes it.
+    /// </summary>
+    public string CreateFileFromTemplate(string parentDirectory, string name, NewItemTemplate template)
+    {
+        ArgumentNullException.ThrowIfNull(template);
+        if (template.Content == NewItemContent.Empty || (template.Content == NewItemContent.Bytes && template.Data is not { Length: > 0 }))
+            return CreateFile(parentDirectory, name);
+
+        ValidateName(name);
+        var path = Path.Combine(parentDirectory, name);
+        if (ItemInfo.AnyExists(path))
+            throw new OperationStepException(FileOperationErrorKind.AlreadyExists, $"'{name}' already exists.");
+
+        // Only a file this call created is removed on failure; CreateNew throws before touching one that appeared meanwhile.
+        var output = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        var written = false;
+        try
+        {
+            using (output)
+            {
+                if (template.Content == NewItemContent.Bytes)
+                {
+                    output.Write(template.Data);
+                }
+                else if (template.TemplatePath is { } source && File.Exists(source))
+                {
+                    using var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    input.CopyTo(output);
+                }
+            }
+
+            written = true;
+        }
+        finally
+        {
+            if (!written && File.Exists(path))
+                File.Delete(path);
+        }
+
+        Undo.Record(new CreateRecord(path, IsDirectory: false));
+        return path;
+    }
+
     private string Create(string parentDirectory, string name, bool isDirectory, bool recordUndo)
     {
         ValidateName(name);

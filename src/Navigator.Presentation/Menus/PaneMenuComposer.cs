@@ -51,6 +51,15 @@ public sealed record PaneMenuCommands
     public required ICommand NewFile { get; init; }
     public required ICommand EmptyTrash { get; init; }
     public required ICommand SelectAll { get; init; }
+
+    /// <summary>"Create archive": asks for name, format and compression level. Optional (hosts without it get no entry).</summary>
+    public ICommand? CreateArchive { get; init; }
+
+    /// <summary>"Create name.7z" (needs an installed 7-Zip / libarchive program). Optional.</summary>
+    public ICommand? CompressToSevenZip { get; init; }
+
+    /// <summary>New → Shortcut: asks for the target and creates a link to it here. Optional.</summary>
+    public ICommand? NewShortcut { get; init; }
 }
 
 /// <summary>
@@ -80,6 +89,12 @@ public sealed record PaneMenuInput
 
     /// <summary>Header of "Compress to …" ("photos.zip").</summary>
     public string ArchiveName { get; init; } = "Archive.zip";
+
+    /// <summary>Header of "Create … .7z" ("photos.7z"); null when no program that writes 7z is installed.</summary>
+    public string? SevenZipArchiveName { get; init; }
+
+    /// <summary>Document types for New (Windows ShellNew, the Templates folder); asked when the sub-menu opens.</summary>
+    public Func<CancellationToken, Task<IReadOnlyList<MenuEntry>>>? NewItemEntries { get; init; }
 
     /// <summary>Header part of "Extract to …" for a single archive ("photos"); null for several.</summary>
     public string? ExtractFolderName { get; init; }
@@ -256,11 +271,8 @@ public static class PaneMenuComposer
                 Glyph = "Add",
                 Scopes = MenuScope.Folder,
                 IsWanted = input.CanCreate,
-                Children =
-                [
-                    new CommandEntry(run.NewFolder, text["Command.NewFolder"], "FolderAdd") { Show = true, GestureId = "item.newFolder" }.Build(),
-                    new CommandEntry(run.NewFile, text["Command.NewFile"], "File") { Show = true, GestureId = "item.newFile" }.Build(),
-                ],
+                Children = NewChoices(input),
+                LoadChildren = input.NewItemEntries,
             },
             new CommandEntry(run.NewFolder, text["Command.NewFolder"], "FolderAdd") { Scopes = MenuScope.Remote }.Build(),
             new CommandEntry(run.Upload, text["Remote.Upload"], "Upload") { Scopes = MenuScope.Remote }.Build(),
@@ -349,6 +361,25 @@ public static class PaneMenuComposer
         entries.RemoveRange(write, entries.Count - write);
     }
 
+    /// <summary>
+    /// The fixed part of every "New" menu, as Explorer orders it: Folder, File, Shortcut. Document types follow in the
+    /// toolbar menu and load into the context menu's sub-menu.
+    /// </summary>
+    public static List<MenuEntry> NewChoices(PaneMenuInput input)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        var text = input.Text;
+        var run = input.Commands;
+        var choices = new List<MenuEntry>(3)
+        {
+            new CommandEntry(run.NewFolder, text["New.Folder"], "FolderAdd") { Show = true, GestureId = "item.newFolder" }.Build(),
+            new CommandEntry(run.NewFile, text["New.File"], "FilePlusOutline") { Show = true, GestureId = "item.newFile" }.Build(),
+        };
+        if (run.NewShortcut is { } shortcut)
+            choices.Add(new CommandEntry(shortcut, text["New.Shortcut"], "Shortcut") { Show = true }.Build());
+        return choices;
+    }
+
     private static MenuEntry OpenWith(PaneMenuInput input)
     {
         var picked = input.Selection;
@@ -372,12 +403,22 @@ public static class PaneMenuComposer
             Label = text["Command.CompressMenu"],
             Glyph = "Compress",
             IsWanted = input.Settings.ShowCompressionInContextMenu && run.Compress.CanExecute(null),
-            Children =
-            [
-                new CommandEntry(run.Compress, text.Format("Command.CompressTo", input.ArchiveName), "Compress") { GestureId = "item.compress" }.Build(),
-                new CommandEntry(run.CompressEach, text["Command.CompressEach"], "Multiple").Build(),
-            ],
+            Children = CompressChoices(input),
         };
+    }
+
+    /// <summary>Like the reference app: "Create archive" (choose format and level), then one-click ZIP and 7z.</summary>
+    private static List<MenuEntry> CompressChoices(PaneMenuInput input)
+    {
+        var text = input.Text;
+        var run = input.Commands;
+        var choices = new List<MenuEntry>(3);
+        if (run.CreateArchive is { } custom)
+            choices.Add(new CommandEntry(custom, text["Command.CreateArchive"], "Compress").Build());
+        choices.Add(new CommandEntry(run.Compress, text.Format("Command.CreateNamedArchive", input.ArchiveName), "Archive") { GestureId = "item.compress" }.Build());
+        if (run.CompressToSevenZip is { } sevenZip && input.SevenZipArchiveName is { } sevenZipName)
+            choices.Add(new CommandEntry(sevenZip, text.Format("Command.CreateNamedArchive", sevenZipName), "Archive").Build());
+        return choices;
     }
 
     private static MenuEntry ExtractMenu(PaneMenuInput input)
@@ -393,7 +434,7 @@ public static class PaneMenuComposer
             IsWanted = input.Settings.ShowCompressionInContextMenu && picked.ArchiveCount > 0,
             Children =
             [
-                new CommandEntry(run.ExtractFiles, text["Command.ExtractFiles"], "Extract").Build(),
+                new CommandEntry(run.ExtractFiles, text["Command.ExtractFiles"], "Extract") { GestureId = "item.extractFiles" }.Build(),
                 new CommandEntry(run.ExtractSmart, text["Command.ExtractHereSmart"], "Extract") { GestureId = "item.extract" }.Build(),
                 new CommandEntry(run.ExtractHere, text["Command.ExtractHere"], "Extract").Build(),
                 new CommandEntry(run.ExtractToFolder, toFolder, "FolderAdd") { Show = picked.OnlyArchives ? null : false }.Build(),

@@ -727,7 +727,9 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
             var segments = PathUtil.GetSegments(path);
             for (var i = 0; i < segments.Count; i++)
             {
-                var name = i == 0 && segments[i].Name == "/" ? _services.Localizer["Drive.FileSystem"] : FolderDisplayName(segments[i].FullPath, segments[i].Name);
+                var name = i == 0 && segments[i].Name == "/" ? _services.Localizer["Drive.FileSystem"]
+                    : i == 0 && OperatingSystem.IsWindows() && IsDriveRoot(segments[i].FullPath) ? DriveCrumbName(segments[i].FullPath)
+                    : FolderDisplayName(segments[i].FullPath, segments[i].Name);
                 var next = i + 1 < segments.Count ? segments[i + 1].FullPath : null;
                 Breadcrumbs.Add(new BreadcrumbViewModel(name, segments[i].FullPath, i == segments.Count - 1 && !IsSearch, canExpand: true, next));
             }
@@ -745,6 +747,78 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         {
             Breadcrumbs.Add(new BreadcrumbViewModel(Title, string.Empty, isLast: true));
         }
+    }
+
+    /// <summary>Explorer-style names of drive roots ("Windows (C:)"), shared by every pane; read once per drive.</summary>
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, VolumeInfo> DriveFacts = new(StringComparer.OrdinalIgnoreCase);
+
+    private static bool IsDriveRoot(string path)
+        => path.Length is 2 or 3 && char.IsAsciiLetter(path[0]) && path[1] == ':' && (path.Length == 2 || path[2] is '\\' or '/');
+
+    /// <summary>
+    /// "Label (C:)", or the drive type for unlabeled drives ("Local Disk (C:)"). A local disk's label is read right away
+    /// (no I/O beyond the volume header); network and optical drives can stall, so theirs is read in the background and
+    /// the breadcrumb is refreshed when it arrives.
+    /// </summary>
+    private string DriveCrumbName(string root)
+    {
+        var letter = root[..2].ToUpperInvariant();
+        if (DriveFacts.TryGetValue(letter, out var known))
+            return HomeViewModel.WindowsVolumeName(known, _services.Localizer);
+
+        DriveType type;
+        try
+        {
+            type = new DriveInfo(letter).DriveType;
+        }
+        catch (ArgumentException)
+        {
+            return letter;
+        }
+
+        var kind = type switch
+        {
+            DriveType.Network => VolumeKind.Network,
+            DriveType.CDRom => VolumeKind.Optical,
+            DriveType.Removable => VolumeKind.Removable,
+            DriveType.Ram => VolumeKind.Ram,
+            _ => VolumeKind.Fixed,
+        };
+        if (kind is VolumeKind.Fixed or VolumeKind.Ram)
+        {
+            var facts = ReadDriveFacts(letter, kind);
+            DriveFacts[letter] = facts;
+            return HomeViewModel.WindowsVolumeName(facts, _services.Localizer);
+        }
+
+        var shownFor = _location;
+        _ = Task.Run(() =>
+        {
+            DriveFacts[letter] = ReadDriveFacts(letter, kind);
+            _services.Dispatcher.Post(() =>
+            {
+                if (shownFor.Equals(_location))
+                    UpdateBreadcrumbs();
+            });
+        });
+        return HomeViewModel.WindowsVolumeName(new VolumeInfo(letter, string.Empty, kind, string.Empty, 0, 0, false), _services.Localizer);
+    }
+
+    private static VolumeInfo ReadDriveFacts(string letter, VolumeKind kind)
+    {
+        var label = string.Empty;
+        try
+        {
+            var drive = new DriveInfo(letter);
+            if (drive.IsReady)
+                label = drive.VolumeLabel;
+        }
+        catch (Exception unreadable) when (unreadable is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            // An unreadable label falls back to the drive type's name.
+        }
+
+        return new VolumeInfo(letter, label, kind, string.Empty, 0, 0, true);
     }
 
     private string FolderDisplayName(string path, string? fallback = null)
