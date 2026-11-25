@@ -69,6 +69,11 @@ internal static class CompositionRoot
         services.AddSingleton<IFileOwnershipProvider, FileOwnershipProvider>();
         services.AddSingleton(_ => PlatformServices.CreateSystemIcons());
         services.AddSingleton(provider => PlatformServices.CreateGlobalHotkey(provider.GetRequiredService<IPlatformInfo>()));
+        services.AddSingleton(_ => PlatformServices.CreateLoginItems());
+        services.AddSingleton(provider => PlatformServices.CreateDesktopShortcut(provider.GetRequiredService<IPlatformInfo>()));
+        // Refresh tokens of cloud plugins: DPAPI files (Windows, machine-local next to the plugins folder, which the plugin
+        // host keeps clean), Keychain (macOS), Secret Service (Linux).
+        services.AddSingleton(_ => PlatformServices.CreateSecretStore(Path.Combine(Path.GetDirectoryName(directories.PluginDirectory)!, "Secrets")));
 
         // Engines
         services.AddSingleton(provider =>
@@ -115,7 +120,7 @@ internal static class CompositionRoot
         services.AddSingleton<UpdateViewModel>();
 
         // Plugins. Built-in plugins (only Network) are compiled in and registered without assembly scanning;
-        // installed ones (SSH, FTP… from the plugin shop) are loaded by PluginHost.StartAsync after the first frame.
+        // installed ones (SSH, FTP, Google Drive, OneDrive… from the plugin shop) are loaded by PluginHost.StartAsync after the first frame.
         services.AddSingleton<PluginUi>();
         services.AddSingleton<PluginHostServices>();
         services.AddSingleton(provider => new PluginHost(

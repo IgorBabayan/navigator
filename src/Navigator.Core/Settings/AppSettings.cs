@@ -156,6 +156,12 @@ public sealed class GeneralSettings
     /// </summary>
     public bool KeepRunningInBackground { get; set; }
 
+    /// <summary>
+    /// The global shortcut also opens Navigator while it is not running: a small agent started at sign-in holds the key
+    /// (GNOME on Wayland: a desktop shortcut). On by default; turning it off removes the agent and its login item.
+    /// </summary>
+    public bool GlobalShortcutWhenClosed { get; set; } = true;
+
     public bool ShowHomeQuickAccess { get; set; } = true;
 
     public bool ShowHomeDrives { get; set; } = true;
@@ -187,6 +193,9 @@ public sealed class SidebarSettings
     public bool ShowDrives { get; set; } = true;
 
     public bool ShowNetwork { get; set; } = true;
+
+    /// <summary>The "Cloud" group (Google Drive, OneDrive… accounts), shown while a cloud plugin is installed.</summary>
+    public bool ShowCloud { get; set; } = true;
 
     public bool ShowTags { get; set; } = true;
 

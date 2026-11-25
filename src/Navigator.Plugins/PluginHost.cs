@@ -346,9 +346,35 @@ public sealed class PluginHost : IDisposable
         }
 
         sections.Sort((a, b) => a.Order != b.Order ? a.Order.CompareTo(b.Order) : string.CompareOrdinal(a.Id, b.Id));
+        GroupSections(sections);
         Volatile.Write(ref _contributions, new Contributions([.. sections], fileSystems.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase)));
         if (raise)
             Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Members of a known sidebar group (e.g. Google Drive and OneDrive in "Cloud") become one section at the group's
+    /// position. Order among members follows <see cref="IPluginSidebarSection.Order"/>.
+    /// </summary>
+    private void GroupSections(List<IPluginSidebarSection> sections)
+    {
+        var groups = new Dictionary<SidebarGroup, List<IPluginSidebarSection>>();
+        for (var i = sections.Count - 1; i >= 0; i--)
+        {
+            if (sections[i] is IPluginSidebarGroupMember { GroupId: { } groupId } && SidebarGroup.Known.TryGetValue(groupId, out var group))
+            {
+                if (!groups.TryGetValue(group, out var members))
+                    groups[group] = members = [];
+                members.Insert(0, sections[i]);
+                sections.RemoveAt(i);
+            }
+        }
+
+        foreach (var (group, members) in groups)
+        {
+            var index = sections.FindIndex(s => s.Order > group.Order);
+            sections.Insert(index < 0 ? sections.Count : index, new SidebarGroupSection(group, members, _services));
+        }
     }
 
     /// <summary>Deletes leftovers: staging folders, old versions and plugins no longer in installed.json.</summary>

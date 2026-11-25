@@ -17,6 +17,13 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
   key sign-in; server keys trusted on first use; open, download, upload, new folder, rename, delete.
 - FTP plugin (separate package): FTP and FTPS (explicit TLS) servers, anonymous sign-in, self-signed certificates
   trusted per server after a warning; same file actions as SSH.
+- Cloud group in the sidebar, right below Network, with two new plugins (separate packages): Google Drive and
+  OneDrive. Sign in through the browser (OAuth with PKCE), several accounts per service; browse, download (Google Docs
+  as Office files), upload, new folder, rename, delete to the service's trash. Sign-ins are kept in the OS keychain.
+- The global shortcut also opens Navigator when it is not running (Settings → General → "Works when Navigator isn't
+  running", on by default): a tiny agent started at sign-in holds the key; on GNOME/Wayland a desktop shortcut runs
+  `Navigator --activate`. A second launch with `--activate` brings the running Navigator to the front.
+- Plugin API 1.2: sidebar groups, plugin secrets, open in browser, cloud helpers.
 - Releases publish `navigator-plugin-*.navplugin` packages and `plugin-catalog.json` (+ `.sig`).
 - Solution foundation: .NET 10, Avalonia 12, central package management, analyzers, CI and release workflows.
 - Core engines: batched directory enumeration, natural sorting, grouping, filtering, navigation history,

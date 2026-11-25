@@ -20,7 +20,8 @@ public sealed class PluginTests
     [DataRow("1.0", true)]
     [DataRow("1", true)]
     [DataRow("1.1", true)]
-    [DataRow("1.2", false)]
+    [DataRow("1.2", true)]
+    [DataRow("1.3", false)]
     [DataRow("2.0", false)]
     [DataRow("0.9", false)]
     [DataRow("", false)]
@@ -487,6 +488,10 @@ public sealed class PluginTests
         public VolumeDisplay DescribeVolume(VolumeInfo volume) => throw new NotSupportedException();
 
         public IPluginLog CreateLog(string pluginId) => new Log();
+
+        public ISecretStore Secrets { get; } = new Navigator.Platform.Secrets.UnsupportedSecretStore();
+
+        public bool OpenInBrowser(Uri address) => false;
 
         private sealed class Log : IPluginLog
         {

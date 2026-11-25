@@ -2,6 +2,8 @@ using Navigator.Core.Platform;
 using Navigator.Platform.Hotkeys;
 using Navigator.Platform.Icons;
 using Navigator.Platform.Launch;
+using Navigator.Platform.Secrets;
+using Navigator.Platform.Startup;
 using Navigator.Platform.Trash;
 
 namespace Navigator.Platform;
@@ -37,6 +39,54 @@ public static class PlatformServices
     /// <summary>OS-drawn icons for the sidebar and Home (Windows shell); elsewhere Navigator's own icons are kept.</summary>
     public static ISystemIconProvider CreateSystemIcons()
         => OperatingSystem.IsWindows() ? new WindowsShellIcons() : new UnsupportedSystemIcons();
+
+    /// <summary>
+    /// The OS credential store for secrets that must survive a restart (OAuth refresh tokens of cloud plugins).
+    /// <paramref name="directory"/> holds the DPAPI-encrypted files on Windows; other platforms keep secrets in the
+    /// Keychain or the Secret Service.
+    /// </summary>
+    public static ISecretStore CreateSecretStore(string directory)
+    {
+        if (OperatingSystem.IsWindows())
+            return new WindowsDpapiSecretStore(directory);
+        if (OperatingSystem.IsMacOS())
+            return new MacKeychainSecretStore();
+        if (OperatingSystem.IsLinux())
+            return new SecretServiceStore();
+        return new UnsupportedSecretStore();
+    }
+
+    /// <summary>Starts the global shortcut agent when the user signs in.</summary>
+    public static ILoginItemService CreateLoginItems()
+    {
+        if (OperatingSystem.IsWindows())
+            return new WindowsLoginItem();
+        if (OperatingSystem.IsMacOS())
+            return new MacLoginItem();
+        if (OperatingSystem.IsLinux())
+            return new XdgLoginItem();
+        return new UnsupportedLoginItem();
+    }
+
+    /// <summary>
+    /// True where a background process can hold a system-wide shortcut: Windows, macOS, and Linux sessions on X11.
+    /// Under Wayland no client may grab keys; there the desktop's own shortcut settings are used instead.
+    /// </summary>
+    public static bool SupportsShortcutAgent(IPlatformInfo platform)
+    {
+        ArgumentNullException.ThrowIfNull(platform);
+        return OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+               || (OperatingSystem.IsLinux() && !platform.IsWaylandSession && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY")));
+    }
+
+    /// <summary>A shortcut kept by the desktop itself (GNOME on Wayland); unsupported elsewhere.</summary>
+    public static IDesktopShortcutService CreateDesktopShortcut(IPlatformInfo platform)
+    {
+        ArgumentNullException.ThrowIfNull(platform);
+        if (OperatingSystem.IsLinux() && platform.IsWaylandSession)
+            return new GnomeDesktopShortcut();
+        return new UnsupportedDesktopShortcut();
+    }
 
     /// <summary>
     /// System-wide hotkey for "open Navigator". Linux uses an X11 key grab, which does not work under Wayland even when

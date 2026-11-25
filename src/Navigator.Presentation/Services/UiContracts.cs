@@ -26,6 +26,9 @@ public interface IGlobalHotkeyStatus
     /// <summary>The assigned shortcut in display form ("Ctrl+Shift+Alt+E"), empty when none.</summary>
     string Gesture { get; }
 
+    /// <summary>True when the shortcut also starts Navigator while it is not running (agent or desktop shortcut).</summary>
+    bool WorksWhenClosed { get; }
+
     /// <summary>Raised on the UI thread after every (re-)registration.</summary>
     event EventHandler? Changed;
 }

@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Google Drive plugin (Cloud group in the sidebar): browse, download, upload, rename and delete files of signed-in
+    Google accounts (Drive API v3, OAuth 2.0 with PKCE in the system browser). Base class library only.
+    Installed from the plugin shop; NOT part of the app build.
+    `dotnet publish -c Release` produces artifacts/plugins/navigator-plugin-gdrive-{version}.navplugin.
+
+    OAuth client: a "Desktop app" client of a Google Cloud project with the Drive API enabled. Release builds embed it
+    from the repository variables NAVIGATOR_GOOGLE_CLIENT_ID / NAVIGATOR_GOOGLE_CLIENT_SECRET (Google treats a desktop
+    client secret as public); the same environment variables override it at run time (docs/PLUGINS.md).
+  -->
+  <PropertyGroup>
+    <RootNamespace>Navigator.Plugin.GoogleDrive</RootNamespace>
+    <NavigatorPluginId>gdrive</NavigatorPluginId>
+    <NavigatorPluginVersion>1.0.0</NavigatorPluginVersion>
+    <NavigatorPluginName>Google Drive</NavigatorPluginName>
+    <NavigatorPluginDescription>Browse, upload and download files in Google Drive. Accounts appear in the sidebar's Cloud group.</NavigatorPluginDescription>
+    <NavigatorPluginAuthor>Navigator</NavigatorPluginAuthor>
+    <NavigatorPluginEntryType>Navigator.Plugin.GoogleDrive.GoogleDrivePlugin</NavigatorPluginEntryType>
+    <NavigatorPluginIconKey>CloudGoogleDrive</NavigatorPluginIconKey>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The host provides the contract (and Navigator.Core) at run time: never copied into the package. -->
+    <ProjectReference Include="..\..\src\Navigator.Plugins.Abstractions\Navigator.Plugins.Abstractions.csproj" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Strings\*.json" LogicalName="Strings.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(NAVIGATOR_GOOGLE_CLIENT_ID)' != ''">
+    <AssemblyMetadata Include="OAuthClientId" Value="$(NAVIGATOR_GOOGLE_CLIENT_ID)" />
+    <AssemblyMetadata Include="OAuthClientSecret" Value="$(NAVIGATOR_GOOGLE_CLIENT_SECRET)" Condition="'$(NAVIGATOR_GOOGLE_CLIENT_SECRET)' != ''" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Navigator.UnitTests" />
+  </ItemGroup>
+</Project>
