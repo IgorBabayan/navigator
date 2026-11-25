@@ -18,11 +18,13 @@ public sealed partial class SidebarView : UserControl
     /// <summary>Menu items a plugin added to the previous menu; replaced each time a menu opens.</summary>
     private static readonly object PluginItemTag = new();
 
-    /// <summary>Appends the entry's plugin actions (e.g. "Edit…", "Remove" for a saved server) to its context menu.</summary>
+    /// <summary>Re-checks the trash for its entry, then appends the entry's plugin actions (e.g. "Edit…", "Remove" for a saved server) to its context menu.</summary>
     private void OnItemMenuOpening(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         if (sender is not ContextMenu { DataContext: SidebarItemViewModel item } menu)
             return;
+        if (item.IsTrash)
+            Model?.RefreshTrashState();
         for (var i = menu.Items.Count - 1; i >= 0; i--)
         {
             if (menu.Items[i] is Control { Tag: var tag } && ReferenceEquals(tag, PluginItemTag))
@@ -34,7 +36,13 @@ public sealed partial class SidebarView : UserControl
         menu.Items.Add(new Separator { Tag = PluginItemTag });
         foreach (var command in item.Commands)
         {
-            var menuItem = new MenuItem { Header = command.Title, Command = command.Command, Tag = PluginItemTag };
+            var menuItem = new MenuItem
+            {
+                Header = command.Title,
+                Command = command.Command,
+                Tag = PluginItemTag,
+                Icon = new Controls.IconView { Kind = command.IconKey, Width = 16, Height = 16 },
+            };
             if (command.IsDestructive)
                 menuItem.Classes.Add("destructive");
             menu.Items.Add(menuItem);

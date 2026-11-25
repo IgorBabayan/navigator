@@ -16,9 +16,17 @@ obtained as NuGet packages (not vendored). Release packages include the runtime 
 | BenchmarkDotNet | 0.15.2 | MIT | no (benchmarks) | https://github.com/dotnet/BenchmarkDotNet |
 | SSH.NET | 2026.0.1 | MIT | only in the SSH plugin package (`.navplugin`), not in the app | https://github.com/sshnet/SSH.NET |
 | BouncyCastle.Cryptography (dependency of SSH.NET) | 2.7.0 | MIT | only in the SSH plugin package | https://github.com/bcgit/bc-csharp |
+| Material.Icons.Avalonia (+ Material.Icons) | 3.0.2 | MIT | yes | https://github.com/SKProCH/Material.Icons |
+| Material Design Icons by Pictogrammers (icon data inside Material.Icons) | as packaged | Pictogrammers Free License; icons originating from Google: Apache-2.0 | yes | https://pictogrammers.com/library/mdi/ |
 
 Build-time tools (not shipped): Inno Setup (Inno Setup License), appimagetool (MIT), Apple Xcode tools.
 The AppImage runtime embedded by appimagetool is MIT-licensed (https://github.com/AppImage/type2-runtime).
+
+The structure of the pane context menus (entry model with visibility rules, command-based entry builder, filter
+pass with Shift-only entries moved under "Show more options", and hosting Windows' classic shell menu with lazily
+filled sub-menus) is adapted from the **Files** app (https://github.com/files-community/Files), MIT-licensed files
+only, rewritten for Navigator. Copyright (c) 2018 - present Files Community; license text in `licenses/Files-MIT.txt`.
+See `docs/SOURCE_ORIGINALITY.md`.
 
 Code adapted from **ED Assistant** (https://github.com/IgorBabayan/ed-assistant) is by the same author and
 used with permission; see `docs/SOURCE_ORIGINALITY.md`.

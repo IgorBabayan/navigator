@@ -473,6 +473,22 @@ public sealed class SettingsViewModel : ObservableObject
 
     public bool ShowOpenTerminalInContextMenu { get => S.General.ShowOpenTerminalInContextMenu; set => Set("contextMenu", value, s => s.General.ShowOpenTerminalInContextMenu, (s, v) => s.General.ShowOpenTerminalInContextMenu = v); }
 
+    public bool ShowOpenInNewTabInContextMenu { get => S.General.ShowOpenInNewTabInContextMenu; set => Set("contextMenu", value, s => s.General.ShowOpenInNewTabInContextMenu, (s, v) => s.General.ShowOpenInNewTabInContextMenu = v); }
+
+    public bool ShowOpenInOtherPaneInContextMenu { get => S.General.ShowOpenInOtherPaneInContextMenu; set => Set("contextMenu", value, s => s.General.ShowOpenInOtherPaneInContextMenu, (s, v) => s.General.ShowOpenInOtherPaneInContextMenu = v); }
+
+    public bool ShowCreateFolderWithSelectionInContextMenu { get => S.General.ShowCreateFolderWithSelectionInContextMenu; set => Set("contextMenu", value, s => s.General.ShowCreateFolderWithSelectionInContextMenu, (s, v) => s.General.ShowCreateFolderWithSelectionInContextMenu = v); }
+
+    public bool ShowCreateShortcutInContextMenu { get => S.General.ShowCreateShortcutInContextMenu; set => Set("contextMenu", value, s => s.General.ShowCreateShortcutInContextMenu, (s, v) => s.General.ShowCreateShortcutInContextMenu = v); }
+
+    public bool ShowCompressionInContextMenu { get => S.General.ShowCompressionInContextMenu; set => Set("contextMenu", value, s => s.General.ShowCompressionInContextMenu, (s, v) => s.General.ShowCompressionInContextMenu = v); }
+
+    public bool ShowSendToInContextMenu { get => S.General.ShowSendToInContextMenu; set => Set("contextMenu", value, s => s.General.ShowSendToInContextMenu, (s, v) => s.General.ShowSendToInContextMenu = v); }
+
+    public bool ShowPinToSidebarInContextMenu { get => S.General.ShowPinToSidebarInContextMenu; set => Set("contextMenu", value, s => s.General.ShowPinToSidebarInContextMenu, (s, v) => s.General.ShowPinToSidebarInContextMenu = v); }
+
+    public bool ShowEditTagsInContextMenu { get => S.General.ShowEditTagsInContextMenu; set => Set("contextMenu", value, s => s.General.ShowEditTagsInContextMenu, (s, v) => s.General.ShowEditTagsInContextMenu = v); }
+
     public bool KeepRunningInBackground
     {
         get => S.General.KeepRunningInBackground;
@@ -620,6 +636,8 @@ public sealed class SettingsViewModel : ObservableObject
     public bool ShowDotFiles { get => S.FilesAndFolders.ShowDotFiles; set => Set("filesAndFolders", value, s => s.FilesAndFolders.ShowDotFiles, (s, v) => s.FilesAndFolders.ShowDotFiles = v); }
 
     public bool ShowFileExtensions { get => S.FilesAndFolders.ShowFileExtensions; set => Set("filesAndFolders", value, s => s.FilesAndFolders.ShowFileExtensions, (s, v) => s.FilesAndFolders.ShowFileExtensions = v); }
+
+    public bool UseSystemIcons { get => S.FilesAndFolders.UseSystemIcons; set => Set("filesAndFolders", value, s => s.FilesAndFolders.UseSystemIcons, (s, v) => s.FilesAndFolders.UseSystemIcons = v); }
 
     public bool ShowThumbnails { get => S.FilesAndFolders.ShowThumbnails; set => Set("filesAndFolders", value, s => s.FilesAndFolders.ShowThumbnails, (s, v) => s.FilesAndFolders.ShowThumbnails = v); }
 

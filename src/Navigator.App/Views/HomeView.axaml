@@ -23,8 +23,8 @@
                       ToolTip.Tip="{Binding Path}" c:Motion.Enter="True">
                 <Button.ContextMenu>
                   <ContextMenu>
-                    <MenuItem Header="{c:Tr Command.OpenInNewTab}" Command="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).OpenInNewTabCommand}" CommandParameter="{Binding Path}" />
-                    <MenuItem Header="{c:Tr Command.UnpinFromSidebar}" Command="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).UnpinCommand}" CommandParameter="{Binding Path}" />
+                    <MenuItem c:MenuIcon.Kind="TabPlus" Header="{c:Tr Command.OpenInNewTab}" Command="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).OpenInNewTabCommand}" CommandParameter="{Binding Path}" />
+                    <MenuItem c:MenuIcon.Kind="Unpin" Header="{c:Tr Command.UnpinFromSidebar}" Command="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).UnpinCommand}" CommandParameter="{Binding Path}" />
                   </ContextMenu>
                 </Button.ContextMenu>
                 <StackPanel Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -99,7 +99,7 @@
                       Command="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).OpenRecentCommand}" CommandParameter="{Binding}">
                 <Button.ContextMenu>
                   <ContextMenu>
-                    <MenuItem Header="{c:Tr Home.RemoveRecent}" Command="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).RemoveRecentCommand}" CommandParameter="{Binding}" />
+                    <MenuItem c:MenuIcon.Kind="PlaylistRemove" Header="{c:Tr Home.RemoveRecent}" Command="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).RemoveRecentCommand}" CommandParameter="{Binding}" />
                   </ContextMenu>
                 </Button.ContextMenu>
                 <Grid ColumnDefinitions="Auto,*,2*">

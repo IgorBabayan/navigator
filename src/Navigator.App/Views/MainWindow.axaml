@@ -62,14 +62,14 @@
                         ToolTip.Tip="{Binding ToolTip}" PointerPressed="OnTabPointerPressed" PointerReleased="OnTabPointerReleased">
                   <Border.ContextMenu>
                     <ContextMenu>
-                      <MenuItem Header="{c:Tr Command.NewTab}" Command="{Binding $parent[v:MainWindow].Shell.NewTabCommand}" />
-                      <MenuItem Header="{c:Tr Command.DuplicateTab}" Command="{Binding $parent[v:MainWindow].Shell.DuplicateTabCommand}" CommandParameter="{Binding}" />
-                      <MenuItem Header="{c:Tr Command.PinTab}" Command="{Binding $parent[v:MainWindow].Shell.TogglePinTabCommand}" CommandParameter="{Binding}" />
+                      <MenuItem c:MenuIcon.Kind="TabPlus" Header="{c:Tr Command.NewTab}" Command="{Binding $parent[v:MainWindow].Shell.NewTabCommand}" />
+                      <MenuItem c:MenuIcon.Kind="Multiple" Header="{c:Tr Command.DuplicateTab}" Command="{Binding $parent[v:MainWindow].Shell.DuplicateTabCommand}" CommandParameter="{Binding}" />
+                      <MenuItem c:MenuIcon.Kind="Pin" Header="{c:Tr Command.PinTab}" Command="{Binding $parent[v:MainWindow].Shell.TogglePinTabCommand}" CommandParameter="{Binding}" />
                       <Separator />
-                      <MenuItem Header="{c:Tr Command.CloseTab}" Command="{Binding $parent[v:MainWindow].Shell.CloseTabCommand}" CommandParameter="{Binding}" />
-                      <MenuItem Header="{c:Tr Command.CloseOtherTabs}" Command="{Binding $parent[v:MainWindow].Shell.CloseOtherTabsCommand}" CommandParameter="{Binding}" />
-                      <MenuItem Header="{c:Tr Command.CloseTabsToRight}" Command="{Binding $parent[v:MainWindow].Shell.CloseTabsToRightCommand}" CommandParameter="{Binding}" />
-                      <MenuItem Header="{c:Tr Command.ReopenClosedTab}" Command="{Binding $parent[v:MainWindow].Shell.ReopenClosedTabCommand}" />
+                      <MenuItem c:MenuIcon.Kind="Close" Header="{c:Tr Command.CloseTab}" Command="{Binding $parent[v:MainWindow].Shell.CloseTabCommand}" CommandParameter="{Binding}" />
+                      <MenuItem c:MenuIcon.Kind="TabRemove" Header="{c:Tr Command.CloseOtherTabs}" Command="{Binding $parent[v:MainWindow].Shell.CloseOtherTabsCommand}" CommandParameter="{Binding}" />
+                      <MenuItem c:MenuIcon.Kind="ArrowCollapseRight" Header="{c:Tr Command.CloseTabsToRight}" Command="{Binding $parent[v:MainWindow].Shell.CloseTabsToRightCommand}" CommandParameter="{Binding}" />
+                      <MenuItem c:MenuIcon.Kind="History" Header="{c:Tr Command.ReopenClosedTab}" Command="{Binding $parent[v:MainWindow].Shell.ReopenClosedTabCommand}" />
                     </ContextMenu>
                   </Border.ContextMenu>
                   <Grid ColumnDefinitions="Auto,*,Auto">
@@ -115,10 +115,10 @@
           <Border x:Name="OmnibarHost" Grid.Column="1" Classes="card omnibar-host" Classes.editing="{Binding ActivePane.IsEditingAddress}" Padding="4,0" Height="{DynamicResource Size.Control}" Margin="4,0" PointerPressed="OnOmnibarPointerPressed">
             <Border.ContextMenu>
               <ContextMenu>
-                <MenuItem Header="{c:Tr Omnibar.CopyAddress}" Command="{Binding ActivePane.CopyAddressCommand}" />
-                <MenuItem Header="{c:Tr Command.EditAddress}" Click="OnEditAddressClick" />
+                <MenuItem c:MenuIcon.Kind="Copy" Header="{c:Tr Omnibar.CopyAddress}" Command="{Binding ActivePane.CopyAddressCommand}" />
+                <MenuItem c:MenuIcon.Kind="Rename" Header="{c:Tr Command.EditAddress}" Click="OnEditAddressClick" />
                 <Separator />
-                <MenuItem Header="{c:Tr Omnibar.ClearHistory}" Command="{Binding ActivePane.ClearAddressHistoryCommand}" />
+                <MenuItem c:MenuIcon.Kind="Broom" Header="{c:Tr Omnibar.ClearHistory}" Command="{Binding ActivePane.ClearAddressHistoryCommand}" />
               </ContextMenu>
             </Border.ContextMenu>
             <Grid ColumnDefinitions="*,Auto">
@@ -143,8 +143,8 @@
                                   Command="{Binding $parent[v:MainWindow].Shell.ActivePane.NavigateToBreadcrumbCommand}" CommandParameter="{Binding}">
                             <Button.ContextMenu>
                               <ContextMenu IsEnabled="{Binding HasPath}">
-                                <MenuItem Header="{c:Tr Command.OpenInNewTab}" Command="{Binding $parent[v:MainWindow].Shell.ActivePane.OpenBreadcrumbInNewTabCommand}" CommandParameter="{Binding}" />
-                                <MenuItem Header="{c:Tr Omnibar.CopyAddress}" Command="{Binding $parent[v:MainWindow].Shell.ActivePane.CopyBreadcrumbPathCommand}" CommandParameter="{Binding}" />
+                                <MenuItem c:MenuIcon.Kind="TabPlus" Header="{c:Tr Command.OpenInNewTab}" Command="{Binding $parent[v:MainWindow].Shell.ActivePane.OpenBreadcrumbInNewTabCommand}" CommandParameter="{Binding}" />
+                                <MenuItem c:MenuIcon.Kind="Copy" Header="{c:Tr Omnibar.CopyAddress}" Command="{Binding $parent[v:MainWindow].Shell.ActivePane.CopyBreadcrumbPathCommand}" CommandParameter="{Binding}" />
                               </ContextMenu>
                             </Button.ContextMenu>
                           </Button>
@@ -208,8 +208,8 @@
             </StackPanel>
             <Button.Flyout>
               <MenuFlyout Placement="BottomEdgeAlignedLeft">
-                <MenuItem Header="{c:Tr Command.NewFolder}" Command="{Binding ActivePane.NewFolderCommand}" InputGesture="Ctrl+Shift+N" />
-                <MenuItem Header="{c:Tr Command.NewFile}" Command="{Binding ActivePane.NewFileCommand}" />
+                <MenuItem c:MenuIcon.Kind="FolderAdd" Header="{c:Tr Command.NewFolder}" Command="{Binding ActivePane.NewFolderCommand}" InputGesture="Ctrl+Shift+N" />
+                <MenuItem c:MenuIcon.Kind="FilePlusOutline" Header="{c:Tr Command.NewFile}" Command="{Binding ActivePane.NewFileCommand}" />
               </MenuFlyout>
             </Button.Flyout>
           </Button>
@@ -230,14 +230,14 @@
             </StackPanel>
             <Button.Flyout>
               <MenuFlyout Placement="BottomEdgeAlignedLeft">
-                <MenuItem Header="{c:Tr Sort.Name}" ToggleType="Radio" IsChecked="{Binding ActivePane.SortColumn, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Name, Mode=OneWay}" Command="{Binding ActivePane.SortByCommand}" CommandParameter="{x:Static sort:SortColumn.Name}" />
-                <MenuItem Header="{c:Tr Sort.DateModified}" ToggleType="Radio" IsChecked="{Binding ActivePane.SortColumn, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=DateModified, Mode=OneWay}" Command="{Binding ActivePane.SortByCommand}" CommandParameter="{x:Static sort:SortColumn.DateModified}" />
-                <MenuItem Header="{c:Tr Sort.DateCreated}" ToggleType="Radio" IsChecked="{Binding ActivePane.SortColumn, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=DateCreated, Mode=OneWay}" Command="{Binding ActivePane.SortByCommand}" CommandParameter="{x:Static sort:SortColumn.DateCreated}" />
-                <MenuItem Header="{c:Tr Sort.Type}" ToggleType="Radio" IsChecked="{Binding ActivePane.SortColumn, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Type, Mode=OneWay}" Command="{Binding ActivePane.SortByCommand}" CommandParameter="{x:Static sort:SortColumn.Type}" />
-                <MenuItem Header="{c:Tr Sort.Size}" ToggleType="Radio" IsChecked="{Binding ActivePane.SortColumn, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Size, Mode=OneWay}" Command="{Binding ActivePane.SortByCommand}" CommandParameter="{x:Static sort:SortColumn.Size}" />
+                <MenuItem c:MenuIcon.Kind="SortAlphabeticalAscending" Header="{c:Tr Sort.Name}" ToggleType="Radio" IsChecked="{Binding ActivePane.SortColumn, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Name, Mode=OneWay}" Command="{Binding ActivePane.SortByCommand}" CommandParameter="{x:Static sort:SortColumn.Name}" />
+                <MenuItem c:MenuIcon.Kind="CalendarEdit" Header="{c:Tr Sort.DateModified}" ToggleType="Radio" IsChecked="{Binding ActivePane.SortColumn, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=DateModified, Mode=OneWay}" Command="{Binding ActivePane.SortByCommand}" CommandParameter="{x:Static sort:SortColumn.DateModified}" />
+                <MenuItem c:MenuIcon.Kind="CalendarPlus" Header="{c:Tr Sort.DateCreated}" ToggleType="Radio" IsChecked="{Binding ActivePane.SortColumn, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=DateCreated, Mode=OneWay}" Command="{Binding ActivePane.SortByCommand}" CommandParameter="{x:Static sort:SortColumn.DateCreated}" />
+                <MenuItem c:MenuIcon.Kind="Shape" Header="{c:Tr Sort.Type}" ToggleType="Radio" IsChecked="{Binding ActivePane.SortColumn, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Type, Mode=OneWay}" Command="{Binding ActivePane.SortByCommand}" CommandParameter="{x:Static sort:SortColumn.Type}" />
+                <MenuItem c:MenuIcon.Kind="Weight" Header="{c:Tr Sort.Size}" ToggleType="Radio" IsChecked="{Binding ActivePane.SortColumn, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Size, Mode=OneWay}" Command="{Binding ActivePane.SortByCommand}" CommandParameter="{x:Static sort:SortColumn.Size}" />
                 <Separator />
-                <MenuItem Header="{c:Tr Sort.Descending}" ToggleType="CheckBox" IsChecked="{Binding ActivePane.IsSortDescending, Mode=OneWay}" Command="{Binding ActivePane.ToggleSortDirectionCommand}" />
-                <MenuItem Header="{c:Tr Sort.FoldersFirst}" ToggleType="CheckBox" IsChecked="{Binding ActivePane.Sort.FoldersFirst, Mode=OneWay}" Command="{Binding ActivePane.ToggleFoldersFirstCommand}" />
+                <MenuItem c:MenuIcon.Kind="SortDescending" Header="{c:Tr Sort.Descending}" ToggleType="CheckBox" IsChecked="{Binding ActivePane.IsSortDescending, Mode=OneWay}" Command="{Binding ActivePane.ToggleSortDirectionCommand}" />
+                <MenuItem c:MenuIcon.Kind="FolderArrowUp" Header="{c:Tr Sort.FoldersFirst}" ToggleType="CheckBox" IsChecked="{Binding ActivePane.Sort.FoldersFirst, Mode=OneWay}" Command="{Binding ActivePane.ToggleFoldersFirstCommand}" />
               </MenuFlyout>
             </Button.Flyout>
           </Button>
@@ -248,12 +248,12 @@
             </StackPanel>
             <Button.Flyout>
               <MenuFlyout Placement="BottomEdgeAlignedLeft">
-                <MenuItem Header="{c:Tr GroupBy.None}" ToggleType="Radio" IsChecked="{Binding ActivePane.GroupBy, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=None, Mode=OneWay}" Command="{Binding ActivePane.SetGroupByCommand}" CommandParameter="{x:Static sort:GroupBy.None}" />
-                <MenuItem Header="{c:Tr GroupBy.Name}" ToggleType="Radio" IsChecked="{Binding ActivePane.GroupBy, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Name, Mode=OneWay}" Command="{Binding ActivePane.SetGroupByCommand}" CommandParameter="{x:Static sort:GroupBy.Name}" />
-                <MenuItem Header="{c:Tr GroupBy.Type}" ToggleType="Radio" IsChecked="{Binding ActivePane.GroupBy, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Type, Mode=OneWay}" Command="{Binding ActivePane.SetGroupByCommand}" CommandParameter="{x:Static sort:GroupBy.Type}" />
-                <MenuItem Header="{c:Tr GroupBy.DateModified}" ToggleType="Radio" IsChecked="{Binding ActivePane.GroupBy, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=DateModified, Mode=OneWay}" Command="{Binding ActivePane.SetGroupByCommand}" CommandParameter="{x:Static sort:GroupBy.DateModified}" />
-                <MenuItem Header="{c:Tr GroupBy.DateCreated}" ToggleType="Radio" IsChecked="{Binding ActivePane.GroupBy, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=DateCreated, Mode=OneWay}" Command="{Binding ActivePane.SetGroupByCommand}" CommandParameter="{x:Static sort:GroupBy.DateCreated}" />
-                <MenuItem Header="{c:Tr GroupBy.Size}" ToggleType="Radio" IsChecked="{Binding ActivePane.GroupBy, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Size, Mode=OneWay}" Command="{Binding ActivePane.SetGroupByCommand}" CommandParameter="{x:Static sort:GroupBy.Size}" />
+                <MenuItem c:MenuIcon.Kind="CloseCircleOutline" Header="{c:Tr GroupBy.None}" ToggleType="Radio" IsChecked="{Binding ActivePane.GroupBy, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=None, Mode=OneWay}" Command="{Binding ActivePane.SetGroupByCommand}" CommandParameter="{x:Static sort:GroupBy.None}" />
+                <MenuItem c:MenuIcon.Kind="SortAlphabeticalAscending" Header="{c:Tr GroupBy.Name}" ToggleType="Radio" IsChecked="{Binding ActivePane.GroupBy, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Name, Mode=OneWay}" Command="{Binding ActivePane.SetGroupByCommand}" CommandParameter="{x:Static sort:GroupBy.Name}" />
+                <MenuItem c:MenuIcon.Kind="Shape" Header="{c:Tr GroupBy.Type}" ToggleType="Radio" IsChecked="{Binding ActivePane.GroupBy, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Type, Mode=OneWay}" Command="{Binding ActivePane.SetGroupByCommand}" CommandParameter="{x:Static sort:GroupBy.Type}" />
+                <MenuItem c:MenuIcon.Kind="CalendarEdit" Header="{c:Tr GroupBy.DateModified}" ToggleType="Radio" IsChecked="{Binding ActivePane.GroupBy, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=DateModified, Mode=OneWay}" Command="{Binding ActivePane.SetGroupByCommand}" CommandParameter="{x:Static sort:GroupBy.DateModified}" />
+                <MenuItem c:MenuIcon.Kind="CalendarPlus" Header="{c:Tr GroupBy.DateCreated}" ToggleType="Radio" IsChecked="{Binding ActivePane.GroupBy, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=DateCreated, Mode=OneWay}" Command="{Binding ActivePane.SetGroupByCommand}" CommandParameter="{x:Static sort:GroupBy.DateCreated}" />
+                <MenuItem c:MenuIcon.Kind="Weight" Header="{c:Tr GroupBy.Size}" ToggleType="Radio" IsChecked="{Binding ActivePane.GroupBy, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Size, Mode=OneWay}" Command="{Binding ActivePane.SetGroupByCommand}" CommandParameter="{x:Static sort:GroupBy.Size}" />
               </MenuFlyout>
             </Button.Flyout>
           </Button>
@@ -264,13 +264,13 @@
             </StackPanel>
             <Button.Flyout>
               <MenuFlyout Placement="BottomEdgeAlignedLeft">
-                <MenuItem Header="{c:Tr Layout.Details}" ToggleType="Radio" IsChecked="{Binding ActivePane.Layout, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Details, Mode=OneWay}" Command="{Binding ActivePane.SetLayoutCommand}" CommandParameter="{x:Static s:FolderLayout.Details}" />
-                <MenuItem Header="{c:Tr Layout.List}" ToggleType="Radio" IsChecked="{Binding ActivePane.Layout, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=List, Mode=OneWay}" Command="{Binding ActivePane.SetLayoutCommand}" CommandParameter="{x:Static s:FolderLayout.List}" />
-                <MenuItem Header="{c:Tr Layout.Tiles}" ToggleType="Radio" IsChecked="{Binding ActivePane.Layout, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Tiles, Mode=OneWay}" Command="{Binding ActivePane.SetLayoutCommand}" CommandParameter="{x:Static s:FolderLayout.Tiles}" />
-                <MenuItem Header="{c:Tr Layout.SmallIcons}" ToggleType="Radio" IsChecked="{Binding ActivePane.Layout, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=SmallIcons, Mode=OneWay}" Command="{Binding ActivePane.SetLayoutCommand}" CommandParameter="{x:Static s:FolderLayout.SmallIcons}" />
-                <MenuItem Header="{c:Tr Layout.MediumIcons}" ToggleType="Radio" IsChecked="{Binding ActivePane.Layout, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=MediumIcons, Mode=OneWay}" Command="{Binding ActivePane.SetLayoutCommand}" CommandParameter="{x:Static s:FolderLayout.MediumIcons}" />
-                <MenuItem Header="{c:Tr Layout.LargeIcons}" ToggleType="Radio" IsChecked="{Binding ActivePane.Layout, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=LargeIcons, Mode=OneWay}" Command="{Binding ActivePane.SetLayoutCommand}" CommandParameter="{x:Static s:FolderLayout.LargeIcons}" />
-                <MenuItem Header="{c:Tr Layout.ExtraLargeIcons}" ToggleType="Radio" IsChecked="{Binding ActivePane.Layout, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=ExtraLargeIcons, Mode=OneWay}" Command="{Binding ActivePane.SetLayoutCommand}" CommandParameter="{x:Static s:FolderLayout.ExtraLargeIcons}" />
+                <MenuItem c:MenuIcon.Kind="LayoutDetails" Header="{c:Tr Layout.Details}" ToggleType="Radio" IsChecked="{Binding ActivePane.Layout, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Details, Mode=OneWay}" Command="{Binding ActivePane.SetLayoutCommand}" CommandParameter="{x:Static s:FolderLayout.Details}" />
+                <MenuItem c:MenuIcon.Kind="LayoutList" Header="{c:Tr Layout.List}" ToggleType="Radio" IsChecked="{Binding ActivePane.Layout, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=List, Mode=OneWay}" Command="{Binding ActivePane.SetLayoutCommand}" CommandParameter="{x:Static s:FolderLayout.List}" />
+                <MenuItem c:MenuIcon.Kind="LayoutTiles" Header="{c:Tr Layout.Tiles}" ToggleType="Radio" IsChecked="{Binding ActivePane.Layout, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Tiles, Mode=OneWay}" Command="{Binding ActivePane.SetLayoutCommand}" CommandParameter="{x:Static s:FolderLayout.Tiles}" />
+                <MenuItem c:MenuIcon.Kind="ViewComfy" Header="{c:Tr Layout.SmallIcons}" ToggleType="Radio" IsChecked="{Binding ActivePane.Layout, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=SmallIcons, Mode=OneWay}" Command="{Binding ActivePane.SetLayoutCommand}" CommandParameter="{x:Static s:FolderLayout.SmallIcons}" />
+                <MenuItem c:MenuIcon.Kind="LayoutGrid" Header="{c:Tr Layout.MediumIcons}" ToggleType="Radio" IsChecked="{Binding ActivePane.Layout, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=MediumIcons, Mode=OneWay}" Command="{Binding ActivePane.SetLayoutCommand}" CommandParameter="{x:Static s:FolderLayout.MediumIcons}" />
+                <MenuItem c:MenuIcon.Kind="ViewGridOutline" Header="{c:Tr Layout.LargeIcons}" ToggleType="Radio" IsChecked="{Binding ActivePane.Layout, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=LargeIcons, Mode=OneWay}" Command="{Binding ActivePane.SetLayoutCommand}" CommandParameter="{x:Static s:FolderLayout.LargeIcons}" />
+                <MenuItem c:MenuIcon.Kind="ImageSizeSelectLarge" Header="{c:Tr Layout.ExtraLargeIcons}" ToggleType="Radio" IsChecked="{Binding ActivePane.Layout, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=ExtraLargeIcons, Mode=OneWay}" Command="{Binding ActivePane.SetLayoutCommand}" CommandParameter="{x:Static s:FolderLayout.ExtraLargeIcons}" />
               </MenuFlyout>
             </Button.Flyout>
           </Button>
@@ -278,19 +278,19 @@
             <c:IconView Kind="More" />
             <Button.Flyout>
               <MenuFlyout Placement="BottomEdgeAlignedLeft">
-                <MenuItem Header="{c:Tr Command.SelectAll}" Command="{Binding ActivePane.SelectAllCommand}" />
-                <MenuItem Header="{c:Tr Command.InvertSelection}" Command="{Binding ActivePane.InvertSelectionCommand}" />
-                <MenuItem Header="{c:Tr Command.ClearSelection}" Command="{Binding ActivePane.ClearSelectionCommand}" />
+                <MenuItem c:MenuIcon.Kind="SelectAll" Header="{c:Tr Command.SelectAll}" Command="{Binding ActivePane.SelectAllCommand}" />
+                <MenuItem c:MenuIcon.Kind="SelectInverse" Header="{c:Tr Command.InvertSelection}" Command="{Binding ActivePane.InvertSelectionCommand}" />
+                <MenuItem c:MenuIcon.Kind="SelectionOff" Header="{c:Tr Command.ClearSelection}" Command="{Binding ActivePane.ClearSelectionCommand}" />
                 <Separator />
-                <MenuItem Header="{c:Tr Command.Undo}" Command="{Binding UndoCommand}" />
-                <MenuItem Header="{c:Tr Command.Redo}" Command="{Binding RedoCommand}" />
+                <MenuItem c:MenuIcon.Kind="Undo" Header="{c:Tr Command.Undo}" Command="{Binding UndoCommand}" />
+                <MenuItem c:MenuIcon.Kind="Redo" Header="{c:Tr Command.Redo}" Command="{Binding RedoCommand}" />
                 <Separator />
-                <MenuItem Header="{c:Tr Command.ToggleHiddenItems}" Command="{Binding ToggleHiddenItemsCommand}" />
-                <MenuItem Header="{c:Tr Command.OpenTerminal}" Command="{Binding ActivePane.OpenTerminalCommand}" />
-                <MenuItem Header="{c:Tr Command.OpenInCodeEditor}" Command="{Binding ActivePane.OpenInCodeEditorCommand}" />
-                <MenuItem Header="{c:Tr Command.CommandPalette}" Command="{Binding ToggleCommandPaletteCommand}" />
-                <MenuItem Header="{c:Tr Command.NewWindow}" Command="{Binding NewWindowCommand}" />
-                <MenuItem Header="{c:Tr Command.EmptyTrash}" Command="{Binding ActivePane.EmptyTrashCommand}" IsVisible="{Binding ActivePane.IsTrash}" />
+                <MenuItem c:MenuIcon.Kind="Hidden" Header="{c:Tr Command.ToggleHiddenItems}" Command="{Binding ToggleHiddenItemsCommand}" />
+                <MenuItem c:MenuIcon.Kind="Terminal" Header="{c:Tr Command.OpenTerminal}" Command="{Binding ActivePane.OpenTerminalCommand}" />
+                <MenuItem c:MenuIcon.Kind="CodeEditor" Header="{c:Tr Command.OpenInCodeEditor}" Command="{Binding ActivePane.OpenInCodeEditorCommand}" />
+                <MenuItem c:MenuIcon.Kind="Search" Header="{c:Tr Command.CommandPalette}" Command="{Binding ToggleCommandPaletteCommand}" />
+                <MenuItem c:MenuIcon.Kind="Window" Header="{c:Tr Command.NewWindow}" Command="{Binding NewWindowCommand}" />
+                <MenuItem c:MenuIcon.Kind="Delete" Header="{c:Tr Command.EmptyTrash}" Command="{Binding ActivePane.EmptyTrashCommand}" IsVisible="{Binding ActivePane.IsTrash}" />
               </MenuFlyout>
             </Button.Flyout>
           </Button>

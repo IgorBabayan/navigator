@@ -66,6 +66,9 @@ public sealed partial class PaneViewModel
 
     public IRelayCommand<string> ToggleTagCommand { get; private set; } = null!;
 
+    /// <summary>Takes the tag given as parameter off every selected item ("Clear tag(s)").</summary>
+    public IRelayCommand<string> RemoveTagCommand { get; private set; } = null!;
+
     public IAsyncRelayCommand OpenInCodeEditorCommand { get; private set; } = null!;
 
     private bool HasSelection => Selection.Count > 0;
@@ -101,12 +104,14 @@ public sealed partial class PaneViewModel
         RevealInSystemCommand = new AsyncRelayCommand(RevealInSystemAsync);
         PinSelectedCommand = new RelayCommand(PinSelected);
         CompressCommand = new AsyncRelayCommand(CompressAsync, () => CanModifySelection);
-        ExtractCommand = new AsyncRelayCommand(ExtractAsync, () => !IsRemote && Selection.SelectedItems.Any(i => ArchiveService.IsSupportedArchive(i.FullPath)));
+        ExtractCommand = new AsyncRelayCommand(() => ExtractArchivesAsync(ExtractTarget.Smart), () => !IsRemote && Selection.SelectedItems.Any(i => ArchiveService.IsSupportedArchive(i.FullPath)));
         RestoreCommand = new AsyncRelayCommand(RestoreAsync, () => IsTrash && HasSelection);
         EmptyTrashCommand = new AsyncRelayCommand(EmptyTrashAsync, () => IsTrash && _ordered.Count > 0);
         ToggleTagCommand = new RelayCommand<string>(ToggleTag);
+        RemoveTagCommand = new RelayCommand<string>(RemoveTag);
         OpenInCodeEditorCommand = new AsyncRelayCommand(OpenInCodeEditorAsync, () => CurrentDirectory is not null);
         InitializeRemoteCommands();
+        InitializeItemMenuCommands();
     }
 
     private void RaiseItemCommandState()
@@ -131,6 +136,7 @@ public sealed partial class PaneViewModel
         EmptyTrashCommand.NotifyCanExecuteChanged();
         OpenInCodeEditorCommand.NotifyCanExecuteChanged();
         RaiseRemoteCommandState();
+        RaiseItemMenuCommandState();
     }
 
     /// <summary>Double-click / Enter on an item: folders navigate, archives and files open with the default app.</summary>
@@ -481,12 +487,16 @@ public sealed partial class PaneViewModel
             await _services.Launcher.RevealInSystemFileManagerAsync(target).ConfigureAwait(true);
     }
 
-    private async Task OpenInCodeEditorAsync()
+    private Task OpenInCodeEditorAsync()
+    {
+        var target = Selection.SelectedItems.FirstOrDefault(i => i.IsDirectory)?.FullPath ?? CurrentDirectory;
+        return target is null ? Task.CompletedTask : LaunchCodeEditorAsync(target);
+    }
+
+    /// <summary>Starts the configured code editor (Settings → General) on a folder or a file.</summary>
+    private async Task LaunchCodeEditorAsync(string target)
     {
         var command = _services.Settings.Current.General.CodeEditorCommand;
-        var target = Selection.SelectedItems.FirstOrDefault(i => i.IsDirectory)?.FullPath ?? CurrentDirectory;
-        if (target is null)
-            return;
         var editor = string.IsNullOrWhiteSpace(command) ? "code" : command.Trim();
         try
         {
@@ -521,8 +531,13 @@ public sealed partial class PaneViewModel
             return;
         var directory = Path.GetDirectoryName(selected[0].FullPath)!;
         var baseName = selected.Count == 1 ? PathUtil.SplitName(selected[0].Name, selected[0].IsDirectory).Stem : Path.GetFileName(directory);
+        await CompressToZipAsync([.. selected.Select(i => i.FullPath)], directory, baseName).ConfigureAwait(true);
+    }
+
+    /// <summary>Queues "<paramref name="baseName"/>.zip" (made unique) in <paramref name="directory"/> and selects it when done.</summary>
+    private async Task CompressToZipAsync(IReadOnlyList<string> sources, string directory, string? baseName)
+    {
         var name = PathUtil.GetUniqueName(directory, (string.IsNullOrEmpty(baseName) ? "Archive" : baseName) + ".zip", false, p => File.Exists(p) || Directory.Exists(p));
-        var sources = selected.Select(i => i.FullPath).ToList();
         var zipPath = Path.Combine(directory, name);
         var operation = _services.Operations.Queue.Enqueue(FileOperationKind.CreateArchive, sources, zipPath, _services.CreateInteraction(),
             context => ArchiveService.CreateZipAsync(sources, zipPath, CompressionLevel.Optimal, context));
@@ -532,15 +547,40 @@ public sealed partial class PaneViewModel
             SelectWhenAvailable([zipPath]);
     }
 
-    private async Task ExtractAsync()
+    /// <summary>
+    /// Extracts every selected archive. <see cref="ExtractTarget.Smart"/>: a single top-level entry lands next to the
+    /// archive, several go into a folder named after it; <see cref="ExtractTarget.Beside"/>: always next to the archive;
+    /// <see cref="ExtractTarget.OwnFolder"/>: always into a new folder named after it; <see cref="ExtractTarget.Chosen"/>:
+    /// into a folder the user picks (each archive in its own sub-folder there when several are selected).
+    /// </summary>
+    private async Task ExtractArchivesAsync(ExtractTarget target)
     {
-        foreach (var archive in Selection.SelectedItems.Where(i => ArchiveService.IsSupportedArchive(i.FullPath)).ToList())
+        var archives = Selection.SelectedItems.Where(i => ArchiveService.IsSupportedArchive(i.FullPath)).ToList();
+        if (archives.Count == 0)
+            return;
+
+        string? picked = null;
+        if (target == ExtractTarget.Chosen)
+        {
+            picked = await _services.Dialogs.PickFolderAsync(_services.Localizer["Command.ExtractFiles"]).ConfigureAwait(true);
+            if (picked is null)
+                return;
+        }
+
+        foreach (var archive in archives)
         {
             var parent = Path.GetDirectoryName(archive.FullPath)!;
             string destination;
             try
             {
-                destination = await Task.Run(() => ArchiveService.ChooseSmartDestination(archive.FullPath, parent)).ConfigureAwait(true);
+                destination = await Task.Run(() => target switch
+                {
+                    ExtractTarget.Beside => parent,
+                    ExtractTarget.OwnFolder => ArchiveService.ChooseFolderDestination(archive.FullPath, parent),
+                    ExtractTarget.Chosen when archives.Count > 1 => ArchiveService.ChooseFolderDestination(archive.FullPath, picked!),
+                    ExtractTarget.Chosen => picked!,
+                    _ => ArchiveService.ChooseSmartDestination(archive.FullPath, parent),
+                }).ConfigureAwait(true);
             }
             catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
             {
@@ -589,6 +629,7 @@ public sealed partial class PaneViewModel
         }
 
         Refresh();
+        _services.TrashStatus.Invalidate(immediate: true);
     }
 
     private void ToggleTag(string? tagId)
@@ -600,6 +641,17 @@ public sealed partial class PaneViewModel
             return;
         _services.Tags.ToggleTag(paths, tagId);
         ApplyTags(Selection.SelectedItems);
+    }
+
+    private void RemoveTag(string? tagId)
+    {
+        if (tagId is null || IsRemote)
+            return;
+        var selected = Selection.SelectedItems;
+        if (selected.Count == 0)
+            return;
+        _services.Tags.RemoveTag(selected.Select(i => i.FullPath), tagId);
+        ApplyTags(selected);
     }
 
     /// <summary>Selects items as soon as the monitor/refresh has added them to the list.</summary>

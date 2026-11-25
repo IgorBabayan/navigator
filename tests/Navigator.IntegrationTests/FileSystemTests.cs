@@ -289,12 +289,15 @@ public sealed class StorageTests
         var trash = new FreedesktopTrash(trashRoot, 1000, new FakeVolumeLocator(sameVolume: true), () => []);
         var file = temp.CreateFile("work/My Report.txt", "hello");
         var duplicate = temp.CreateFile("other/My Report.txt", "second");
+        Assert.IsFalse(await trash.HasItemsAsync(), "a trash that does not exist yet is empty");
 
         var first = await trash.MoveToTrashAsync(file);
         var second = await trash.MoveToTrashAsync(duplicate);
         Assert.IsFalse(File.Exists(file));
         Assert.IsTrue(File.Exists(Path.Combine(trashRoot, "info", "My Report.txt.trashinfo")));
         Assert.AreNotEqual(first!.StoragePath, second!.StoragePath, "name collisions inside the trash get unique names");
+
+        Assert.IsTrue(await trash.HasItemsAsync());
 
         var items = await trash.ListAsync();
         Assert.AreEqual(2, items.Count);
@@ -309,5 +312,6 @@ public sealed class StorageTests
         await trash.EmptyAsync();
         Assert.AreEqual(0, (await trash.ListAsync()).Count);
         Assert.AreEqual(0, Directory.GetFiles(Path.Combine(trashRoot, "files")).Length);
+        Assert.IsFalse(await trash.HasItemsAsync(), "an emptied trash disables \"Empty trash\"");
     }
 }

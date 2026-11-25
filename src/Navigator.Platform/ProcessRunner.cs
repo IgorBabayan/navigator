@@ -33,6 +33,21 @@ internal static class ProcessRunner
         }
     }
 
+    /// <summary>Starts a file through the shell with a verb such as "runas"; false when it failed or the user cancelled the prompt.</summary>
+    public static bool StartWithVerb(string fileName, string verb, string? startIn)
+    {
+        try
+        {
+            var info = new ProcessStartInfo(fileName) { UseShellExecute = true, Verb = verb, WorkingDirectory = startIn ?? string.Empty };
+            using var process = Process.Start(info);
+            return true;
+        }
+        catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or FileNotFoundException or PlatformNotSupportedException)
+        {
+            return false;
+        }
+    }
+
     /// <summary>Runs a short command and returns its standard output (null on failure or timeout).</summary>
     public static async Task<string?> RunForOutputAsync(string fileName, IEnumerable<string> arguments, TimeSpan timeout, CancellationToken cancellationToken)
     {

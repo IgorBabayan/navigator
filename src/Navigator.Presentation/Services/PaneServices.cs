@@ -17,12 +17,14 @@ public sealed class PaneServices(
     IDialogService dialogs,
     IClipboardService clipboard,
     IThumbnailProvider thumbnails,
+    ISystemIconProvider systemIcons,
     INotificationCenter notifications,
     IWindowService windows,
     FileOperationService operations,
     ITrashService trash,
     TrashStatus trashStatus,
     IFileLauncher launcher,
+    IShellMenuProvider shellMenus,
     IKnownFolderProvider knownFolders,
     IVolumeProvider volumes,
     IPlatformInfo platform,
@@ -46,6 +48,9 @@ public sealed class PaneServices(
 
     public IThumbnailProvider Thumbnails { get; } = thumbnails;
 
+    /// <summary>Icons the OS draws for file types, folders and drives (Settings → Files and folders → system icons).</summary>
+    public ISystemIconProvider SystemIcons { get; } = systemIcons;
+
     public INotificationCenter Notifications { get; } = notifications;
 
     public IWindowService Windows { get; } = windows;
@@ -58,6 +63,9 @@ public sealed class PaneServices(
     public TrashStatus TrashStatus { get; } = trashStatus;
 
     public IFileLauncher Launcher { get; } = launcher;
+
+    /// <summary>The OS context menu behind "Show more options" (Windows); unsupported elsewhere.</summary>
+    public IShellMenuProvider ShellMenus { get; } = shellMenus;
 
     public IKnownFolderProvider KnownFolders { get; } = knownFolders;
 

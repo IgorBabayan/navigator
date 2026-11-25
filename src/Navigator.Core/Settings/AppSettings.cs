@@ -176,6 +176,23 @@ public sealed class GeneralSettings
 
     public bool ShowOpenTerminalInContextMenu { get; set; } = true;
 
+    public bool ShowOpenInNewTabInContextMenu { get; set; } = true;
+
+    public bool ShowOpenInOtherPaneInContextMenu { get; set; } = true;
+
+    public bool ShowCreateFolderWithSelectionInContextMenu { get; set; } = true;
+
+    public bool ShowCreateShortcutInContextMenu { get; set; } = true;
+
+    /// <summary>The Compress and Extract sub-menus.</summary>
+    public bool ShowCompressionInContextMenu { get; set; } = true;
+
+    public bool ShowSendToInContextMenu { get; set; } = true;
+
+    public bool ShowPinToSidebarInContextMenu { get; set; } = true;
+
+    public bool ShowEditTagsInContextMenu { get; set; } = true;
+
     public string? CodeEditorCommand { get; set; }
 
     /// <summary>Addresses typed into the omnibar, most recent first (its history drop-down); bounded by the omnibar.</summary>
@@ -216,6 +233,9 @@ public sealed class FilesAndFoldersSettings
     public bool ShowDotFiles { get; set; }
 
     public bool ShowFileExtensions { get; set; } = true;
+
+    /// <summary>Rows show the operating system's icon for each file type and for folders (Navigator's own icons otherwise).</summary>
+    public bool UseSystemIcons { get; set; } = true;
 
     public bool ShowThumbnails { get; set; } = true;
 

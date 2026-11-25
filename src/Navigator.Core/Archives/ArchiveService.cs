@@ -41,22 +41,30 @@ public static class ArchiveService
     public static string ChooseSmartDestination(string archivePath, string parentDirectory)
     {
         var topLevel = GetTopLevelNames(archivePath);
-        if (topLevel.Count == 1)
-            return parentDirectory;
+        return topLevel.Count == 1 ? parentDirectory : ChooseFolderDestination(archivePath, parentDirectory);
+    }
 
-        var name = Path.GetFileName(archivePath);
-        foreach (var suffix in new[] { ".tar.gz", ".tgz", ".tar", ".zip" })
-        {
-            if (name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
-            {
-                name = name[..^suffix.Length];
-                break;
-            }
-        }
-
-        var unique = PathUtil.GetUniqueName(parentDirectory, name, isDirectory: true, p => Directory.Exists(p) || File.Exists(p));
+    /// <summary>A new, not yet existing folder next to the archive, named after it ("photos.tar.gz" → "photos", "photos (2)"…).</summary>
+    public static string ChooseFolderDestination(string archivePath, string parentDirectory)
+    {
+        var unique = PathUtil.GetUniqueName(parentDirectory, ArchiveStem(archivePath), isDirectory: true, p => Directory.Exists(p) || File.Exists(p));
         return Path.Combine(parentDirectory, unique);
     }
+
+    /// <summary>File name of the archive without its archive suffix (double suffixes such as ".tar.gz" count as one).</summary>
+    public static string ArchiveStem(string archivePath)
+    {
+        var name = Path.GetFileName(archivePath);
+        foreach (var suffix in ArchiveSuffixes)
+        {
+            if (name.Length > suffix.Length && name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                return name[..^suffix.Length];
+        }
+
+        return name;
+    }
+
+    private static readonly string[] ArchiveSuffixes = [".tar.gz", ".tgz", ".tar", ".zip"];
 
     internal static IReadOnlyCollection<string> GetTopLevelNames(string archivePath)
     {

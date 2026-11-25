@@ -1,5 +1,6 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="Navigator.App.App"
              Name="Navigator"
              RequestedThemeVariant="Default">
@@ -15,5 +16,7 @@
     <!-- Fluent supplies base control templates; Controls.axaml restyles them with Navigator's own tokens. -->
     <FluentTheme />
     <StyleInclude Source="avares://Navigator/Theme/Controls.axaml" />
+    <!-- Lets views use <materialIcons:MaterialIcon Kind="…"/> directly; IconView reads the same icon data. -->
+    <materialIcons:MaterialIconStyles />
   </Application.Styles>
 </Application>

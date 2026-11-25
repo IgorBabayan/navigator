@@ -1,6 +1,6 @@
 # Progress
 
-_Last updated: 2026-11-24 (branch `feature/foundation`, based on `development`)._
+_Last updated: 2026-11-25 (branch `feature/foundation`, based on `development`)._
 
 ## Summary
 
@@ -17,7 +17,7 @@ _Last updated: 2026-11-24 (branch `feature/foundation`, based on `development`).
 | Packaging scripts | Written | `shellcheck` clean (Linux/macOS); not executed |
 | Docs | Complete set | — (`README.md` intentionally untouched per project rule) |
 
-Test status: 124 automated tests passed (shimmed MSTest, Linux) — see `docs/TESTING.md`.
+Test status: 256 unit tests passed on 2026-11-25 (shimmed MSTest, Linux; integration tests not re-run) — see `docs/TESTING.md`.
 Originality scan: 0 matching code windows against Files app sources — see `docs/SOURCE_ORIGINALITY.md`.
 
 ## Done
@@ -40,6 +40,17 @@ Originality scan: 0 matching code windows against Files app sources — see `doc
   (signed catalog, install/update/remove, install from file), built-in permanent Network plugin, SSH (SFTP) and FTP
   (FTP/FTPS) plugins as separate packages, server folders in panes (browse, open, download, upload, new folder,
   rename, delete), release pipeline for plugin packages and catalog.
+- Pane context menus restructured after the Files app (owner's request): one `MenuEntry` model for item,
+  background, trash and server menus; entries built from commands (shown when runnable), filtered per location,
+  single-item and Shift rules; icon strip; "Show more options" hosts Explorer's classic menu on Windows; Open with /
+  Send to from the shell on Windows, from Navigator elsewhere; new entries: open in other pane, open file location,
+  extract files… / here / here (smart) / to folder, unpin, edit tags; visibility settings per entry. Composer and
+  shell bridge unit-tested; Avalonia rendering and Windows interop written, not compiled/run here.
+- Icons: Material Design Icons through the `Material.Icons.Avalonia` package (replaces the generated Material Symbols
+  set); files and folders show the OS icon for their type (Windows shell, Linux icon theme via GIO + gdk-pixbuf, macOS
+  NSWorkspace), with a setting to turn it off; icons on every menu item (attached `c:MenuIcon.Kind`), tag colors in
+  the Edit tags menu.
+- Edit tags → "Clear tag(s)": disabled without tags, one entry for a single tag, a sub-menu per tag otherwise.
 
 ## In progress / next (in order)
 
@@ -70,4 +81,9 @@ Originality scan: 0 matching code windows against Files app sources — see `doc
 | 2026-11-24 | Plugins: Network built in (factory, no scanning); others as `.navplugin` packages in their own `AssemblyLoadContext`, loaded after the first frame | zero startup cost for the built-in; plugin dependencies (SSH.NET) never reach the app |
 | 2026-11-24 | Plugin updates/removals finish on the next start (non-collectible load contexts) | loaded assemblies cannot be deleted on Windows; collectible contexts are slower and unloading is fragile |
 | 2026-11-24 | Plugin shop catalog = release asset signed with the update key | one unauthenticated request, no API rate limit, same trust chain as updates |
+| 2026-11-25 | Context menus follow the Files app's structure: declarative `MenuEntry` list + `PaneMenuComposer.Refine` (location, single-item, Shift rules) rendered by `PaneMenuView`; supersedes `ItemMenuPlanner` | owner's request; one model for every pane menu, testable without UI |
+| 2026-11-25 | Explorer's classic menu hosted through vtable calls on a dedicated STA thread **per menu**; queried at right-click, consumed by "Show more options" / "Open with" / "Send to" (4 s patience) | shell extensions can hang; one stuck extension never blocks the next menu or the UI thread |
+| 2026-11-25 | Icons from `Material.Icons.Avalonia` (owner's request); `IconView` keeps drawing them itself from `MaterialIconDataProvider` data (one parsed geometry per icon, no control per row) | virtualized lists stay as cheap as before; any Material icon name is usable as an icon key |
+| 2026-11-25 | File rows use the OS icon per file *type* (`type:.ext` key, one bitmap per type), per-item keys only for types that carry their own icon (programs, shortcuts, `.app`) | a folder of 10,000 PDFs costs one icon; programs still look right |
+| 2026-11-25 | Linux OS icons via GIO (shared-mime-info) + own icon-theme lookup + gdk-pixbuf decoding (P/Invoke, no new package) | the desktop's real theme incl. SVG themes; absent libraries → Navigator's icons |
 | 2026-11-24 | FTP implemented on the BCL; SSH uses SSH.NET (MIT) inside the plugin package only | FTP is small enough to own; SSH key exchange/ciphers (curve25519, ed25519, chacha20) are not in the BCL |

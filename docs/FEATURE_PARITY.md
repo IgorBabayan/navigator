@@ -65,6 +65,7 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Per-folder view preferences (bounded 500) | 🟦 | 🟦 | ✓ | ✓ | ✓ | |
 | Hidden / protected system items, file extensions toggles | ✅ | 🟦 | ✓ | ✓ | ✓ | |
 | Incremental live updates (file system watcher) | ✅ | 🟦 | ✓ | ✓ | ✓ | `DirectoryMonitor` + binary-search apply |
+| OS icons for file types and folders (setting) | ✅ | 🟦 | 🟦 | ✅ | 🟦 | Windows shell image lists by type (programs/shortcuts per file); Linux icon theme (GIO + gdk-pixbuf, verified on Adwaita/Humanity); macOS NSWorkspace (not run yet) |
 | Thumbnails (images) | 🟨 | 🟦 | ✓ | ✓ | ✓ | images decoded by Avalonia, memory LRU only; no video/PDF/OS thumbnails, no disk cache |
 | Folder sizes (opt-in) | ✅ | 🟦 | ✓ | ✓ | ✓ | low-priority background |
 | Filter current folder | ✅ | 🟦 | ✓ | ✓ | ✓ | `NameFilter` |
@@ -94,7 +95,7 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Delete to Recycle Bin / Trash | ✅ | 🟦 | 🟦 | ✅ | 🟦 | Linux freedesktop trash tested; Windows `SHFileOperationW`; macOS `NSFileManager` |
 | Permanent delete (with confirmation) | ✅ | 🟦 | ✓ | ✓ | ✓ | |
 | Trash browsing, restore, empty | 🟨 | 🟦 | 🟦 | ✅ | 🟨 | macOS restore only for items Navigator trashed |
-| Archives: create ZIP; extract ZIP/TAR/TAR.GZ (smart destination, zip-slip safe) | 🟨 | 🟦 | ✓ | ✓ | ✓ | ZIP round trip and traversal tested; TAR paths untested |
+| Archives: create ZIP; extract ZIP/TAR/TAR.GZ (smart destination, zip-slip safe) | 🟨 | 🟦 | ✓ | ✓ | ✓ | ZIP round trip and traversal tested; TAR paths untested; context menu: extract files… (pick folder), here (smart), here, to own folder; compress together or each |
 | 7z / RAR / other archive formats | ⬜ | ⬜ | | | | |
 | Hashes (MD5, SHA-1, SHA-256/384/512, compare) | ✅ | 🟦 | ✓ | ✓ | ✓ | `FileHasher` |
 
@@ -108,7 +109,11 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Open in code editor | 🟦 | 🟦 | 🟦 | 🟦 | 🟦 | configurable command |
 | Reveal in system file manager | 🟦 | 🟦 | 🟦 | 🟦 | 🟦 | |
 | Open in new tab / new window | 🟦 | 🟦 | ✓ | ✓ | ✓ | |
-| Shell context menu extensions (Explorer/Nautilus/Finder) | ⬜ | ⬜ | | | | |
+| Pane context menus as in Files (icon strip; entries by item type and location; Shift moves rare entries into the main list; background, trash and server variants) | ✅ | 🟦 | 🟦 | 🟦 | 🟦 | `PaneMenuComposer` + `MenuEntry`/`CommandEntry` (tested) + `PaneMenuView`; costly sub-menus fill on first open |
+| Open in other pane; open file location (search, tags); edit tags; per-entry visibility settings | 🟦 | 🟦 | ✓ | ✓ | ✓ | Settings → General → Context menu |
+| Run as administrator / as another user | 🟦 | 🟦 | 🟦 | ➖ | ➖ | Windows shell verbs `runas` / `runasuser` for .exe/.com/.bat/.cmd/.msi; not offered elsewhere |
+| Create shortcut; create folder with selection; send to | 🟦 | 🟦 | 🟦 | 🟦 | 🟦 | Windows `.lnk` via Windows PowerShell + WScript.Shell; Linux/macOS symbolic link; never overwrites. Send to: the shell's list on Windows, known folders + removable drives elsewhere |
+| Shell context menu extensions — "Show more options" (Explorer) | 🟦 | 🟦 | 🟦 | ➖ | ➖ | `WindowsShellMenus`: classic IContextMenu on a per-menu STA thread, lazy sub-menus, entry bitmaps; duplicates of Navigator commands hidden. Windows 11 packaged-app commands (IExplorerCommand) are not hosted yet. Linux/macOS have no hostable shell menu |
 | Set as default file manager | ⬜ | ⬜ | | | | Linux desktop file declares `inode/directory` |
 | Native notifications for finished operations | 🟨 | 🟦 | 🟨 | 🟦 | 🟦 | `notify-send`, `osascript`; Windows in-app toast only |
 
@@ -130,6 +135,7 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Search inside file contents (opt-in setting) | ✅ | 🟦 | ✓ | ✓ | ✓ | streaming matcher, tested across buffer boundaries |
 | OS index search (Windows Search, Spotlight, Tracker) | ⬜ | ⬜ | | | | |
 | Tags (create, colors, assign, browse by tag) | 🟦 | 🟦 | ✓ | ✓ | ✓ | stored in app data (`TagStore`), not in file system metadata |
+| Clear tag(s) from the selection (Edit tags menu) | ✅ | 🟦 | ✓ | ✓ | ✓ | `TagStore.RemoveTag`, `PaneMenuComposer` (tested) |
 
 ## Settings, appearance, localization
 

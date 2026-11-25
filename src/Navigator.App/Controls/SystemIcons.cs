@@ -9,12 +9,12 @@ namespace Navigator.App.Controls;
 
 /// <summary>
 /// Bitmaps of OS-drawn icons for <see cref="IconView.SystemIcon"/>. Each (key, size) is rendered once by the platform
-/// provider off the UI thread, scaled down to the requested size and kept for the session (only sidebar and Home use
-/// system icons, so the set is small; it is still capped). All state is touched on the UI thread only, so no locks.
+/// provider off the UI thread, scaled down to the requested size and kept for the session. File rows share one bitmap
+/// per file type, so the set stays small; it is still capped. All state is touched on the UI thread only, so no locks.
 /// </summary>
 internal static class SystemIcons
 {
-    private const int MaxEntries = 256;
+    private const int MaxEntries = 1024;
     private static readonly Dictionary<(string Key, int Size), Bitmap?> Cache = [];
     private static readonly Dictionary<(string Key, int Size), List<WeakReference<IconView>>> Pending = [];
     private static ISystemIconProvider? _provider;
@@ -82,7 +82,7 @@ internal static class SystemIcons
         }
     }
 
-    private static Bitmap ToBitmap(SystemIconImage image, int size)
+    internal static Bitmap ToBitmap(SystemIconImage image, int size)
     {
         var handle = GCHandle.Alloc(image.Pixels, GCHandleType.Pinned);
         Bitmap bitmap;

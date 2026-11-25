@@ -59,6 +59,28 @@ Navigator's window follows the familiar Files-app layout. Everything is styled t
   headers with sort indicator, resizable columns (48–1200 px) and a column visibility menu; rubber-band
   selection; keyboard type-to-select; empty-folder and error states with retry. Column reordering is not
   implemented.
+- **Context menus** (structure follows the Files app):
+  - One model for every pane menu: items, empty area, Recycle Bin / Trash and server folders differ only by which
+    entries apply to that location.
+  - Icon strip on top: Cut, Copy, Paste (into the folder when one folder is selected), Rename (bulk rename for
+    several), Delete, Properties. Entries stay in place and turn grey when they cannot run; Paste greys out when the
+    clipboard holds no files. The empty-area menu shows Paste and Properties.
+  - Item rows, in order: Open; Open with (sub-menu: the shell's list on Windows, registered applications elsewhere,
+    then "Choose another application…"; not for programs or shortcuts); Open file location (search results, tags);
+    Open in new tab / new window / other pane (folders); Run as administrator / as another user (Windows programs);
+    Copy path; Create folder with selection; Create shortcut; Pin to / Unpin from sidebar; Compress (to “name.zip”,
+    each to its own ZIP); Extract (files…, here (smart), here, to “name”); Send to; Open in code editor (text, code,
+    one folder); Open in terminal; Edit tags (each tag as a check item in its color, then "Clear tag(s)": disabled when
+    no selected item has a tag, "Clear tag “name”" for a single tag, otherwise a sub-menu with one entry per tag);
+    Show more options.
+  - "Show more options" holds Duplicate, Show in system file manager and Delete permanently — they join the main
+    list while Shift is held — followed, on Windows, by Explorer's own entries (7-Zip, Defender, Git, …) with their
+    icons. Explorer entries that duplicate Navigator commands are hidden.
+  - Empty area: Layout, Sort (with ascending/descending), Group, Refresh, New (folder, file), Open in terminal / code
+    editor, Pin, Select all, Show more options (Explorer's folder background menu on Windows). Trash adds Empty trash;
+    server folders add New folder and Upload.
+  - Settings → General → Context menu hides individual entries. Separators never lead, trail or double. Sub-menus
+    that need disk, process or shell work fill the first time they open.
 - **Split view**: two panes side by side (Ctrl+Shift+S / toolbar), focused pane highlighted; drag between panes.
 - **Preview pane**: image, text and Markdown source (first 64 KB), folder summary, multi-selection summary,
   metadata for other files; **details** with
@@ -99,8 +121,12 @@ Every interactive element defines: rest, pointer-over, pressed, selected, disabl
 
 ## Icons
 
-Original 24×24 path icons (`Controls/IconCatalog.cs`), rendered by `IconView` with theme brushes; file type
-icons are category-based (folder, document, image, video, audio, archive, code, executable, …).
+Material Design Icons from the `Material.Icons.Avalonia` package, drawn by `IconView` (`Controls/IconCatalog.cs`
+maps Navigator's names such as "Cut" or "Pdf" to icons; any `MaterialIconKind` name also works). UI icons follow the
+text color; file types, drives and clouds have their own colors. Files and folders show the operating system's icon
+for their type when available (Settings → Files and folders → system icons): Windows shell icons, the Linux desktop's
+icon theme, macOS Finder icons; Navigator's category icon shows until it loads and wherever there is none. Every menu
+item has an icon (`c:MenuIcon.Kind` in XAML); tags appear in their own color.
 
 ## Localization
 

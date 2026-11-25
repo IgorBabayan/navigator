@@ -8,6 +8,10 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
 
 ### Added
 
+- Recycle Bin / Trash in the sidebar: its context menu starts with "Empty trash" (with confirmation), followed by a
+  separator and the other actions. The item is disabled while the trash is empty; the state is re-checked off the UI
+  thread when the menu opens. Linux and macOS now answer "is the trash empty?" cheaply too, so the full-bin icon
+  works there as well.
 - Plugin system with a plugin shop (Settings → Plugins, or the plug button in the title bar): install, update and
   remove plugins from a signed catalog published with each release, or install a `.navplugin` file after a warning.
   Plugins load after the first frame, each isolated from the app and from other plugins. See `docs/PLUGINS.md`.

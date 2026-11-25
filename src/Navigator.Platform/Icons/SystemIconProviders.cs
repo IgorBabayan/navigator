@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Collections.Frozen;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using Navigator.Core.Platform;
@@ -34,23 +35,32 @@ internal sealed unsafe partial class WindowsShellIcons : ISystemIconProvider, ID
     private const int ShilJumbo = 4;       // 256 px
 
     private const uint ShgfiSysIconIndex = 0x4000;
+    private const uint ShgfiUseFileAttributes = 0x10;
+    private const uint FileAttributeNormal = 0x80;
     private const uint ShgsiSysIconIndex = 0x4000;
     private const uint IldTransparent = 0x1;
 
     private static readonly Guid ImageListId = new("46EB5926-582E-4017-9FDF-E8998DAA0950");
 
-    private readonly BlockingCollection<Request> _queue = new(boundedCapacity: 128);
+    // Types whose files each carry their own icon (programs, shortcuts, icon files, management snap-ins…).
+    private static readonly FrozenSet<string> OwnIconTypes =
+        new[] { ".exe", ".lnk", ".ico", ".url", ".msc", ".cpl", ".scr", ".appref-ms", ".cur", ".ani" }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+
+    // Room for a whole screen of per-file icons (programs) on top of sidebar and type icons.
+    private readonly BlockingCollection<Request> _queue = new(boundedCapacity: 1024);
     private readonly nint[] _imageLists = new nint[5];
     private readonly Lock _startGate = new();
     private Thread? _thread;
 
     public bool IsSupported => true;
 
+    public bool HasOwnIcon(string extension) => OwnIconTypes.Contains(extension);
+
     public Task<SystemIconImage?> GetIconAsync(string key, int pixelSize, CancellationToken cancellationToken = default)
     {
         if (cancellationToken.IsCancellationRequested)
             return Task.FromCanceled<SystemIconImage?>(cancellationToken);
-        if (!SystemIconKey.TryParse(key, out _, out _) || _queue.IsAddingCompleted)
+        if ((!SystemIconKey.TryParse(key, out _, out _) && !SystemIconKey.TryParseFileType(key, out _)) || _queue.IsAddingCompleted)
             return Task.FromResult<SystemIconImage?>(null);
 
         EnsureStarted();
@@ -116,10 +126,14 @@ internal sealed unsafe partial class WindowsShellIcons : ISystemIconProvider, ID
 
     private SystemIconImage? Load(string key, int pixelSize)
     {
-        if (!SystemIconKey.TryParse(key, out var kind, out var path))
+        int index;
+        if (SystemIconKey.TryParseFileType(key, out var extension))
+            index = TypeIconIndex(extension);
+        else if (SystemIconKey.TryParse(key, out var kind, out var path))
+            index = path is not null ? PathIconIndex(path) : StockIconIndex(kind);
+        else
             return null;
 
-        var index = path is not null ? PathIconIndex(path) : StockIconIndex(kind);
         if (index < 0)
             return null;
 
@@ -136,6 +150,14 @@ internal sealed unsafe partial class WindowsShellIcons : ISystemIconProvider, ID
     {
         ShFileInfo info = default;
         var result = SHGetFileInfoW(path, 0, &info, (uint)sizeof(ShFileInfo), ShgfiSysIconIndex);
+        return result == 0 ? -1 : info.IconIndex;
+    }
+
+    /// <summary>The icon Explorer shows for files of a type, from the registry only: no file is touched.</summary>
+    private static int TypeIconIndex(string extension)
+    {
+        ShFileInfo info = default;
+        var result = SHGetFileInfoW("file" + extension, FileAttributeNormal, &info, (uint)sizeof(ShFileInfo), ShgfiSysIconIndex | ShgfiUseFileAttributes);
         return result == 0 ? -1 : info.IconIndex;
     }
 
