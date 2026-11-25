@@ -18,7 +18,7 @@ Honest list of what is missing, partial or unverified. Keep it current.
 
 | Area | Issue |
 |---|---|
-| Clipboard | Copy/cut/paste of files works only inside Navigator. Pasting files copied in Explorer/Finder/Nautilus (and vice versa) is not implemented. |
+| Clipboard | Windows: files copied or cut in Explorer and files copied inside a Remote Desktop session (streamed clipboard files) can be pasted into Navigator; streamed files cannot be pasted into a server (plugin) folder and show no progress bar (a toast reports start and end). Files copied in Navigator are offered to other applications as text only. Linux/macOS: pasting files copied in Finder/Nautilus is not implemented. |
 | Drag and drop | Files dropped from other applications on Linux and macOS are copied by default (Shift moves): their paths are only read on drop, so the volume is not known while hovering. Server (plugin) items cannot be dropped anywhere (use Download); local items dropped on a server folder are uploaded. No spring-loaded folders (hovering a folder does not open it). |
 | Rubber-band selection | Selects only realized (visible) rows; items scrolled out of view during the drag are not included. |
 | Omnibar | No drag-and-drop onto breadcrumb segments; typed commands (e.g. `cmd`, `notepad`) and URLs are not launched; on Windows, mice whose driver sends only `WM_APPCOMMAND` (no XBUTTON or browser keys) do not navigate. |

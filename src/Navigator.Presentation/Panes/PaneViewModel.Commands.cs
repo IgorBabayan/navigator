@@ -1,10 +1,12 @@
 using System.IO.Compression;
+using System.Runtime.InteropServices;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Navigator.Core.Archives;
 using Navigator.Core.IO;
 using Navigator.Core.Navigation;
 using Navigator.Core.Operations;
+using Navigator.Core.Platform;
 using Navigator.Presentation.Items;
 using Navigator.Presentation.Services;
 
@@ -387,16 +389,73 @@ public sealed partial class PaneViewModel
 
     private async Task PasteAsync()
     {
-        if (CurrentDirectory is not { } destination)
-            return;
+        if (CurrentDirectory is { } destination)
+            await PasteIntoAsync(destination).ConfigureAwait(true);
+    }
 
-        var clipboard = await _services.Clipboard.GetFilesAsync().ConfigureAwait(true);
-        if (clipboard is not { } content || content.Paths.Count == 0)
+    /// <summary>Paste into a folder: real files go through the operation queue; streamed files are written out directly.</summary>
+    private async Task PasteIntoAsync(string destination)
+    {
+        ClipboardFileList? clipboard;
+        try
+        {
+            clipboard = await _services.Clipboard.GetFilesAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is IOException or ExternalException or TimeoutException)
+        {
+            await ReportPasteErrorAsync(ex).ConfigureAwait(true);
             return;
+        }
 
+        if (clipboard is not { } content)
+            return;
+        if (content.IsStreamed)
+        {
+            await PasteStreamedAsync(destination).ConfigureAwait(true);
+            return;
+        }
+
+        if (content.Paths.Count == 0)
+            return;
         await TransferIntoAsync(content.Paths, destination, move: content.IsCut).ConfigureAwait(true);
         if (content.IsCut)
             await _services.Clipboard.ClearCutStateAsync().ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// Files that exist only as clipboard data (copied inside a Remote Desktop session, zip contents, attachments).
+    /// They are streamed straight into the folder, with no temporary copy; taken names get a " (2)" suffix.
+    /// </summary>
+    private async Task PasteStreamedAsync(string destination)
+    {
+        if (RemoteUri.IsRemote(destination))
+            return; // the stream is written to a local file; servers are reached through Upload
+
+        var localizer = _services.Localizer;
+        _services.Notifications.Show(new InAppNotification(localizer["Clipboard.Pasting"], localizer["Clipboard.PastingStreamed"], NotificationSeverity.Information));
+        try
+        {
+            var created = await _services.Clipboard.PasteStreamedAsync(destination, _remoteWork.Token).ConfigureAwait(true);
+            if (created.Count == 0)
+                return;
+            if (PathUtil.AreEqual(CurrentDirectory, destination))
+                SelectWhenAvailable([.. created]);
+            _services.Notifications.Show(new InAppNotification(localizer["Clipboard.PasteDone"], localizer.Format("Remote.ItemsCount", created.Count), NotificationSeverity.Success));
+        }
+        catch (OperationCanceledException)
+        {
+            // The pane was closed.
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ExternalException)
+        {
+            await ReportPasteErrorAsync(ex).ConfigureAwait(true);
+        }
+    }
+
+    private Task ReportPasteErrorAsync(Exception ex)
+    {
+        _logger.LogWarning(ex, "Pasting from the clipboard failed");
+        return _services.Dialogs.ShowMessageAsync(_services.Localizer["Error.OperationTitle"], ex.Message);
     }
 
     /// <summary>

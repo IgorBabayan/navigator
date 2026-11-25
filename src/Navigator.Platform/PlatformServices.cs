@@ -60,6 +60,10 @@ public static class PlatformServices
         return OperatingSystem.IsWindows() ? new WindowsNewItemTemplates() : new TemplateFolderNewItems(platform.HomeDirectory);
     }
 
+    /// <summary>Files other applications put on the clipboard: Explorer copies and Remote Desktop file copies on Windows.</summary>
+    public static ISystemFileClipboard CreateFileClipboard()
+        => OperatingSystem.IsWindows() ? new DataTransfer.WindowsFileClipboard() : new DataTransfer.UnsupportedFileClipboard();
+
     /// <summary>The OS context menu shown under "Show more options" (Windows Explorer's classic menu; none elsewhere).</summary>
     public static IShellMenuProvider CreateShellMenus()
         => OperatingSystem.IsWindows() ? new Shell.WindowsShellMenus() : new Shell.UnsupportedShellMenus();

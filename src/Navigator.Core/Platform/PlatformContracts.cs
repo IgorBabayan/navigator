@@ -443,3 +443,29 @@ public interface INewItemTemplates
 {
     Task<IReadOnlyList<NewItemTemplate>> GetAsync(CancellationToken cancellationToken = default);
 }
+
+/// <summary>
+/// Files on the clipboard. <paramref name="Paths"/> are real files (Explorer's copy/cut, Navigator's own list).
+/// <paramref name="IsStreamed"/> marks files that exist only as data on the clipboard: Remote Desktop copies, archive
+/// viewers, mail attachments; <paramref name="Paths"/> is empty then and the content is written out on paste.
+/// </summary>
+public sealed record ClipboardFileList(IReadOnlyList<string> Paths, bool IsCut, bool IsStreamed = false);
+
+/// <summary>Files other applications put on the OS clipboard (Windows: CF_HDROP, FileGroupDescriptorW/FileContents).</summary>
+public interface ISystemFileClipboard
+{
+    /// <summary>Cheap check (format availability only, no data is fetched): safe for menu probes and key handlers.</summary>
+    bool HasFiles();
+
+    /// <summary>The files on the OS clipboard; null when it holds none.</summary>
+    Task<ClipboardFileList?> ReadAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Writes streamed clipboard files into <paramref name="destination"/>. Names already taken get a " (2)" suffix,
+    /// nothing is overwritten. Returns the created top-level items.
+    /// </summary>
+    Task<IReadOnlyList<string>> PasteStreamedAsync(string destination, CancellationToken cancellationToken = default);
+
+    /// <summary>After files cut in another application were moved: empties the clipboard if it still holds that cut.</summary>
+    void ForgetCut();
+}

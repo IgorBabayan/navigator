@@ -123,8 +123,17 @@ public interface IClipboardService
 {
     Task SetFilesAsync(IReadOnlyList<string> paths, bool cut);
 
-    /// <summary>Paths currently on the clipboard and whether they were cut (null when the clipboard holds no files).</summary>
-    Task<(IReadOnlyList<string> Paths, bool IsCut)?> GetFilesAsync();
+    /// <summary>
+    /// Files on the clipboard: Navigator's own copy/cut, or files another application put there (Explorer, a Remote
+    /// Desktop session). Null when the clipboard holds no files.
+    /// </summary>
+    Task<ClipboardFileList?> GetFilesAsync();
+
+    /// <summary>Whether Paste has anything to paste; does not fetch the files themselves (menu probes).</summary>
+    Task<bool> HasFilesAsync();
+
+    /// <summary>Writes streamed clipboard files (<see cref="ClipboardFileList.IsStreamed"/>) into a local folder; returns the new top-level items.</summary>
+    Task<IReadOnlyList<string>> PasteStreamedAsync(string destination, CancellationToken cancellationToken);
 
     Task SetTextAsync(string text);
 

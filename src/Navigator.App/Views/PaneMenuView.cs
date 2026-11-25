@@ -98,7 +98,7 @@ internal sealed class PaneMenuView(PaneServices services, ILogger logger)
     {
         try
         {
-            if (await services.Clipboard.GetFilesAsync().ConfigureAwait(true) is not { } content || content.Paths.Count == 0)
+            if (!await services.Clipboard.HasFilesAsync().ConfigureAwait(true))
                 paste.IsEnabled = false;
         }
         catch (Exception ex) when (ex is InvalidOperationException or System.Runtime.InteropServices.ExternalException or TimeoutException)

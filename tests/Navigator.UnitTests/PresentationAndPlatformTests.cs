@@ -2,6 +2,7 @@ using System.Text;
 using Navigator.Core.IO;
 using Navigator.Core.Settings;
 using Navigator.Platform;
+using Navigator.Platform.DataTransfer;
 using Navigator.Platform.Launch;
 using Navigator.Platform.Trash;
 using Navigator.Presentation.Commands;
@@ -294,6 +295,16 @@ public sealed class PresentationTests
 [TestClass]
 public sealed class PlatformParsingTests
 {
+    [TestMethod]
+    public void StreamedClipboardNames_OnlyPlainRelativeNamesPass()
+    {
+        CollectionAssert.AreEqual(new[] { "report.pdf" }, StreamedNames.Split("report.pdf"));
+        CollectionAssert.AreEqual(new[] { "Folder", "sub", "file.txt" }, StreamedNames.Split(@"Folder\sub\file.txt"));
+        CollectionAssert.AreEqual(new[] { "Folder", "file.txt" }, StreamedNames.Split("Folder/file.txt"));
+        foreach (var hostile in new[] { "", " ", @"..\evil.exe", @"a\..\..\b", @"\\server\share\x", "/etc/passwd", @"C:\x", "C:x", "file.txt:stream", @"a\\b", "dot.", "a\0b" })
+            Assert.IsNull(StreamedNames.Split(hostile), hostile);
+    }
+
     [TestMethod]
     public void UserDirs_ParsesXdgFile()
     {
