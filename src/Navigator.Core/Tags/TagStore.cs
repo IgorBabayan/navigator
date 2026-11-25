@@ -83,6 +83,29 @@ public sealed class TagStore
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>Takes <paramref name="tagId"/> off every given path that carries it (others are left alone).</summary>
+    public void RemoveTag(IEnumerable<string> paths, string tagId)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        var changed = false;
+        lock (_gate)
+        {
+            foreach (var key in paths.Select(PathUtil.TrimTrailingSeparator))
+            {
+                if (!_items.TryGetValue(key, out var assigned) || !assigned.Remove(tagId))
+                    continue;
+                if (assigned.Count == 0)
+                    _items.Remove(key);
+                changed = true;
+            }
+
+            _dirty |= changed;
+        }
+
+        if (changed)
+            Changed?.Invoke(this, EventArgs.Empty);
+    }
+
     /// <summary>Paths carrying <paramref name="tagId"/> that still exist.</summary>
     public IReadOnlyList<string> FindByTag(string tagId)
     {

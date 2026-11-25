@@ -1,7 +1,9 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Layout;
+using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Avalonia.Media.Immutable;
 using Microsoft.Extensions.Logging;
 using Navigator.App.Controls;
 using Navigator.Presentation.Commands;
@@ -191,7 +193,12 @@ internal sealed class PaneMenuView(PaneServices services, ILogger logger)
             return new Image { Source = bitmap, Width = GlyphSize, Height = GlyphSize };
         }
 
-        return entry.Glyph is null ? null : new IconView { Kind = entry.Glyph, Width = GlyphSize, Height = GlyphSize };
+        if (entry.Glyph is null)
+            return null;
+        var glyph = new IconView { Kind = entry.Glyph, Width = GlyphSize, Height = GlyphSize };
+        if (entry.Tint is { } tint && Color.TryParse(tint, out var color))
+            glyph.Foreground = new ImmutableSolidColorBrush(color); // tags show in their own color
+        return glyph;
     }
 
     private string? GestureText(string? commandId)

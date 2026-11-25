@@ -234,6 +234,9 @@ public sealed class FilesAndFoldersSettings
 
     public bool ShowFileExtensions { get; set; } = true;
 
+    /// <summary>Rows show the operating system's icon for each file type and for folders (Navigator's own icons otherwise).</summary>
+    public bool UseSystemIcons { get; set; } = true;
+
     public bool ShowThumbnails { get; set; } = true;
 
     public bool ShowCheckBoxes { get; set; }

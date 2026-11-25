@@ -17,6 +17,7 @@ public sealed class PaneServices(
     IDialogService dialogs,
     IClipboardService clipboard,
     IThumbnailProvider thumbnails,
+    ISystemIconProvider systemIcons,
     INotificationCenter notifications,
     IWindowService windows,
     FileOperationService operations,
@@ -46,6 +47,9 @@ public sealed class PaneServices(
     public IClipboardService Clipboard { get; } = clipboard;
 
     public IThumbnailProvider Thumbnails { get; } = thumbnails;
+
+    /// <summary>Icons the OS draws for file types, folders and drives (Settings → Files and folders → system icons).</summary>
+    public ISystemIconProvider SystemIcons { get; } = systemIcons;
 
     public INotificationCenter Notifications { get; } = notifications;
 

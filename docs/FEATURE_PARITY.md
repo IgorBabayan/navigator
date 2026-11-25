@@ -65,6 +65,7 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Per-folder view preferences (bounded 500) | 🟦 | 🟦 | ✓ | ✓ | ✓ | |
 | Hidden / protected system items, file extensions toggles | ✅ | 🟦 | ✓ | ✓ | ✓ | |
 | Incremental live updates (file system watcher) | ✅ | 🟦 | ✓ | ✓ | ✓ | `DirectoryMonitor` + binary-search apply |
+| OS icons for file types and folders (setting) | ✅ | 🟦 | 🟦 | ✅ | 🟦 | Windows shell image lists by type (programs/shortcuts per file); Linux icon theme (GIO + gdk-pixbuf, verified on Adwaita/Humanity); macOS NSWorkspace (not run yet) |
 | Thumbnails (images) | 🟨 | 🟦 | ✓ | ✓ | ✓ | images decoded by Avalonia, memory LRU only; no video/PDF/OS thumbnails, no disk cache |
 | Folder sizes (opt-in) | ✅ | 🟦 | ✓ | ✓ | ✓ | low-priority background |
 | Filter current folder | ✅ | 🟦 | ✓ | ✓ | ✓ | `NameFilter` |
@@ -134,6 +135,7 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Search inside file contents (opt-in setting) | ✅ | 🟦 | ✓ | ✓ | ✓ | streaming matcher, tested across buffer boundaries |
 | OS index search (Windows Search, Spotlight, Tracker) | ⬜ | ⬜ | | | | |
 | Tags (create, colors, assign, browse by tag) | 🟦 | 🟦 | ✓ | ✓ | ✓ | stored in app data (`TagStore`), not in file system metadata |
+| Clear tag(s) from the selection (Edit tags menu) | ✅ | 🟦 | ✓ | ✓ | ✓ | `TagStore.RemoveTag`, `PaneMenuComposer` (tested) |
 
 ## Settings, appearance, localization
 

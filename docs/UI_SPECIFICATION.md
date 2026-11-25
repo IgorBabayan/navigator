@@ -70,7 +70,9 @@ Navigator's window follows the familiar Files-app layout. Everything is styled t
     Open in new tab / new window / other pane (folders); Run as administrator / as another user (Windows programs);
     Copy path; Create folder with selection; Create shortcut; Pin to / Unpin from sidebar; Compress (to “name.zip”,
     each to its own ZIP); Extract (files…, here (smart), here, to “name”); Send to; Open in code editor (text, code,
-    one folder); Open in terminal; Edit tags; Show more options.
+    one folder); Open in terminal; Edit tags (each tag as a check item in its color, then "Clear tag(s)": disabled when
+    no selected item has a tag, "Clear tag “name”" for a single tag, otherwise a sub-menu with one entry per tag);
+    Show more options.
   - "Show more options" holds Duplicate, Show in system file manager and Delete permanently — they join the main
     list while Shift is held — followed, on Windows, by Explorer's own entries (7-Zip, Defender, Git, …) with their
     icons. Explorer entries that duplicate Navigator commands are hidden.
@@ -119,8 +121,12 @@ Every interactive element defines: rest, pointer-over, pressed, selected, disabl
 
 ## Icons
 
-Original 24×24 path icons (`Controls/IconCatalog.cs`), rendered by `IconView` with theme brushes; file type
-icons are category-based (folder, document, image, video, audio, archive, code, executable, …).
+Material Design Icons from the `Material.Icons.Avalonia` package, drawn by `IconView` (`Controls/IconCatalog.cs`
+maps Navigator's names such as "Cut" or "Pdf" to icons; any `MaterialIconKind` name also works). UI icons follow the
+text color; file types, drives and clouds have their own colors. Files and folders show the operating system's icon
+for their type when available (Settings → Files and folders → system icons): Windows shell icons, the Linux desktop's
+icon theme, macOS Finder icons; Navigator's category icon shows until it loads and wherever there is none. Every menu
+item has an icon (`c:MenuIcon.Kind` in XAML); tags appear in their own color.
 
 ## Localization
 

@@ -484,7 +484,11 @@ public sealed partial class PaneView : UserControl
         foreach (var handler in handlers)
         {
             var captured = handler;
-            var entry = new MenuItem { Header = handler.IsDefault ? $"{handler.DisplayName} ({Text["OpenWith.Default"]})" : handler.DisplayName };
+            var entry = new MenuItem
+            {
+                Header = handler.IsDefault ? $"{handler.DisplayName} ({Text["OpenWith.Default"]})" : handler.DisplayName,
+                Icon = new Controls.IconView { Kind = "ApplicationOutline", Width = 16, Height = 16 },
+            };
             entry.Click += async (_, _) => await _services.Launcher.OpenWithAsync(item.FullPath, captured).ConfigureAwait(true);
             menu.Items.Add(entry);
         }
@@ -493,7 +497,7 @@ public sealed partial class PaneView : UserControl
             menu.Items.Add(new MenuItem { Header = Text["OpenWith.NoApplications"], IsEnabled = false });
 
         menu.Items.Add(new Separator());
-        var choose = new MenuItem { Header = Text["OpenWith.Choose"] };
+        var choose = new MenuItem { Header = Text["OpenWith.Choose"], Icon = new Controls.IconView { Kind = "Search", Width = 16, Height = 16 } };
         choose.Click += async (_, _) => await (_pane?.ChooseApplicationCommand.ExecuteAsync(item.FullPath) ?? Task.CompletedTask).ConfigureAwait(true);
         menu.Items.Add(choose);
         menu.Open(this);

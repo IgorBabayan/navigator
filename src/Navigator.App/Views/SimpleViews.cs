@@ -36,7 +36,13 @@ public sealed partial class SidebarView : UserControl
         menu.Items.Add(new Separator { Tag = PluginItemTag });
         foreach (var command in item.Commands)
         {
-            var menuItem = new MenuItem { Header = command.Title, Command = command.Command, Tag = PluginItemTag };
+            var menuItem = new MenuItem
+            {
+                Header = command.Title,
+                Command = command.Command,
+                Tag = PluginItemTag,
+                Icon = new Controls.IconView { Kind = command.IconKey, Width = 16, Height = 16 },
+            };
             if (command.IsDestructive)
                 menuItem.Classes.Add("destructive");
             menu.Items.Add(menuItem);

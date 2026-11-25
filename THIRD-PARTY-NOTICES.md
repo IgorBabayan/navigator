@@ -16,7 +16,8 @@ obtained as NuGet packages (not vendored). Release packages include the runtime 
 | BenchmarkDotNet | 0.15.2 | MIT | no (benchmarks) | https://github.com/dotnet/BenchmarkDotNet |
 | SSH.NET | 2026.0.1 | MIT | only in the SSH plugin package (`.navplugin`), not in the app | https://github.com/sshnet/SSH.NET |
 | BouncyCastle.Cryptography (dependency of SSH.NET) | 2.7.0 | MIT | only in the SSH plugin package | https://github.com/bcgit/bc-csharp |
-| Material Symbols (Rounded, weight 400) by Google — icon path data compiled into `IconCatalog.cs` | npm `@material-symbols/svg-400` 0.49.0 | Apache-2.0 (`licenses/MaterialSymbols-Apache-2.0.txt`) | yes | https://github.com/google/material-design-icons |
+| Material.Icons.Avalonia (+ Material.Icons) | 3.0.2 | MIT | yes | https://github.com/SKProCH/Material.Icons |
+| Material Design Icons by Pictogrammers (icon data inside Material.Icons) | as packaged | Pictogrammers Free License; icons originating from Google: Apache-2.0 | yes | https://pictogrammers.com/library/mdi/ |
 
 Build-time tools (not shipped): Inno Setup (Inno Setup License), appimagetool (MIT), Apple Xcode tools.
 The AppImage runtime embedded by appimagetool is MIT-licensed (https://github.com/AppImage/type2-runtime).

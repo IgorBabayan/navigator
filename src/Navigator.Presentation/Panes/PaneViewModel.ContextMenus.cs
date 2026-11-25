@@ -64,6 +64,7 @@ public sealed partial class PaneViewModel
         OpenInCodeEditor = OpenSelectionInCodeEditorCommand,
         OpenTerminal = OpenTerminalCommand,
         ToggleTag = ToggleTagCommand,
+        RemoveTag = RemoveTagCommand,
         Duplicate = DuplicateCommand,
         RevealInSystem = RevealInSystemCommand,
         SetLayout = SetLayoutCommand,
@@ -200,6 +201,7 @@ public sealed partial class PaneViewModel
             entries.Add(new MenuEntry
             {
                 Label = handler.IsDefault ? $"{handler.DisplayName} ({_services.Localizer["OpenWith.Default"]})" : handler.DisplayName,
+                Glyph = "ApplicationOutline",
                 Command = OpenWithApplicationCommand,
                 Parameter = new OpenWithChoice(path, handler),
                 Scopes = MenuScope.Anywhere,
@@ -247,8 +249,14 @@ public sealed partial class PaneViewModel
         var choices = new List<TagChoice>(defined.Count);
         foreach (var tag in defined)
         {
-            var onAll = selected.All(item => item.Tags.Any(chip => chip.Id == tag.Id));
-            choices.Add(new TagChoice(tag.Id, tag.Name, onAll));
+            int carriers = 0;
+            foreach (var item in selected)
+            {
+                if (item.Tags.Any(chip => chip.Id == tag.Id))
+                    carriers++;
+            }
+
+            choices.Add(new TagChoice(tag.Id, tag.Name, tag.Color, IsChecked: carriers == selected.Length, IsPresent: carriers > 0));
         }
 
         return choices;

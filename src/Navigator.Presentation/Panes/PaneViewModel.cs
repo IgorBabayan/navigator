@@ -762,7 +762,8 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
     }
 
     private ItemDisplayContext CreateDisplayContext()
-        => new(_services.Localizer, _services.Settings.Current.FilesAndFolders.ShowFileExtensions);
+        => new(_services.Localizer, _services.Settings.Current.FilesAndFolders.ShowFileExtensions,
+            _services.Settings.Current.FilesAndFolders.UseSystemIcons ? _services.SystemIcons : null);
 
     private void RaiseNavigationState()
     {

@@ -637,6 +637,8 @@ public sealed class SettingsViewModel : ObservableObject
 
     public bool ShowFileExtensions { get => S.FilesAndFolders.ShowFileExtensions; set => Set("filesAndFolders", value, s => s.FilesAndFolders.ShowFileExtensions, (s, v) => s.FilesAndFolders.ShowFileExtensions = v); }
 
+    public bool UseSystemIcons { get => S.FilesAndFolders.UseSystemIcons; set => Set("filesAndFolders", value, s => s.FilesAndFolders.UseSystemIcons, (s, v) => s.FilesAndFolders.UseSystemIcons = v); }
+
     public bool ShowThumbnails { get => S.FilesAndFolders.ShowThumbnails; set => Set("filesAndFolders", value, s => s.FilesAndFolders.ShowThumbnails, (s, v) => s.FilesAndFolders.ShowThumbnails = v); }
 
     public bool ShowCheckBoxes { get => S.FilesAndFolders.ShowCheckBoxes; set => Set("filesAndFolders", value, s => s.FilesAndFolders.ShowCheckBoxes, (s, v) => s.FilesAndFolders.ShowCheckBoxes = v); }

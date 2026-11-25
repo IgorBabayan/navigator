@@ -44,7 +44,7 @@ public sealed class PaneMenuTests
             CopyPath = any, CreateFolderWithSelection = any, CreateShortcut = any, Rename = any, Delete = any,
             DeletePermanently = any, Properties = any, Restore = any, Download = any, Upload = any, TogglePin = any,
             Compress = any, CompressEach = any, ExtractFiles = any, ExtractSmart = any, ExtractHere = any,
-            ExtractToFolder = any, OpenInCodeEditor = any, OpenTerminal = any, ToggleTag = any, Duplicate = any,
+            ExtractToFolder = any, OpenInCodeEditor = any, OpenTerminal = any, ToggleTag = any, RemoveTag = any, Duplicate = any,
             RevealInSystem = any, SetLayout = any, SortBy = any, ToggleSortDirection = any, SetGroupBy = any,
             Refresh = any, NewFolder = any, NewFile = any, EmptyTrash = any, SelectAll = any,
         };
@@ -288,6 +288,79 @@ public sealed class PaneMenuTests
         Assert.IsTrue(SelectionTraits.Collect([File("tool.exe")], ArchiveService.IsSupportedArchive, Counting).IsElevatableProgram);
         Assert.AreEqual(1, asked);
         Assert.IsTrue(SelectionTraits.Collect([File("main.cs")], ArchiveService.IsSupportedArchive, Counting).IsEditableText);
+    }
+
+    // ── Edit tags / Clear tag(s) ──
+
+    private static readonly Probe Remover = new();
+
+    private static List<MenuEntry> TagMenu(params TagChoice[] tags)
+    {
+        var input = Input([File("a.txt")], commands: Commands() with { RemoveTag = Remover }) with { Tags = tags };
+        return PaneMenuComposer.ForItems(input).Single(e => e.Slot == MenuSlots.Tags).Children!;
+    }
+
+    private static MenuEntry ClearEntry(List<MenuEntry> tagMenu) => tagMenu[^1];
+
+    [TestMethod]
+    public void ClearTag_IsDisabled_WhenNoSelectedItemHasATag()
+    {
+        var menu = TagMenu(new TagChoice("w", "Work", "#FF0000", IsChecked: false, IsPresent: false));
+        var clear = ClearEntry(menu);
+
+        Assert.IsTrue(menu[^2].IsSeparator);
+        Assert.AreEqual(Text["Command.ClearTag"], clear.Label);
+        Assert.IsFalse(clear.IsEnabled);
+        Assert.IsNull(clear.Children);
+    }
+
+    [TestMethod]
+    public void ClearTag_RemovesTheOnlyTag_Directly()
+    {
+        var clear = ClearEntry(TagMenu(
+            new TagChoice("w", "Work", "#FF0000", IsChecked: true, IsPresent: true),
+            new TagChoice("h", "Home", "#00FF00", IsChecked: false, IsPresent: false)));
+
+        Assert.IsTrue(clear.IsEnabled);
+        Assert.IsNull(clear.Children);
+        Assert.AreSame(Remover, clear.Command);
+        Assert.AreEqual("w", clear.Parameter);
+        Assert.AreEqual(Text.Format("Command.ClearTagNamed", "Work"), clear.Label);
+    }
+
+    [TestMethod]
+    public void ClearTags_OffersEachPresentTag()
+    {
+        var clear = ClearEntry(TagMenu(
+            new TagChoice("w", "Work", "#FF0000", IsChecked: true, IsPresent: true),
+            new TagChoice("h", "Home", "#00FF00", IsChecked: false, IsPresent: false),
+            new TagChoice("u", "Urgent", "#0000FF", IsChecked: false, IsPresent: true)));
+
+        Assert.AreEqual(Text["Command.ClearTags"], clear.Label);
+        CollectionAssert.AreEqual(new[] { "Work", "Urgent" }, clear.Children!.Select(c => c.Label).ToArray());
+        CollectionAssert.AreEqual(new object[] { "w", "u" }, clear.Children!.Select(c => c.Parameter!).ToArray());
+        Assert.IsTrue(clear.Children!.All(c => ReferenceEquals(c.Command, Remover)));
+        Assert.AreEqual("#0000FF", clear.Children![1].Tint);
+    }
+
+    [TestMethod]
+    public void TagToggles_ShowTheTagColor()
+    {
+        var toggle = TagMenu(new TagChoice("w", "Work", "#FF0000", IsChecked: true, IsPresent: true))[0];
+        Assert.AreEqual(("Tag", "#FF0000", true), (toggle.Glyph, toggle.Tint, toggle.IsChecked));
+    }
+
+    [TestMethod]
+    public void EveryBackgroundRow_HasAnIcon()
+    {
+        foreach (var entry in PaneMenuComposer.ForBackground(Input([])))
+        {
+            if (entry.IsSeparator)
+                continue;
+            Assert.IsNotNull(entry.Glyph, entry.Label);
+            foreach (var child in entry.Children ?? [])
+                Assert.IsTrue(child.IsSeparator || child.Glyph is not null, child.Label);
+        }
     }
 
     // ── Shell menu bridge ──

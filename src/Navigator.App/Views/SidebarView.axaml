@@ -12,14 +12,14 @@
         <Border.ContextMenu>
           <ContextMenu Opening="OnItemMenuOpening">
             <!-- Trash entry only: "Empty trash" first, disabled (by the command) while the trash is empty. -->
-            <MenuItem Header="{c:Tr Command.EmptyTrash}" IsVisible="{Binding IsTrash}" Command="{Binding $parent[v:SidebarView].Model.EmptyTrashCommand}" />
+            <MenuItem c:MenuIcon.Kind="Delete" Header="{c:Tr Command.EmptyTrash}" IsVisible="{Binding IsTrash}" Command="{Binding $parent[v:SidebarView].Model.EmptyTrashCommand}" />
             <Separator IsVisible="{Binding IsTrash}" />
-            <MenuItem Header="{c:Tr Command.OpenInNewTab}" Command="{Binding $parent[v:SidebarView].Model.OpenInNewTabCommand}" CommandParameter="{Binding}" />
-            <MenuItem Header="{c:Tr Command.OpenInNewWindow}" Command="{Binding $parent[v:SidebarView].Model.OpenInNewWindowCommand}" CommandParameter="{Binding}" />
+            <MenuItem c:MenuIcon.Kind="TabPlus" Header="{c:Tr Command.OpenInNewTab}" Command="{Binding $parent[v:SidebarView].Model.OpenInNewTabCommand}" CommandParameter="{Binding}" />
+            <MenuItem c:MenuIcon.Kind="Window" Header="{c:Tr Command.OpenInNewWindow}" Command="{Binding $parent[v:SidebarView].Model.OpenInNewWindowCommand}" CommandParameter="{Binding}" />
             <Separator IsVisible="{Binding IsPinned}" />
-            <MenuItem Header="{c:Tr Command.MoveUp}" IsVisible="{Binding IsPinned}" Command="{Binding $parent[v:SidebarView].Model.MoveUpCommand}" CommandParameter="{Binding}" />
-            <MenuItem Header="{c:Tr Command.MoveDown}" IsVisible="{Binding IsPinned}" Command="{Binding $parent[v:SidebarView].Model.MoveDownCommand}" CommandParameter="{Binding}" />
-            <MenuItem Header="{c:Tr Command.UnpinFromSidebar}" IsVisible="{Binding IsPinned}" Command="{Binding $parent[v:SidebarView].Model.UnpinCommand}" CommandParameter="{Binding}" />
+            <MenuItem c:MenuIcon.Kind="Up" Header="{c:Tr Command.MoveUp}" IsVisible="{Binding IsPinned}" Command="{Binding $parent[v:SidebarView].Model.MoveUpCommand}" CommandParameter="{Binding}" />
+            <MenuItem c:MenuIcon.Kind="ArrowDown" Header="{c:Tr Command.MoveDown}" IsVisible="{Binding IsPinned}" Command="{Binding $parent[v:SidebarView].Model.MoveDownCommand}" CommandParameter="{Binding}" />
+            <MenuItem c:MenuIcon.Kind="Unpin" Header="{c:Tr Command.UnpinFromSidebar}" IsVisible="{Binding IsPinned}" Command="{Binding $parent[v:SidebarView].Model.UnpinCommand}" CommandParameter="{Binding}" />
           </ContextMenu>
         </Border.ContextMenu>
         <Grid ColumnDefinitions="Auto,*" Margin="{StaticResource Space.SidebarItem}">

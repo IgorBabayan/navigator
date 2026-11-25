@@ -39,6 +39,7 @@ public sealed record PaneMenuCommands
     public required ICommand OpenInCodeEditor { get; init; }
     public required ICommand OpenTerminal { get; init; }
     public required ICommand ToggleTag { get; init; }
+    public required ICommand RemoveTag { get; init; }
     public required ICommand Duplicate { get; init; }
     public required ICommand RevealInSystem { get; init; }
     public required ICommand SetLayout { get; init; }
@@ -52,8 +53,11 @@ public sealed record PaneMenuCommands
     public required ICommand SelectAll { get; init; }
 }
 
-/// <summary>A tag as the "Edit tags" sub-menu shows it: checked when every selected item carries it.</summary>
-public readonly record struct TagChoice(string Id, string Name, bool IsChecked);
+/// <summary>
+/// A tag as the "Edit tags" sub-menu shows it: checked when every selected item carries it, present when at least one
+/// does (then "Clear tag(s)" offers to take it off).
+/// </summary>
+public readonly record struct TagChoice(string Id, string Name, string Color, bool IsChecked, bool IsPresent);
 
 /// <summary>The current view settings the background menu marks with radio checks.</summary>
 public readonly record struct ViewState(FolderLayout Layout, SortColumn SortColumn, bool SortDescending, GroupBy GroupBy);
@@ -226,18 +230,18 @@ public static class PaneMenuComposer
         var layouts = new[] { FolderLayout.Details, FolderLayout.List, FolderLayout.Tiles, FolderLayout.MediumIcons, FolderLayout.LargeIcons };
         var layoutChoices = new List<MenuEntry>(layouts.Length);
         foreach (var layout in layouts)
-            layoutChoices.Add(Choice(run.SetLayout, text["Layout." + layout], layout, view.Layout == layout));
+            layoutChoices.Add(Choice(run.SetLayout, text["Layout." + layout], layout, view.Layout == layout, LayoutGlyph(layout)));
 
         var sortChoices = new List<MenuEntry>();
         foreach (var column in Enum.GetValues<SortColumn>())
-            sortChoices.Add(Choice(run.SortBy, text["Sort." + column], column, view.SortColumn == column));
+            sortChoices.Add(Choice(run.SortBy, text["Sort." + column], column, view.SortColumn == column, PropertyGlyph(column.ToString())));
         sortChoices.Add(MenuEntry.Divider());
-        sortChoices.Add(Direction(run.ToggleSortDirection, text["Sort.Ascending"], chosen: !view.SortDescending));
-        sortChoices.Add(Direction(run.ToggleSortDirection, text["Sort.Descending"], chosen: view.SortDescending));
+        sortChoices.Add(Direction(run.ToggleSortDirection, text["Sort.Ascending"], chosen: !view.SortDescending, "SortAscending"));
+        sortChoices.Add(Direction(run.ToggleSortDirection, text["Sort.Descending"], chosen: view.SortDescending, "SortDescending"));
 
         var groupChoices = new List<MenuEntry>();
         foreach (var grouping in Enum.GetValues<GroupBy>())
-            groupChoices.Add(Choice(run.SetGroupBy, text["GroupBy." + grouping], grouping, view.GroupBy == grouping));
+            groupChoices.Add(Choice(run.SetGroupBy, text["GroupBy." + grouping], grouping, view.GroupBy == grouping, PropertyGlyph(grouping.ToString())));
 
         var entries = new List<MenuEntry>
         {
@@ -406,6 +410,8 @@ public static class PaneMenuComposer
             {
                 Kind = MenuEntryKind.Toggle,
                 Label = tag.Name,
+                Glyph = "Tag",
+                Tint = tag.Color,
                 Command = input.Commands.ToggleTag,
                 Parameter = tag.Id,
                 IsChecked = tag.IsChecked,
@@ -414,6 +420,8 @@ public static class PaneMenuComposer
 
         if (choices.Count == 0)
             choices.Add(new MenuEntry { Label = input.Text["Tags.NoneDefined"], IsEnabled = false });
+        choices.Add(MenuEntry.Divider());
+        choices.Add(ClearTags(input));
 
         return new MenuEntry
         {
@@ -423,6 +431,41 @@ public static class PaneMenuComposer
             IsWanted = input.Settings.ShowEditTagsInContextMenu,
             Children = choices,
         };
+    }
+
+    /// <summary>
+    /// "Clear tag(s)": disabled when no selected item carries a tag; one entry removing the tag when exactly one tag is
+    /// present; otherwise a sub-menu with one entry per present tag, each removing that tag from the selection.
+    /// </summary>
+    private static MenuEntry ClearTags(PaneMenuInput input)
+    {
+        var present = new List<TagChoice>();
+        foreach (var tag in input.Tags)
+        {
+            if (tag.IsPresent)
+                present.Add(tag);
+        }
+
+        var text = input.Text;
+        var remove = input.Commands.RemoveTag;
+        switch (present.Count)
+        {
+            case 0:
+                return new MenuEntry { Label = text["Command.ClearTag"], Glyph = "TagRemove", IsEnabled = false };
+            case 1:
+                return new MenuEntry
+                {
+                    Label = text.Format("Command.ClearTagNamed", present[0].Name),
+                    Glyph = "TagRemove",
+                    Command = remove,
+                    Parameter = present[0].Id,
+                };
+            default:
+                var each = new List<MenuEntry>(present.Count);
+                foreach (var tag in present)
+                    each.Add(new MenuEntry { Label = tag.Name, Glyph = "Tag", Tint = tag.Color, Command = remove, Parameter = tag.Id });
+                return new MenuEntry { Label = text["Command.ClearTags"], Glyph = "TagRemove", Children = each };
+        }
     }
 
     /// <summary>"Show more options": Shift-only entries land here, the shell's own entries load into it when it opens.</summary>
@@ -436,10 +479,11 @@ public static class PaneMenuComposer
         LoadChildren = input.ShellEntries,
     };
 
-    private static MenuEntry Choice(ICommand command, string label, object value, bool chosen) => new()
+    private static MenuEntry Choice(ICommand command, string label, object value, bool chosen, string glyph) => new()
     {
         Kind = MenuEntryKind.Radio,
         Label = label,
+        Glyph = glyph,
         Command = command,
         Parameter = value,
         IsChecked = chosen,
@@ -447,12 +491,34 @@ public static class PaneMenuComposer
     };
 
     /// <summary>Sort direction pair over a toggle command: the checked side does nothing, the other one toggles.</summary>
-    private static MenuEntry Direction(ICommand toggle, string label, bool chosen) => new()
+    private static MenuEntry Direction(ICommand toggle, string label, bool chosen, string glyph) => new()
     {
         Kind = MenuEntryKind.Radio,
         Label = label,
+        Glyph = glyph,
         Command = chosen ? null : toggle,
         IsChecked = chosen,
         Scopes = MenuScope.Anywhere,
+    };
+
+    private static string LayoutGlyph(FolderLayout layout) => layout switch
+    {
+        FolderLayout.Details => "LayoutDetails",
+        FolderLayout.List => "LayoutList",
+        FolderLayout.Tiles => "LayoutTiles",
+        FolderLayout.LargeIcons => "ViewGridOutline",
+        _ => "LayoutGrid",
+    };
+
+    /// <summary>The same icons for sorting and grouping by a property (the enums share member names).</summary>
+    private static string PropertyGlyph(string property) => property switch
+    {
+        "Name" => "SortAlphabeticalAscending",
+        "DateModified" => "CalendarEdit",
+        "DateCreated" => "CalendarPlus",
+        "Type" => "Shape",
+        "Size" => "Weight",
+        "None" => "CloseCircleOutline",
+        _ => "Sort",
     };
 }

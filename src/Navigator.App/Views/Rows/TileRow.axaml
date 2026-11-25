@@ -19,7 +19,7 @@
           <Panel>
           <StackPanel Spacing="6" Opacity="{Binding ContentOpacity}">
             <Panel Width="{Binding $parent[v:PaneView].Pane.TileIconSize}" Height="{Binding $parent[v:PaneView].Pane.TileIconSize}" HorizontalAlignment="Center">
-              <c:IconView Kind="{Binding IconKey}" Width="{Binding $parent[v:PaneView].Pane.TileIconSize}" Height="{Binding $parent[v:PaneView].Pane.TileIconSize}" IsVisible="{Binding !HasThumbnail}" />
+              <c:IconView Kind="{Binding IconKey}" SystemIcon="{Binding SystemIconKey}" Width="{Binding $parent[v:PaneView].Pane.TileIconSize}" Height="{Binding $parent[v:PaneView].Pane.TileIconSize}" IsVisible="{Binding !HasThumbnail}" />
               <Border CornerRadius="4" ClipToBounds="True" IsVisible="{Binding HasThumbnail}">
                 <Image Source="{Binding Thumbnail, Converter={x:Static v:ImageConverter.Instance}}" Stretch="Uniform" />
               </Border>

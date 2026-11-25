@@ -170,6 +170,7 @@
               <CheckBox Content="{c:Tr Settings.ShowDotFiles}" IsChecked="{Binding ShowDotFiles}" />
               <CheckBox Content="{c:Tr Settings.ShowProtectedSystemItems}" IsChecked="{Binding ShowProtectedSystemItems}" IsVisible="{Binding IsProtectedSystemItemsSupported}" />
               <CheckBox Content="{c:Tr Settings.ShowFileExtensions}" IsChecked="{Binding ShowFileExtensions}" />
+              <CheckBox Content="{c:Tr Settings.UseSystemIcons}" IsChecked="{Binding UseSystemIcons}" />
               <CheckBox Content="{c:Tr Settings.ShowThumbnails}" IsChecked="{Binding ShowThumbnails}" />
               <CheckBox Content="{c:Tr Settings.ShowCheckBoxes}" IsChecked="{Binding ShowCheckBoxes}" />
               <CheckBox Content="{c:Tr Settings.ShowTagsColumn}" IsChecked="{Binding ShowFileTagsColumn}" /></StackPanel></Border>

@@ -93,19 +93,44 @@ public enum SystemIconKind
 
 /// <summary>
 /// String keys naming a system icon, so view models can ask for one without referencing any UI or OS type:
-/// "stock:&lt;SystemIconKind&gt;" for a stock icon, "path:&lt;folder&gt;" for the icon the OS shows for that folder
-/// (e.g. the Downloads or Pictures icon on Windows).
+/// "stock:&lt;SystemIconKind&gt;" for a stock icon, "path:&lt;item&gt;" for the icon the OS shows for that very item
+/// (e.g. the Downloads folder, or a program with its own icon), and "type:&lt;.ext&gt;" for the icon the OS shows for
+/// every file of that type (one bitmap shared by all files with the extension).
 /// </summary>
 public static class SystemIconKey
 {
     private const string StockPrefix = "stock:";
     private const string PathPrefix = "path:";
+    private const string TypePrefix = "type:";
 
     private static readonly string[] StockKeys = Enum.GetNames<SystemIconKind>().Select(name => StockPrefix + name).ToArray();
 
     public static string Stock(SystemIconKind kind) => StockKeys[(int)kind];
 
     public static string ForPath(string path) => PathPrefix + path;
+
+    /// <summary>Key of the OS icon for a file type; the extension is normalized to lower case with its dot (".pdf").</summary>
+    public static string ForFileType(string extension)
+    {
+        ArgumentNullException.ThrowIfNull(extension);
+        if (extension.Length == 0)
+            return TypePrefix;
+        var dotted = extension[0] == '.' ? extension : "." + extension;
+        return TypePrefix + dotted.ToLowerInvariant();
+    }
+
+    /// <summary>True for a <see cref="ForFileType"/> key; <paramref name="extension"/> is "" for files without one.</summary>
+    public static bool TryParseFileType(string? key, out string extension)
+    {
+        if (key is not null && key.StartsWith(TypePrefix, StringComparison.Ordinal))
+        {
+            extension = key[TypePrefix.Length..];
+            return true;
+        }
+
+        extension = string.Empty;
+        return false;
+    }
 
     public static bool TryParse(string? key, out SystemIconKind kind, out string? path)
     {
@@ -138,6 +163,12 @@ public interface ISystemIconProvider
     /// Never blocks the caller; returns null when the icon is unavailable.
     /// </summary>
     Task<SystemIconImage?> GetIconAsync(string key, int pixelSize, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Files of this type carry their own icon (Windows programs, shortcuts, icon files; macOS applications), so a
+    /// per-item "path:" key is needed instead of the shared "type:" key. Decided from the extension only.
+    /// </summary>
+    bool HasOwnIcon(string extension) => false;
 }
 
 /// <summary>An item currently in the Recycle Bin / Trash.</summary>

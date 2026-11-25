@@ -37,8 +37,21 @@ public static class PlatformServices
     }
 
     /// <summary>OS-drawn icons for the sidebar and Home (Windows shell); elsewhere Navigator's own icons are kept.</summary>
-    public static ISystemIconProvider CreateSystemIcons()
-        => OperatingSystem.IsWindows() ? new WindowsShellIcons() : new UnsupportedSystemIcons();
+    /// <summary>
+    /// Icons the OS draws for file types, folders and drives: Windows shell image lists, the Linux desktop's icon theme
+    /// (GIO + gdk-pixbuf, when installed), macOS NSWorkspace. Elsewhere Navigator keeps its own icons.
+    /// </summary>
+    public static ISystemIconProvider CreateSystemIcons(IPlatformInfo platform, IKnownFolderProvider? knownFolders = null)
+    {
+        ArgumentNullException.ThrowIfNull(platform);
+        if (OperatingSystem.IsWindows())
+            return new WindowsShellIcons();
+        if (OperatingSystem.IsLinux())
+            return new FreedesktopIcons(platform, knownFolders);
+        if (OperatingSystem.IsMacOS())
+            return new MacWorkspaceIcons(knownFolders);
+        return new UnsupportedSystemIcons();
+    }
 
     /// <summary>The OS context menu shown under "Show more options" (Windows Explorer's classic menu; none elsewhere).</summary>
     public static IShellMenuProvider CreateShellMenus()

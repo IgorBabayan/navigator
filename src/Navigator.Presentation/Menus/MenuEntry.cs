@@ -56,6 +56,9 @@ public sealed class MenuEntry
     /// <summary>Icon catalog key (Material glyph); null for none.</summary>
     public string? Glyph { get; init; }
 
+    /// <summary>Color of the glyph as "#RRGGBB" (tags); null for the text color.</summary>
+    public string? Tint { get; init; }
+
     /// <summary>A bitmap from the operating system (shell menu entries); preferred over <see cref="Glyph"/>.</summary>
     public SystemIconImage? Picture { get; init; }
 

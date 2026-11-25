@@ -66,6 +66,9 @@ public sealed partial class PaneViewModel
 
     public IRelayCommand<string> ToggleTagCommand { get; private set; } = null!;
 
+    /// <summary>Takes the tag given as parameter off every selected item ("Clear tag(s)").</summary>
+    public IRelayCommand<string> RemoveTagCommand { get; private set; } = null!;
+
     public IAsyncRelayCommand OpenInCodeEditorCommand { get; private set; } = null!;
 
     private bool HasSelection => Selection.Count > 0;
@@ -105,6 +108,7 @@ public sealed partial class PaneViewModel
         RestoreCommand = new AsyncRelayCommand(RestoreAsync, () => IsTrash && HasSelection);
         EmptyTrashCommand = new AsyncRelayCommand(EmptyTrashAsync, () => IsTrash && _ordered.Count > 0);
         ToggleTagCommand = new RelayCommand<string>(ToggleTag);
+        RemoveTagCommand = new RelayCommand<string>(RemoveTag);
         OpenInCodeEditorCommand = new AsyncRelayCommand(OpenInCodeEditorAsync, () => CurrentDirectory is not null);
         InitializeRemoteCommands();
         InitializeItemMenuCommands();
@@ -637,6 +641,17 @@ public sealed partial class PaneViewModel
             return;
         _services.Tags.ToggleTag(paths, tagId);
         ApplyTags(Selection.SelectedItems);
+    }
+
+    private void RemoveTag(string? tagId)
+    {
+        if (tagId is null || IsRemote)
+            return;
+        var selected = Selection.SelectedItems;
+        if (selected.Count == 0)
+            return;
+        _services.Tags.RemoveTag(selected.Select(i => i.FullPath), tagId);
+        ApplyTags(selected);
     }
 
     /// <summary>Selects items as soon as the monitor/refresh has added them to the list.</summary>

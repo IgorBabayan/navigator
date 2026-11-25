@@ -8,13 +8,40 @@ using Navigator.Presentation.Localization;
 namespace Navigator.Presentation.Items;
 
 /// <summary>Per-listing formatting choices shared by all rows (one instance per refresh, not per item).</summary>
-public sealed class ItemDisplayContext(Localizer localizer, bool showExtensions)
+/// <param name="localizer">Texts and culture.</param>
+/// <param name="showExtensions">Settings → Files and folders → show file extensions.</param>
+/// <param name="systemIcons">The OS icon source; null (or unsupported) keeps Navigator's own icons for every row.</param>
+public sealed class ItemDisplayContext(Localizer localizer, bool showExtensions, ISystemIconProvider? systemIcons = null)
 {
+    private static readonly string FolderIcon = SystemIconKey.Stock(SystemIconKind.Folder);
+
+    private readonly ISystemIconProvider? _systemIcons = systemIcons is { IsSupported: true } ? systemIcons : null;
+
+    // One key string per file type for the whole listing, however many rows share it.
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _typeKeys = new(StringComparer.OrdinalIgnoreCase);
+
     public Localizer Localizer { get; } = localizer;
 
     public bool ShowExtensions { get; } = showExtensions;
 
     public CultureInfo Culture => Localizer.Culture;
+
+    /// <summary>
+    /// The OS icon for an item: the shared folder icon, the shared icon of its file type, or — for types whose files
+    /// carry their own picture (programs, shortcuts) — the item's own icon. Null when system icons are off.
+    /// </summary>
+    public string? SystemIconFor(FileEntry entry)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        if (_systemIcons is null)
+            return null;
+        if (entry.IsDirectory)
+            return FolderIcon;
+        var extension = entry.Extension;
+        if (!entry.IsRemote && _systemIcons.HasOwnIcon(extension))
+            return SystemIconKey.ForPath(entry.FullPath);
+        return _typeKeys.GetOrAdd(extension, SystemIconKey.ForFileType);
+    }
 }
 
 public sealed record TagChip(string Id, string Name, string Color);
@@ -62,6 +89,9 @@ public sealed class FileItemViewModel : ObservableObject
     public ItemCategory Category { get; }
 
     public string IconKey => Category.ToString();
+
+    /// <summary>The icon the operating system shows for this item (see <see cref="ItemDisplayContext.SystemIconFor"/>); null keeps <see cref="IconKey"/>.</summary>
+    public string? SystemIconKey => _context.SystemIconFor(Entry);
 
     public string DisplayName
     {
