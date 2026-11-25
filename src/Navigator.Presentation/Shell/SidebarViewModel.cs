@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Navigator.Core.IO;
 using Navigator.Core.Navigation;
+using Navigator.Core.Operations;
 using Navigator.Core.Platform;
 using Navigator.Plugins;
 using Navigator.Presentation.Panes;
@@ -57,6 +58,9 @@ public sealed class SidebarItemViewModel(string name, string iconKey, Location l
     public bool IsPinned { get; } = isPinned;
 
     public string? Path => Location.Path;
+
+    /// <summary>The Recycle Bin / Trash entry: its context menu starts with "Empty trash".</summary>
+    public bool IsTrash => Location.Kind == LocationKind.Trash;
 
     /// <summary>Context menu actions contributed by a plugin (e.g. "Edit…", "Remove" for a saved server).</summary>
     public IReadOnlyList<SidebarCommandViewModel> Commands { get; init; } = [];
@@ -132,6 +136,8 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
         MoveUpCommand = new RelayCommand<SidebarItemViewModel>(item => Move(item, -1));
         MoveDownCommand = new RelayCommand<SidebarItemViewModel>(item => Move(item, +1));
         ToggleSectionCommand = new RelayCommand<SidebarSectionViewModel>(ToggleSection);
+        // Unknown (null) counts as "may have items": the confirmation dialog still guards the action.
+        EmptyTrashCommand = new AsyncRelayCommand(EmptyTrashAsync, () => _services.TrashStatus.HasItems != false);
 
         _pins.Changed += OnSourcesChanged;
         _services.Volumes.VolumesChanged += OnVolumesChanged;
@@ -186,6 +192,15 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
     public IRelayCommand<SidebarItemViewModel> MoveDownCommand { get; }
 
     public IRelayCommand<SidebarSectionViewModel> ToggleSectionCommand { get; }
+
+    /// <summary>Empties the Recycle Bin / Trash after confirmation; disabled while the trash is known to be empty.</summary>
+    public IAsyncRelayCommand EmptyTrashCommand { get; }
+
+    /// <summary>
+    /// Called when the trash entry's context menu opens: re-checks the trash right away (a cheap, off-thread probe) so the
+    /// "Empty trash" state follows changes made by other apps, which not every platform reports.
+    /// </summary>
+    public void RefreshTrashState() => _services.TrashStatus.Invalidate(immediate: true);
 
     /// <summary>Drag-and-drop reordering of pinned folders.</summary>
     public void MovePinned(SidebarItemViewModel item, int newIndex)
@@ -473,8 +488,38 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
 
     private void OnTrashStatusChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(TrashStatus.HasItems))
+        {
+            EmptyTrashCommand.NotifyCanExecuteChanged();
+            return;
+        }
+
         if (_trashItem is not null)
             _trashItem.SystemIconKey = _services.TrashStatus.SystemIconKey;
+    }
+
+    private async Task EmptyTrashAsync()
+    {
+        var localizer = _services.Localizer;
+        var confirm = await _services.Dialogs.ConfirmAsync(new ConfirmRequest(localizer["Dialog.EmptyTrashTitle"], localizer["Dialog.EmptyTrashMessage"],
+            localizer["Command.EmptyTrash"], IsDestructive: true)).ConfigureAwait(true);
+        if (confirm.Result != DialogResult.Primary)
+            return;
+        try
+        {
+            await _services.Trash.EmptyAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _services.LoggerFactory.CreateLogger<SidebarViewModel>().LogWarning(ex, "Emptying the trash failed");
+            var kind = IoErrorClassifier.Classify(ex);
+            await _services.Dialogs.ShowMessageAsync(localizer["Error.OperationTitle"], localizer["ErrorKind." + kind] + Environment.NewLine + ex.Message).ConfigureAwait(true);
+        }
+        finally
+        {
+            // Partially emptied or not, the icon, this command and any open trash view follow the new state.
+            _services.TrashStatus.Invalidate(immediate: true);
+        }
     }
 
     public void Dispose()

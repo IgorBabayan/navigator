@@ -181,6 +181,44 @@ public sealed class FreedesktopTrash : ITrashService
             return items;
         }, cancellationToken);
 
+    /// <summary>
+    /// Stops at the first entry that <see cref="ListAsync"/> would show (an info file whose item still exists), so the
+    /// cost does not grow with the size of the trash and no .trashinfo file is parsed.
+    /// </summary>
+    public Task<bool?> HasItemsAsync(CancellationToken cancellationToken = default)
+        => Task.Run<bool?>(() =>
+        {
+            foreach (var (root, _) in EnumerateTrashDirectories())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (HasListedItem(root))
+                    return true;
+            }
+
+            return false;
+        }, cancellationToken);
+
+    private static bool HasListedItem(string root)
+    {
+        var infoDirectory = Path.Combine(root, "info");
+        var filesDirectory = Path.Combine(root, "files");
+        try
+        {
+            foreach (var infoPath in Directory.EnumerateFiles(infoDirectory, "*" + InfoExtension))
+            {
+                var storagePath = Path.Combine(filesDirectory, Path.GetFileName(infoPath)[..^InfoExtension.Length]);
+                if (Directory.Exists(storagePath) || File.Exists(storagePath) || new FileInfo(storagePath).LinkTarget is not null)
+                    return true;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A missing or unreadable trash counts as empty, matching what ListAsync shows.
+        }
+
+        return false;
+    }
+
     private IEnumerable<(string Root, string? Top)> EnumerateTrashDirectories()
     {
         if (Directory.Exists(_homeTrash))

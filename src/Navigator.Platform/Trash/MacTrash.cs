@@ -76,6 +76,27 @@ public sealed partial class MacTrash : ITrashService
             return items;
         }, cancellationToken);
 
+    /// <summary>Stops at the first entry ListAsync would show, so the cost does not grow with the size of the trash.</summary>
+    public Task<bool?> HasItemsAsync(CancellationToken cancellationToken = default)
+        => Task.Run<bool?>(() =>
+        {
+            var trash = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".Trash");
+            try
+            {
+                foreach (var name in Directory.EnumerateFileSystemEntries(trash))
+                {
+                    if (!name.EndsWith("/.DS_Store", StringComparison.Ordinal))
+                        return true;
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Without Full Disk Access the folder is not readable: ListAsync shows it as empty too.
+            }
+
+            return false;
+        }, cancellationToken);
+
     public Task RestoreAsync(TrashItem item, CancellationToken cancellationToken = default)
         => Task.Run(() =>
         {

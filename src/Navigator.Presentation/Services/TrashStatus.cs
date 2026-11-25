@@ -9,6 +9,7 @@ namespace Navigator.Presentation.Services;
 /// Nothing runs until <see cref="SystemIconKey"/> is first read, so a hidden trash entry costs nothing. After that the state
 /// is re-checked off the UI thread when the trash reports a change or a recycle/restore operation finishes; bursts
 /// (one recycle produces several file events) are coalesced into a single cheap check.
+/// <see cref="HasItems"/> exposes the same state for commands that only make sense on a non-empty trash ("Empty trash").
 /// </summary>
 public sealed class TrashStatus : ObservableObject, IDisposable
 {
@@ -20,7 +21,7 @@ public sealed class TrashStatus : ObservableObject, IDisposable
     private readonly FileOperationQueue _operations;
     private readonly IUiDispatcher _dispatcher;
     private bool _started;
-    private bool _hasItems;
+    private bool? _hasItems;
     private int _refreshPending;
     private volatile bool _disposed;
 
@@ -37,16 +38,32 @@ public sealed class TrashStatus : ObservableObject, IDisposable
         get
         {
             EnsureStarted();
-            return _hasItems ? FullIconKey : EmptyIconKey;
+            return _hasItems == true ? FullIconKey : EmptyIconKey;
         }
     }
 
-    /// <summary>Schedules a re-check (coalesced); safe from any thread.</summary>
-    public void Invalidate()
+    /// <summary>
+    /// True or false once the trash was checked; null while unknown (not checked yet, or the platform cannot tell cheaply).
+    /// Callers treat null as "may have items". UI thread only.
+    /// </summary>
+    public bool? HasItems
     {
-        if (_disposed || Interlocked.Exchange(ref _refreshPending, 1) == 1)
+        get
+        {
+            EnsureStarted();
+            return _hasItems;
+        }
+    }
+
+    /// <summary>
+    /// Schedules a re-check (coalesced); safe from any thread. <paramref name="immediate"/> skips the debounce, for a
+    /// user-visible question such as a context menu that is opening (a check already pending is not duplicated).
+    /// </summary>
+    public void Invalidate(bool immediate = false)
+    {
+        if (_disposed || !_trash.IsSupported || Interlocked.Exchange(ref _refreshPending, 1) == 1)
             return;
-        _ = RefreshAsync();
+        _ = RefreshAsync(immediate);
     }
 
     private void EnsureStarted()
@@ -59,9 +76,11 @@ public sealed class TrashStatus : ObservableObject, IDisposable
         Invalidate();
     }
 
-    private async Task RefreshAsync()
+    private async Task RefreshAsync(bool immediate)
     {
-        await Task.Delay(Debounce).ConfigureAwait(false);
+        // HasItemsAsync answers off the caller's thread, so an immediate check never blocks the UI thread.
+        if (!immediate)
+            await Task.Delay(Debounce).ConfigureAwait(false);
         Volatile.Write(ref _refreshPending, 0);
 
         bool? hasItems;
@@ -83,6 +102,7 @@ public sealed class TrashStatus : ObservableObject, IDisposable
             if (_hasItems == value || _disposed)
                 return;
             _hasItems = value;
+            OnPropertyChanged(nameof(HasItems));
             OnPropertyChanged(nameof(SystemIconKey));
         });
     }

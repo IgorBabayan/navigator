@@ -589,6 +589,7 @@ public sealed partial class PaneViewModel
         }
 
         Refresh();
+        _services.TrashStatus.Invalidate(immediate: true);
     }
 
     private void ToggleTag(string? tagId)

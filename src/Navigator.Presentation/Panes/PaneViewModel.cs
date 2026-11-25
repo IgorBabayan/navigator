@@ -89,6 +89,20 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         SearchCommand = new RelayCommand(StartSearch, () => SearchRoot is not null);
         InitializeItemCommands();
         History.Changed += (_, _) => RaiseNavigationState();
+        services.TrashStatus.PropertyChanged += OnTrashStatusChanged;
+    }
+
+    /// <summary>
+    /// Keeps an open trash view in step when the trash is emptied or filled elsewhere (the sidebar's "Empty trash", other
+    /// apps). Only a mismatch between the view and the new state reloads, so the view's own actions never load twice.
+    /// </summary>
+    private void OnTrashStatusChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        // A load in progress already reads the current trash.
+        if (!IsTrash || _disposed || _isLoading || e.PropertyName != nameof(TrashStatus.HasItems) || _services.TrashStatus.HasItems is not { } hasItems)
+            return;
+        if (hasItems != (_ordered.Count > 0))
+            Refresh();
     }
 
     public NavigationHistory History { get; }
@@ -795,6 +809,7 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         if (_disposed)
             return;
         _disposed = true;
+        _services.TrashStatus.PropertyChanged -= OnTrashStatusChanged;
         CancelLoad();
         CancelAddressSuggestions();
         StopMonitoring();

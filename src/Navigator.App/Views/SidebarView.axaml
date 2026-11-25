@@ -11,6 +11,9 @@
               ToolTip.Tip="{Binding ToolTip}" PointerPressed="OnItemPressed" PointerReleased="OnItemReleased">
         <Border.ContextMenu>
           <ContextMenu Opening="OnItemMenuOpening">
+            <!-- Trash entry only: "Empty trash" first, disabled (by the command) while the trash is empty. -->
+            <MenuItem Header="{c:Tr Command.EmptyTrash}" IsVisible="{Binding IsTrash}" Command="{Binding $parent[v:SidebarView].Model.EmptyTrashCommand}" />
+            <Separator IsVisible="{Binding IsTrash}" />
             <MenuItem Header="{c:Tr Command.OpenInNewTab}" Command="{Binding $parent[v:SidebarView].Model.OpenInNewTabCommand}" CommandParameter="{Binding}" />
             <MenuItem Header="{c:Tr Command.OpenInNewWindow}" Command="{Binding $parent[v:SidebarView].Model.OpenInNewWindowCommand}" CommandParameter="{Binding}" />
             <Separator IsVisible="{Binding IsPinned}" />
