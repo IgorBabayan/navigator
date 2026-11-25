@@ -85,6 +85,12 @@ internal static class IconCatalog
         Line("Home", "M4,11 L12,4 L20,11 M6,9.5 V20 H10 V14 H14 V20 H18 V9.5");
         Line("Trash", "M5,7 H19 M10,4 H14 M7,7 L8,20 H16 L17,7");
         Line("Speed", "M4,16 A8,8 0 1 1 20,16 M12,16 L16,9");
+        Line("Shield", "M12,3 L19,6 V11 C19,15.5 16,19 12,21 C8,19 5,15.5 5,11 V6 Z M9,12 L11,14 L15,10");
+        Line("UserSwitch", "M10,4 A3.5,3.5 0 1 1 9.99,4 Z M3,20 C3,15.5 6,13.5 10,13.5 C11.5,13.5 12.8,13.8 13.8,14.4 M16,17 H22 M19.5,14.5 L22,17 L19.5,19.5");
+        Line("Shortcut", "M4,4 H20 V20 H4 Z M9,16 C9,12 11,10 15,10 M12.5,7.5 L15,10 L12.5,12.5");
+        Line("FolderAdd", "M3,7 V18 H21 V8 H11.5 L9.5,5.5 H3 Z M12,10.5 V15.5 M9.5,13 H14.5");
+        Line("SendTo", "M3,11 L21,4 L14,21 L11,13 Z M11,13 L21,4");
+        Line("Code", "M8,7 L3,12 L8,17 M16,7 L21,12 L16,17 M14,5 L10,19");
 
         // ── Filled file-type icons (soft, flat, two-tone) ──
         var folderBack = Geometry.Parse("M2,6.5 C2,5.1 3.1,4 4.5,4 H9.2 L11.4,6 H19.5 C20.9,6 22,7.1 22,8.5 V18 C22,19.4 20.9,20.5 19.5,20.5 H4.5 C3.1,20.5 2,19.4 2,18 Z");

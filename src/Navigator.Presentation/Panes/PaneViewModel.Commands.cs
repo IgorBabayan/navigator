@@ -101,12 +101,13 @@ public sealed partial class PaneViewModel
         RevealInSystemCommand = new AsyncRelayCommand(RevealInSystemAsync);
         PinSelectedCommand = new RelayCommand(PinSelected);
         CompressCommand = new AsyncRelayCommand(CompressAsync, () => CanModifySelection);
-        ExtractCommand = new AsyncRelayCommand(ExtractAsync, () => !IsRemote && Selection.SelectedItems.Any(i => ArchiveService.IsSupportedArchive(i.FullPath)));
+        ExtractCommand = new AsyncRelayCommand(() => ExtractArchivesAsync(intoOwnFolder: false), () => !IsRemote && Selection.SelectedItems.Any(i => ArchiveService.IsSupportedArchive(i.FullPath)));
         RestoreCommand = new AsyncRelayCommand(RestoreAsync, () => IsTrash && HasSelection);
         EmptyTrashCommand = new AsyncRelayCommand(EmptyTrashAsync, () => IsTrash && _ordered.Count > 0);
         ToggleTagCommand = new RelayCommand<string>(ToggleTag);
         OpenInCodeEditorCommand = new AsyncRelayCommand(OpenInCodeEditorAsync, () => CurrentDirectory is not null);
         InitializeRemoteCommands();
+        InitializeItemMenuCommands();
     }
 
     private void RaiseItemCommandState()
@@ -131,6 +132,7 @@ public sealed partial class PaneViewModel
         EmptyTrashCommand.NotifyCanExecuteChanged();
         OpenInCodeEditorCommand.NotifyCanExecuteChanged();
         RaiseRemoteCommandState();
+        RaiseItemMenuCommandState();
     }
 
     /// <summary>Double-click / Enter on an item: folders navigate, archives and files open with the default app.</summary>
@@ -481,12 +483,16 @@ public sealed partial class PaneViewModel
             await _services.Launcher.RevealInSystemFileManagerAsync(target).ConfigureAwait(true);
     }
 
-    private async Task OpenInCodeEditorAsync()
+    private Task OpenInCodeEditorAsync()
+    {
+        var target = Selection.SelectedItems.FirstOrDefault(i => i.IsDirectory)?.FullPath ?? CurrentDirectory;
+        return target is null ? Task.CompletedTask : LaunchCodeEditorAsync(target);
+    }
+
+    /// <summary>Starts the configured code editor (Settings → General) on a folder or a file.</summary>
+    private async Task LaunchCodeEditorAsync(string target)
     {
         var command = _services.Settings.Current.General.CodeEditorCommand;
-        var target = Selection.SelectedItems.FirstOrDefault(i => i.IsDirectory)?.FullPath ?? CurrentDirectory;
-        if (target is null)
-            return;
         var editor = string.IsNullOrWhiteSpace(command) ? "code" : command.Trim();
         try
         {
@@ -521,8 +527,13 @@ public sealed partial class PaneViewModel
             return;
         var directory = Path.GetDirectoryName(selected[0].FullPath)!;
         var baseName = selected.Count == 1 ? PathUtil.SplitName(selected[0].Name, selected[0].IsDirectory).Stem : Path.GetFileName(directory);
+        await CompressToZipAsync([.. selected.Select(i => i.FullPath)], directory, baseName).ConfigureAwait(true);
+    }
+
+    /// <summary>Queues "<paramref name="baseName"/>.zip" (made unique) in <paramref name="directory"/> and selects it when done.</summary>
+    private async Task CompressToZipAsync(IReadOnlyList<string> sources, string directory, string? baseName)
+    {
         var name = PathUtil.GetUniqueName(directory, (string.IsNullOrEmpty(baseName) ? "Archive" : baseName) + ".zip", false, p => File.Exists(p) || Directory.Exists(p));
-        var sources = selected.Select(i => i.FullPath).ToList();
         var zipPath = Path.Combine(directory, name);
         var operation = _services.Operations.Queue.Enqueue(FileOperationKind.CreateArchive, sources, zipPath, _services.CreateInteraction(),
             context => ArchiveService.CreateZipAsync(sources, zipPath, CompressionLevel.Optimal, context));
@@ -532,7 +543,11 @@ public sealed partial class PaneViewModel
             SelectWhenAvailable([zipPath]);
     }
 
-    private async Task ExtractAsync()
+    /// <summary>
+    /// Extracts every selected archive next to itself: "smart" (a single top-level entry lands directly in the parent) or,
+    /// with <paramref name="intoOwnFolder"/>, always into a new folder named after the archive.
+    /// </summary>
+    private async Task ExtractArchivesAsync(bool intoOwnFolder)
     {
         foreach (var archive in Selection.SelectedItems.Where(i => ArchiveService.IsSupportedArchive(i.FullPath)).ToList())
         {
@@ -540,7 +555,9 @@ public sealed partial class PaneViewModel
             string destination;
             try
             {
-                destination = await Task.Run(() => ArchiveService.ChooseSmartDestination(archive.FullPath, parent)).ConfigureAwait(true);
+                destination = await Task.Run(() => intoOwnFolder
+                    ? ArchiveService.ChooseFolderDestination(archive.FullPath, parent)
+                    : ArchiveService.ChooseSmartDestination(archive.FullPath, parent)).ConfigureAwait(true);
             }
             catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
             {

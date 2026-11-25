@@ -1,6 +1,6 @@
 # Progress
 
-_Last updated: 2026-11-24 (branch `feature/foundation`, based on `development`)._
+_Last updated: 2026-11-25 (branch `feature/foundation`, based on `development`)._
 
 ## Summary
 
@@ -40,6 +40,10 @@ Originality scan: 0 matching code windows against Files app sources — see `doc
   (signed catalog, install/update/remove, install from file), built-in permanent Network plugin, SSH (SFTP) and FTP
   (FTP/FTPS) plugins as separate packages, server folders in panes (browse, open, download, upload, new folder,
   rename, delete), release pipeline for plugin packages and catalog.
+- Type-aware item context menu: quick-action icon strip, entries chosen per selection (folders, programs with
+  run as administrator / another user on Windows, documents with an "Open with" sub-menu, archives with extract
+  options), create folder with selection, create shortcut, compress / send to / tags / more options sub-menus.
+  Planner unit-tested; Avalonia rendering written, not yet compiled.
 
 ## In progress / next (in order)
 
@@ -70,4 +74,5 @@ Originality scan: 0 matching code windows against Files app sources — see `doc
 | 2026-11-24 | Plugins: Network built in (factory, no scanning); others as `.navplugin` packages in their own `AssemblyLoadContext`, loaded after the first frame | zero startup cost for the built-in; plugin dependencies (SSH.NET) never reach the app |
 | 2026-11-24 | Plugin updates/removals finish on the next start (non-collectible load contexts) | loaded assemblies cannot be deleted on Windows; collectible contexts are slower and unloading is fragile |
 | 2026-11-24 | Plugin shop catalog = release asset signed with the update key | one unauthenticated request, no API rate limit, same trust chain as updates |
+| 2026-11-25 | Item context menu = pure `ItemMenuPlanner` (which entries, from one-pass `SelectionTraits`) + `ItemMenuBuilder` (Avalonia); "Open with", "Send to" and "Tags" fill on first open | testable without UI; a right-click does no disk or process work beyond what the user opens |
 | 2026-11-24 | FTP implemented on the BCL; SSH uses SSH.NET (MIT) inside the plugin package only | FTP is small enough to own; SSH key exchange/ciphers (curve25519, ed25519, chacha20) are not in the BCL |

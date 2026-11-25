@@ -94,7 +94,7 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Delete to Recycle Bin / Trash | ✅ | 🟦 | 🟦 | ✅ | 🟦 | Linux freedesktop trash tested; Windows `SHFileOperationW`; macOS `NSFileManager` |
 | Permanent delete (with confirmation) | ✅ | 🟦 | ✓ | ✓ | ✓ | |
 | Trash browsing, restore, empty | 🟨 | 🟦 | 🟦 | ✅ | 🟨 | macOS restore only for items Navigator trashed |
-| Archives: create ZIP; extract ZIP/TAR/TAR.GZ (smart destination, zip-slip safe) | 🟨 | 🟦 | ✓ | ✓ | ✓ | ZIP round trip and traversal tested; TAR paths untested |
+| Archives: create ZIP; extract ZIP/TAR/TAR.GZ (smart destination, zip-slip safe) | 🟨 | 🟦 | ✓ | ✓ | ✓ | ZIP round trip and traversal tested; TAR paths untested; context menu adds "extract to own folder" and "compress each to its own ZIP" |
 | 7z / RAR / other archive formats | ⬜ | ⬜ | | | | |
 | Hashes (MD5, SHA-1, SHA-256/384/512, compare) | ✅ | 🟦 | ✓ | ✓ | ✓ | `FileHasher` |
 
@@ -108,7 +108,10 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Open in code editor | 🟦 | 🟦 | 🟦 | 🟦 | 🟦 | configurable command |
 | Reveal in system file manager | 🟦 | 🟦 | 🟦 | 🟦 | 🟦 | |
 | Open in new tab / new window | 🟦 | 🟦 | ✓ | ✓ | ✓ | |
-| Shell context menu extensions (Explorer/Nautilus/Finder) | ⬜ | ⬜ | | | | |
+| Type-aware item context menu (icon strip; launch entries per type; organize; Compress/Extract, Send to, Tags, More options sub-menus) | ✅ | 🟦 | 🟦 | 🟦 | 🟦 | `ItemMenuPlanner` (tested) + `ItemMenuBuilder`; costly sub-menus fill on first open |
+| Run as administrator / as another user | 🟦 | 🟦 | 🟦 | ➖ | ➖ | Windows shell verbs `runas` / `runasuser` for .exe/.com/.bat/.cmd/.msi; not offered elsewhere |
+| Create shortcut; create folder with selection; send to (known folders, removable drives) | 🟦 | 🟦 | 🟦 | 🟦 | 🟦 | Windows `.lnk` via Windows PowerShell + WScript.Shell; Linux/macOS symbolic link; never overwrites |
+| Shell context menu extensions (Explorer/Nautilus/Finder) | ⬜ | ⬜ | | | | Navigator's own "More options" sub-menu stands in; the native Explorer menu is not hosted yet |
 | Set as default file manager | ⬜ | ⬜ | | | | Linux desktop file declares `inode/directory` |
 | Native notifications for finished operations | 🟨 | 🟦 | 🟨 | 🟦 | 🟦 | `notify-send`, `osascript`; Windows in-app toast only |
 

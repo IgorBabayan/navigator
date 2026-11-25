@@ -188,6 +188,19 @@ public interface ITrashService
 
 public sealed record AppHandler(string Id, string DisplayName, string? IconPath, bool IsDefault);
 
+/// <summary>Ways the operating system can start a program under other credentials.</summary>
+[Flags]
+public enum ElevationOptions
+{
+    None = 0,
+
+    /// <summary>Start with administrator rights (Windows UAC "runas").</summary>
+    Administrator = 1,
+
+    /// <summary>Start under a different account (Windows credential prompt "runasuser").</summary>
+    OtherUser = 2,
+}
+
 public interface IFileLauncher
 {
     /// <summary>Opens with the default application. Returns false if no handler is registered.</summary>
@@ -204,6 +217,27 @@ public interface IFileLauncher
     Task<bool> OpenTerminalAsync(string directory, CancellationToken cancellationToken = default);
 
     Task<bool> RevealInSystemFileManagerAsync(string path, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Which elevated launches the OS offers for this file. Decided from the name only (no I/O), so a context menu can ask
+    /// for every right-click.
+    /// </summary>
+    ElevationOptions GetElevationOptions(string path);
+
+    /// <summary>
+    /// Starts a program with <see cref="ElevationOptions.Administrator"/> or <see cref="ElevationOptions.OtherUser"/>.
+    /// False when it did not start, including when the user dismissed the system prompt.
+    /// </summary>
+    Task<bool> RunElevatedAsync(string path, ElevationOptions mode, CancellationToken cancellationToken = default);
+
+    /// <summary>Extension a shortcut file gets on this platform (".lnk" on Windows; empty where shortcuts are symbolic links).</summary>
+    string ShortcutExtension { get; }
+
+    /// <summary>
+    /// Creates a shortcut to <paramref name="targetPath"/> at exactly <paramref name="shortcutPath"/>. Never replaces an
+    /// existing file: false when something is already there or the link could not be created.
+    /// </summary>
+    Task<bool> CreateShortcutAsync(string targetPath, string shortcutPath, CancellationToken cancellationToken = default);
 }
 
 public interface INativeNotificationService

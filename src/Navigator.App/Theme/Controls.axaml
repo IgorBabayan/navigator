@@ -163,6 +163,14 @@
     <Setter Property="MinHeight" Value="32" />
     <Setter Property="Padding" Value="10,4" />
   </Style>
+  <!-- Icon strip on top of the item context menu: the row itself is inert, its buttons carry hover/press -->
+  <Style Selector="MenuItem.quickactions">
+    <Setter Property="Padding" Value="2,0" />
+    <Setter Property="Cursor" Value="Arrow" />
+  </Style>
+  <Style Selector="MenuItem.quickactions:pointerover /template/ Border#PART_LayoutRoot, MenuItem.quickactions:selected /template/ Border#PART_LayoutRoot">
+    <Setter Property="Background" Value="{x:Null}" />
+  </Style>
   <Style Selector="FlyoutPresenter">
     <Setter Property="CornerRadius" Value="{StaticResource Radius.Overlay}" />
     <Setter Property="Background" Value="{DynamicResource Brush.Flyout}" />

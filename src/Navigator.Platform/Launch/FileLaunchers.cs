@@ -1,4 +1,6 @@
+using System.Collections.Frozen;
 using System.Runtime.Versioning;
+using System.Text;
 using Navigator.Core.Platform;
 
 namespace Navigator.Platform.Launch;
@@ -30,6 +32,57 @@ public sealed class WindowsFileLauncher : IFileLauncher
 
     public Task<bool> RevealInSystemFileManagerAsync(string path, CancellationToken cancellationToken = default)
         => Task.FromResult(ProcessRunner.Start("explorer.exe", ["/select,", path]));
+
+    // Types the shell itself offers "Run as administrator" / "Run as different user" for.
+    private static readonly FrozenSet<string> ElevatableExtensions =
+        new[] { ".exe", ".com", ".bat", ".cmd", ".msi" }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+
+    public ElevationOptions GetElevationOptions(string path)
+        => ElevatableExtensions.Contains(Path.GetExtension(path)) ? ElevationOptions.Administrator | ElevationOptions.OtherUser : ElevationOptions.None;
+
+    public Task<bool> RunElevatedAsync(string path, ElevationOptions mode, CancellationToken cancellationToken = default)
+    {
+        var verb = mode switch
+        {
+            ElevationOptions.Administrator => "runas",
+            ElevationOptions.OtherUser => "runasuser",
+            _ => null,
+        };
+
+        // Dismissing the UAC / credential prompt surfaces as a failed start, which callers treat as "nothing happened".
+        return Task.FromResult(verb is not null && ProcessRunner.StartWithVerb(path, verb, Path.GetDirectoryName(path)));
+    }
+
+    public string ShortcutExtension => ".lnk";
+
+    /// <summary>
+    /// Shell links are COM objects (IShellLinkW); the always-present Windows PowerShell writes them, so Navigator ships no
+    /// COM interop of its own for a rarely used command. Both paths travel as Base64 literals inside an encoded script:
+    /// no file name can ever be interpreted as script text.
+    /// </summary>
+    public async Task<bool> CreateShortcutAsync(string targetPath, string shortcutPath, CancellationToken cancellationToken = default)
+    {
+        if (File.Exists(shortcutPath) || Directory.Exists(shortcutPath))
+            return false;
+
+        static string Literal(string value) => Convert.ToBase64String(Encoding.Unicode.GetBytes(value));
+        var script = new StringBuilder()
+            .AppendLine("$ErrorActionPreference = 'Stop'")
+            .AppendLine("function Read-Arg([string]$b) { [Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($b)) }")
+            .Append("$target = Read-Arg '").Append(Literal(targetPath)).AppendLine("'")
+            .Append("$link = Read-Arg '").Append(Literal(shortcutPath)).AppendLine("'")
+            .AppendLine("if (Test-Path -LiteralPath $link) { exit 3 }")
+            .AppendLine("$shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut($link)")
+            .AppendLine("$shortcut.TargetPath = $target")
+            .AppendLine("$shortcut.WorkingDirectory = [IO.Path]::GetDirectoryName($target)")
+            .AppendLine("$shortcut.Save()")
+            .ToString();
+
+        var result = await ProcessRunner.RunAsync("powershell.exe",
+            ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", Literal(script)],
+            input: null, TimeSpan.FromSeconds(20), cancellationToken).ConfigureAwait(false);
+        return result is { ExitCode: 0 } && File.Exists(shortcutPath);
+    }
 }
 
 [SupportedOSPlatform("linux")]
@@ -107,6 +160,34 @@ public sealed class LinuxFileLauncher : IFileLauncher
 
         return await OpenAsync(Path.GetDirectoryName(path) ?? path, cancellationToken).ConfigureAwait(false);
     }
+
+    // Desktop sessions have no portable "run this GUI program as root" verb (pkexec refuses most GUI apps): not offered.
+    public ElevationOptions GetElevationOptions(string path) => ElevationOptions.None;
+
+    public Task<bool> RunElevatedAsync(string path, ElevationOptions mode, CancellationToken cancellationToken = default) => Task.FromResult(false);
+
+    public string ShortcutExtension => string.Empty;
+
+    public Task<bool> CreateShortcutAsync(string targetPath, string shortcutPath, CancellationToken cancellationToken = default)
+        => UnixSymbolicLinks.CreateAsync(targetPath, shortcutPath, cancellationToken);
+}
+
+/// <summary>Shortcuts on Linux and macOS are symbolic links; symlink(2) itself refuses to replace an existing entry.</summary>
+internal static class UnixSymbolicLinks
+{
+    public static Task<bool> CreateAsync(string targetPath, string linkPath, CancellationToken cancellationToken)
+        => Task.Run(() =>
+        {
+            try
+            {
+                File.CreateSymbolicLink(linkPath, targetPath);
+                return true;
+            }
+            catch (Exception refused) when (refused is UnauthorizedAccessException or IOException)
+            {
+                return false;
+            }
+        }, cancellationToken);
 }
 
 [SupportedOSPlatform("macos")]
@@ -129,4 +210,14 @@ public sealed class MacFileLauncher : IFileLauncher
 
     public Task<bool> RevealInSystemFileManagerAsync(string path, CancellationToken cancellationToken = default)
         => Task.FromResult(ProcessRunner.Start("/usr/bin/open", ["-R", path]));
+
+    // Finder has no per-file "run as administrator"; elevation is the program's own business (Authorization Services).
+    public ElevationOptions GetElevationOptions(string path) => ElevationOptions.None;
+
+    public Task<bool> RunElevatedAsync(string path, ElevationOptions mode, CancellationToken cancellationToken = default) => Task.FromResult(false);
+
+    public string ShortcutExtension => string.Empty;
+
+    public Task<bool> CreateShortcutAsync(string targetPath, string shortcutPath, CancellationToken cancellationToken = default)
+        => UnixSymbolicLinks.CreateAsync(targetPath, shortcutPath, cancellationToken);
 }

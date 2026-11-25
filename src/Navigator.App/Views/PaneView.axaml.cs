@@ -7,7 +7,6 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Microsoft.Extensions.DependencyInjection;
 using Navigator.App.Views.Rows;
-using Navigator.Core.Archives;
 using Navigator.Core.IO;
 using Navigator.Presentation.Items;
 using Navigator.Presentation.Localization;
@@ -25,6 +24,7 @@ public sealed partial class PaneView : UserControl
 {
     private const double DragThreshold = 6;
     private readonly PaneServices _services = App.Services.GetRequiredService<PaneServices>();
+    private ItemMenuBuilder? _itemMenus;
     private PaneViewModel? _pane;
     private Point? _bandStart;
     private IReadOnlyCollection<FileItemViewModel>? _bandBaseline;
@@ -71,6 +71,10 @@ public sealed partial class PaneView : UserControl
     }
 
     private Localizer Text => _services.Localizer;
+
+    /// <summary>Renders the type-aware item menu; created on the first right-click on an item.</summary>
+    private ItemMenuBuilder ItemMenus
+        => _itemMenus ??= new ItemMenuBuilder(_services, App.Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ItemMenuBuilder>>());
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
@@ -462,15 +466,16 @@ public sealed partial class PaneView : UserControl
 
     // ── Context menus (built on demand; cheap and always in sync with the selection) ──
 
+    /// <summary>
+    /// Item menu. Trash and server folders keep their own short menus; everywhere else the entries depend on what is
+    /// selected (see <see cref="Presentation.Items.ItemMenuPlanner"/>).
+    /// </summary>
     private ContextMenu BuildItemMenu()
     {
         var pane = _pane!;
-        var selected = pane.Selection.SelectedItems;
-        var general = _services.Settings.Current.General;
-        var menu = new ContextMenu();
-
         if (pane.IsTrash)
         {
+            var menu = new ContextMenu();
             menu.Items.Add(Item("Command.Restore", "Restore", pane.RestoreCommand));
             menu.Items.Add(Item("Command.DeletePermanently", "Delete", pane.DeleteCommand));
             menu.Items.Add(new Separator());
@@ -478,64 +483,7 @@ public sealed partial class PaneView : UserControl
             return menu;
         }
 
-        if (pane.IsRemote)
-            return BuildRemoteItemMenu(pane, selected);
-
-        menu.Items.Add(Item("Command.Open", "Forward", pane.OpenSelectedCommand));
-        if (selected.Any(i => i.IsDirectory))
-        {
-            menu.Items.Add(Item("Command.OpenInNewTab", "Add", pane.OpenSelectedInNewTabCommand));
-            if (general.ShowOpenInNewWindowInContextMenu)
-                menu.Items.Add(Item("Command.OpenInNewWindow", "Window", pane.OpenSelectedInNewWindowCommand));
-        }
-        else if (selected.Count == 1)
-        {
-            menu.Items.Add(Item("Command.OpenWith", "OpenWith", pane.OpenWithCommand));
-        }
-
-        menu.Items.Add(new Separator());
-        menu.Items.Add(Item("Command.Cut", "Cut", pane.CutCommand, "item.cut"));
-        menu.Items.Add(Item("Command.Copy", "Copy", pane.CopyCommand, "item.copy"));
-        if (selected.Count == 1 && selected[0].IsDirectory)
-            menu.Items.Add(Item("Command.PasteInto", "Paste", pane.PasteCommand));
-        menu.Items.Add(Item("Command.Duplicate", "Copy", pane.DuplicateCommand, "item.duplicate"));
-        menu.Items.Add(Item(selected.Count > 1 ? "Command.BulkRename" : "Command.Rename", "Rename", pane.RenameCommand, "item.rename"));
-        if (general.ShowCopyPathInContextMenu)
-            menu.Items.Add(Item("Command.CopyPath", "Copy", pane.CopyPathCommand, "item.copyPath"));
-        menu.Items.Add(new Separator());
-
-        var archive = new MenuItem { Header = Text["Command.Archive"] };
-        archive.Items.Add(Item("Command.Compress", "Archive", pane.CompressCommand));
-        if (selected.Any(i => ArchiveService.IsSupportedArchive(i.FullPath)))
-            archive.Items.Add(Item("Command.Extract", "Extract", pane.ExtractCommand, "item.extract"));
-        menu.Items.Add(archive);
-
-        var tags = new MenuItem { Header = Text["Command.Tags"] };
-        foreach (var tag in _services.Settings.Current.Tags)
-        {
-            tags.Items.Add(new MenuItem
-            {
-                Header = tag.Name,
-                Command = pane.ToggleTagCommand,
-                CommandParameter = tag.Id,
-                ToggleType = MenuItemToggleType.CheckBox,
-                IsChecked = selected.All(i => i.Tags.Any(t => t.Id == tag.Id)),
-            });
-        }
-
-        menu.Items.Add(tags);
-        if (selected.Any(i => i.IsDirectory))
-        {
-            menu.Items.Add(Item("Command.PinToSidebar", "Pin", pane.PinSelectedCommand));
-            if (general.ShowOpenTerminalInContextMenu)
-                menu.Items.Add(Item("Command.OpenTerminal", "Terminal", pane.OpenTerminalCommand));
-        }
-
-        menu.Items.Add(Item("Command.RevealInSystem", "OpenWith", pane.RevealInSystemCommand));
-        menu.Items.Add(new Separator());
-        menu.Items.Add(Item("Command.Delete", "Delete", pane.DeleteCommand, "item.delete"));
-        menu.Items.Add(Item("Command.Properties", "Properties", pane.PropertiesCommand, "item.properties"));
-        return menu;
+        return pane.IsRemote ? BuildRemoteItemMenu(pane, pane.Selection.SelectedItems) : ItemMenus.Build(pane);
     }
 
     /// <summary>Items in a server folder (plugin file system): only what a server supports, plus Download.</summary>
@@ -652,12 +600,7 @@ public sealed partial class PaneView : UserControl
 
         menu.Items.Add(new Separator());
         var choose = new MenuItem { Header = Text["OpenWith.Choose"] };
-        choose.Click += async (_, _) =>
-        {
-            var application = await _services.Dialogs.PickFileAsync(Text["OpenWith.Choose"]).ConfigureAwait(true);
-            if (application is not null)
-                await _services.Launcher.OpenWithAsync(item.FullPath, new Core.Platform.AppHandler(application, Path.GetFileName(application), null, false)).ConfigureAwait(true);
-        };
+        choose.Click += async (_, _) => await ItemMenus.ChooseApplicationAsync(item.FullPath).ConfigureAwait(true);
         menu.Items.Add(choose);
         menu.Open(this);
     }

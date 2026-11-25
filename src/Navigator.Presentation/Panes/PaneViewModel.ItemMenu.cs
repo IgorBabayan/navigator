@@ -1,0 +1,217 @@
+using CommunityToolkit.Mvvm.Input;
+using Navigator.Core.Archives;
+using Navigator.Core.IO;
+using Navigator.Core.Platform;
+using Navigator.Presentation.Items;
+using Navigator.Presentation.Services;
+
+namespace Navigator.Presentation.Panes;
+
+/// <summary>A destination offered under "Send to": a well-known folder or a removable drive.</summary>
+public sealed record SendToTarget(string Label, string Path, string IconKey);
+
+/// <summary>Commands that exist for the type-aware item context menu (see <see cref="ItemMenuPlanner"/>).</summary>
+public sealed partial class PaneViewModel
+{
+    private static readonly KnownFolder[] SendToFolders = [KnownFolder.Desktop, KnownFolder.Documents, KnownFolder.Downloads];
+
+    public IAsyncRelayCommand RunAsAdministratorCommand { get; private set; } = null!;
+
+    public IAsyncRelayCommand RunAsOtherUserCommand { get; private set; } = null!;
+
+    public IAsyncRelayCommand ExtractToFolderCommand { get; private set; } = null!;
+
+    public IAsyncRelayCommand CompressEachCommand { get; private set; } = null!;
+
+    public IAsyncRelayCommand PasteIntoFolderCommand { get; private set; } = null!;
+
+    public IAsyncRelayCommand CreateFolderWithSelectionCommand { get; private set; } = null!;
+
+    public IAsyncRelayCommand CreateShortcutCommand { get; private set; } = null!;
+
+    /// <summary>Copies the selection into the folder given as parameter.</summary>
+    public IAsyncRelayCommand<string> SendToCommand { get; private set; } = null!;
+
+    public IAsyncRelayCommand OpenSelectionInCodeEditorCommand { get; private set; } = null!;
+
+    private bool HasSingleLocalFile => !IsRemote && !IsTrash && Selection.SelectedItems is [{ IsDirectory: false }];
+
+    private void InitializeItemMenuCommands()
+    {
+        RunAsAdministratorCommand = new AsyncRelayCommand(() => RunSelectionElevatedAsync(ElevationOptions.Administrator), () => HasSingleLocalFile);
+        RunAsOtherUserCommand = new AsyncRelayCommand(() => RunSelectionElevatedAsync(ElevationOptions.OtherUser), () => HasSingleLocalFile);
+        ExtractToFolderCommand = new AsyncRelayCommand(() => ExtractArchivesAsync(intoOwnFolder: true), () => ExtractCommand.CanExecute(null));
+        CompressEachCommand = new AsyncRelayCommand(CompressEachAsync, () => CanModifySelection && Selection.Count > 1);
+        PasteIntoFolderCommand = new AsyncRelayCommand(PasteIntoSelectedFolderAsync, () => CanModifySelection && Selection.SelectedItems is [{ IsDirectory: true }]);
+        CreateFolderWithSelectionCommand = new AsyncRelayCommand(CreateFolderWithSelectionAsync, () => CanModifySelection && CanCreateItems);
+        CreateShortcutCommand = new AsyncRelayCommand(MakeShortcutForSelectionAsync, () => CanModifySelection && Selection.Count == 1);
+        SendToCommand = new AsyncRelayCommand<string>(SendSelectionToAsync, _ => HasSelection && !IsTrash && !IsRemote);
+        OpenSelectionInCodeEditorCommand = new AsyncRelayCommand(
+            () => Selection.SelectedItems is [var only] ? LaunchCodeEditorAsync(only.FullPath) : Task.CompletedTask,
+            () => !IsRemote && Selection.Count == 1);
+    }
+
+    private void RaiseItemMenuCommandState()
+    {
+        RunAsAdministratorCommand.NotifyCanExecuteChanged();
+        RunAsOtherUserCommand.NotifyCanExecuteChanged();
+        ExtractToFolderCommand.NotifyCanExecuteChanged();
+        CompressEachCommand.NotifyCanExecuteChanged();
+        PasteIntoFolderCommand.NotifyCanExecuteChanged();
+        CreateFolderWithSelectionCommand.NotifyCanExecuteChanged();
+        CreateShortcutCommand.NotifyCanExecuteChanged();
+        SendToCommand.NotifyCanExecuteChanged();
+        OpenSelectionInCodeEditorCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>Summarizes the current selection for the context menu planner (one pass, no disk access).</summary>
+    public SelectionTraits DescribeSelection()
+        => SelectionTraits.Collect(Selection.SelectedItems, ArchiveService.IsSupportedArchive,
+            IsRemote ? static _ => ElevationOptions.None : _services.Launcher.GetElevationOptions);
+
+    /// <summary>Settings and location rules that shape the item context menu.</summary>
+    public ItemMenuOptions GetItemMenuOptions()
+    {
+        var general = _services.Settings.Current.General;
+        return new ItemMenuOptions(
+            general.ShowOpenInNewWindowInContextMenu,
+            general.ShowCopyPathInContextMenu,
+            general.ShowOpenTerminalInContextMenu,
+            CanModifySelection,
+            CanCreateItems);
+    }
+
+    /// <summary>
+    /// "Send to" destinations, resolved when the sub-menu opens rather than on every right-click: the known folders that
+    /// exist plus ready removable drives, never the folder being shown.
+    /// </summary>
+    public IReadOnlyList<SendToTarget> GetSendToTargets()
+    {
+        var targets = new List<SendToTarget>(SendToFolders.Length + 2);
+        foreach (var folder in SendToFolders)
+        {
+            if (_services.KnownFolders.GetPath(folder) is { } path && !PathUtil.AreEqual(path, CurrentDirectory))
+                targets.Add(new SendToTarget(_services.Localizer["KnownFolder." + folder], path, folder.ToString()));
+        }
+
+        foreach (var volume in _services.Volumes.GetVolumes())
+        {
+            if (volume is { Kind: VolumeKind.Removable, IsReady: true } && !PathUtil.AreEqual(volume.RootPath, CurrentDirectory))
+                targets.Add(new SendToTarget(string.IsNullOrWhiteSpace(volume.Label) ? volume.RootPath : volume.Label, volume.RootPath, "DriveRemovable"));
+        }
+
+        return targets;
+    }
+
+    private async Task RunSelectionElevatedAsync(ElevationOptions mode)
+    {
+        if (!HasSingleLocalFile)
+            return;
+        var program = Selection.SelectedItems[0].FullPath;
+
+        // A declined UAC / credential prompt reports false as well; that is the user's choice, not an error to show.
+        if (await _services.Launcher.RunElevatedAsync(program, mode).ConfigureAwait(true))
+            _services.Recent.Add(program);
+    }
+
+    private async Task PasteIntoSelectedFolderAsync()
+    {
+        if (Selection.SelectedItems is not [{ IsDirectory: true } folder])
+            return;
+
+        var clipboard = await _services.Clipboard.GetFilesAsync().ConfigureAwait(true);
+        if (clipboard is not { } content || content.Paths.Count == 0)
+            return;
+
+        await TransferIntoAsync(content.Paths, folder.FullPath, move: content.IsCut).ConfigureAwait(true);
+        if (content.IsCut)
+            await _services.Clipboard.ClearCutStateAsync().ConfigureAwait(true);
+    }
+
+    /// <summary>Asks for a name, creates the folder next to the selection and moves the selection into it.</summary>
+    private async Task CreateFolderWithSelectionAsync()
+    {
+        if (CurrentDirectory is not { } directory || !CanModifySelection)
+            return;
+
+        var selected = Selection.SelectedItems;
+        var sources = new List<string>(selected.Count);
+        foreach (var item in selected)
+            sources.Add(item.FullPath);
+
+        var localizer = _services.Localizer;
+        var proposal = selected is [var single] ? PathUtil.SplitName(single.Name, single.IsDirectory).Stem : localizer["Item.NewFolderName"];
+        if (string.IsNullOrWhiteSpace(proposal))
+            proposal = localizer["Item.NewFolderName"];
+        var suggested = PathUtil.GetUniqueName(directory, proposal, isDirectory: true, p => File.Exists(p) || Directory.Exists(p));
+        var folderName = await _services.Dialogs.PromptTextAsync(new TextInputRequest(
+            localizer["Command.CreateFolderWithSelection"], localizer["Dialog.NameLabel"], suggested, localizer["Dialog.Create"],
+            ValidateNewName(directory))).ConfigureAwait(true);
+        if (string.IsNullOrWhiteSpace(folderName))
+            return;
+
+        string folder;
+        try
+        {
+            folder = _services.Operations.CreateFolder(directory, folderName.Trim());
+        }
+        catch (Exception failure) when (failure is UnauthorizedAccessException or IOException)
+        {
+            await ReportErrorAsync(failure).ConfigureAwait(true);
+            return;
+        }
+
+        await TransferIntoAsync(sources, folder, move: true).ConfigureAwait(true);
+        SelectWhenAvailable(folder);
+    }
+
+    private async Task MakeShortcutForSelectionAsync()
+    {
+        if (IsRemote || Selection.SelectedItems is not [var item])
+            return;
+
+        var directory = Path.GetDirectoryName(item.FullPath);
+        if (directory is null)
+            return;
+
+        var extension = _services.Launcher.ShortcutExtension;
+        var label = _services.Localizer.Format("Item.ShortcutName", item.Name);
+
+        // Without an extension (symbolic links) the whole label is the stem, so "(2)" never lands inside "a.txt".
+        var name = PathUtil.GetUniqueName(directory, label + extension, isDirectory: extension.Length == 0,
+            p => File.Exists(p) || Directory.Exists(p) || Path.Exists(p));
+        var shortcut = Path.Combine(directory, name);
+        if (!await _services.Launcher.CreateShortcutAsync(item.FullPath, shortcut).ConfigureAwait(true))
+        {
+            await _services.Dialogs.ShowMessageAsync(_services.Localizer["Error.OperationTitle"],
+                _services.Localizer.Format("Error.ShortcutFailed", item.Name)).ConfigureAwait(true);
+            return;
+        }
+
+        if (PathUtil.AreEqual(directory, CurrentDirectory))
+            SelectWhenAvailable(shortcut);
+    }
+
+    private Task SendSelectionToAsync(string? destination)
+    {
+        if (string.IsNullOrEmpty(destination) || !HasSelection || IsRemote || IsTrash)
+            return Task.CompletedTask;
+
+        var selected = Selection.SelectedItems;
+        var sources = new List<string>(selected.Count);
+        foreach (var item in selected)
+            sources.Add(item.FullPath);
+        return TransferIntoAsync(sources, destination, move: false);
+    }
+
+    /// <summary>One ZIP per selected item, each next to its source, compressed one after another in the queue.</summary>
+    private async Task CompressEachAsync()
+    {
+        foreach (var item in Selection.SelectedItems.ToList())
+        {
+            var directory = Path.GetDirectoryName(item.FullPath);
+            if (directory is not null)
+                await CompressToZipAsync([item.FullPath], directory, PathUtil.SplitName(item.Name, item.IsDirectory).Stem).ConfigureAwait(true);
+        }
+    }
+}

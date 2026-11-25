@@ -59,6 +59,19 @@ Navigator's window follows the familiar Files-app layout. Everything is styled t
   headers with sort indicator, resizable columns (48–1200 px) and a column visibility menu; rubber-band
   selection; keyboard type-to-select; empty-folder and error states with retry. Column reordering is not
   implemented.
+- **Item context menu** (right-click on items; trash and server folders keep their own short menus):
+  - Top: a row of icon buttons — Cut, Copy, Paste, Rename (bulk rename for several items), Delete, Properties — with
+    tooltips and shortcuts; Paste greys out when the clipboard holds no files. Read-only locations show Copy and
+    Properties only.
+  - Launch, by type: Open always; folders add Open in new tab / new window; a single program on Windows adds Run as
+    administrator and Run as another user; any other single file gets an "Open with" sub-menu (registered apps where
+    the OS lists them, then "Choose another application…"); archives get "Extract" (here / to “name”).
+  - Organize: Paste into folder (one folder), Copy path, Create folder with selection, Create shortcut.
+  - Sub-menus: Compress (to “name.zip”, or each item to its own ZIP), Send to (Desktop, Documents, Downloads,
+    removable drives), Tags (check marks), then Pin to sidebar for folders, and "More options" (duplicate, terminal,
+    code editor, show in system file manager, delete permanently).
+  - Separators never lead, trail or double, whatever entries a selection drops. Sub-menus that need disk or process
+    work fill the first time they open.
 - **Split view**: two panes side by side (Ctrl+Shift+S / toolbar), focused pane highlighted; drag between panes.
 - **Preview pane**: image, text and Markdown source (first 64 KB), folder summary, multi-selection summary,
   metadata for other files; **details** with

@@ -51,6 +51,11 @@ Result recorded on 2026-11-24 against a shallow clone of `files-community/Files`
 | `src/` (121 files) | 10,073 | **0** | 4 — all false positives: runs of 8 generic `<SolidColorBrush x:Key=… Color=…/>` / `<Setter Property=… Value=…/>` lines whose keys/values differ |
 | `tests/` (8 files) | 1,289 | **0** | not run |
 
+Re-run on 2026-11-25 for the type-aware item context menu (designed from screenshots of the running app only):
+`src/` 184 files, 17,571 windows, **0** exact matches; literal-masked matches unchanged from before the change (all
+pre-existing token/style runs). Additionally every non-trivial line the change adds (660 lines of 30+ characters) was
+compared one by one with the reference: the only identical lines are three `using` directives.
+
 The reference clone was deleted after the scan. Re-run before every release:
 
 ```bash
