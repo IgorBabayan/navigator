@@ -51,7 +51,8 @@ public sealed class DetailsCellsPanel : Panel
     protected override Size ArrangeOverride(Size finalSize)
     {
         var x = 0.0;
-        if (Order is { } order)
+        var order = Order;
+        if (order is not null)
         {
             foreach (var id in order)
             {
