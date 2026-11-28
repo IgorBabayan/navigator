@@ -365,6 +365,40 @@ public sealed partial class PaneViewModel
         return true;
     }
 
+    /// <summary>
+    /// Drops deleted items from a view without a directory monitor (search, tag results), including results found
+    /// inside deleted folders. No reload and no re-sort: the remaining order is already correct.
+    /// </summary>
+    private void RemoveVanishedItems(Location location, List<string> paths, List<string> directories)
+    {
+        if (_disposed || !_location.Equals(location))
+            return;
+
+        var removed = new List<string>(paths.Count);
+        foreach (var path in paths)
+        {
+            if (_entries.ContainsKey(path))
+                removed.Add(path);
+        }
+
+        if (directories.Count > 0)
+        {
+            foreach (var key in _entries.Keys)
+            {
+                if (directories.Exists(d => !PathUtil.AreEqual(d, key) && PathUtil.IsSameOrDescendant(d, key)))
+                    removed.Add(key);
+            }
+        }
+
+        if (removed.Count == 0 || TryApplyIncrementally(removed, []))
+            return;
+
+        foreach (var path in removed)
+            RemoveEntry(path);
+        _sortedAll = [.. _sortedAll.Where(m => _entries.ContainsKey(m.FullPath))];
+        ApplyView();
+    }
+
     private sealed class ItemComparer(FileEntryComparer inner) : IComparer<FileItemViewModel>
     {
         public int Compare(FileItemViewModel? x, FileItemViewModel? y) => inner.Compare(x?.Entry, y?.Entry);

@@ -356,7 +356,21 @@ public sealed partial class PaneViewModel
                 return;
         }
 
-        _services.Operations.Delete(paths, permanently, _services.CreateInteraction());
+        var operation = _services.Operations.Delete(paths, permanently, _services.CreateInteraction());
+
+        // A folder view follows the deletion through its directory monitor. Search and tag results have no monitor:
+        // once the operation ends, drop what is really gone (a cancelled or failed step keeps its item).
+        if (IsFolder)
+            return;
+        var location = _location;
+        var directories = selected.Where(i => i.IsDirectory).Select(i => i.FullPath).ToHashSet(PathUtil.Comparer);
+        _ = operation.Completion.ContinueWith(_ =>
+        {
+            // Existence probes stay off the UI thread.
+            var gone = paths.Where(p => !File.Exists(p) && !Directory.Exists(p)).ToList();
+            if (gone.Count > 0)
+                _services.Dispatcher.Post(() => RemoveVanishedItems(location, gone, [.. gone.Where(directories.Contains)]));
+        }, TaskScheduler.Default);
     }
 
     private async Task PutOnClipboardAsync(bool cut)
