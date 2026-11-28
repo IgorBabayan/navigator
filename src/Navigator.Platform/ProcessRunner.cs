@@ -183,6 +183,87 @@ internal static class ProcessRunner
         }
     }
 
+    /// <summary>
+    /// <see cref="RunCapturingAsync"/> with <paramref name="input"/> written to standard input (which is then closed, so a
+    /// prompt the input does not answer fails instead of waiting). Secrets travel this way, never as arguments.
+    /// </summary>
+    public static async Task<(int ExitCode, string Output, string Error)?> RunWithInputCapturingAsync(string fileName, IEnumerable<string> arguments, string? input, TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var info = new ProcessStartInfo(fileName)
+            {
+                UseShellExecute = false,
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+            };
+            foreach (var argument in arguments)
+                info.ArgumentList.Add(argument);
+
+            using var process = Process.Start(info);
+            if (process is null)
+                return null;
+
+            using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutSource.CancelAfter(timeout);
+            try
+            {
+                var output = process.StandardOutput.ReadToEndAsync(timeoutSource.Token);
+                var errors = process.StandardError.ReadToEndAsync(timeoutSource.Token);
+                if (input is not null)
+                {
+                    try
+                    {
+                        await process.StandardInput.WriteAsync(input.AsMemory(), timeoutSource.Token).ConfigureAwait(false);
+                    }
+                    catch (IOException)
+                    {
+                        // The program exited before reading everything (it did not need the answers).
+                    }
+                }
+
+                process.StandardInput.Close();
+                await process.WaitForExitAsync(timeoutSource.Token).ConfigureAwait(false);
+                return (process.ExitCode, await output.ConfigureAwait(false), await errors.ConfigureAwait(false));
+            }
+            catch (OperationCanceledException)
+            {
+                TryKill(process);
+                throw;
+            }
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return null;
+        }
+        catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or FileNotFoundException or IOException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Starts a program through the shell with a verb ("runas") and waits for it; its exit code, or null when it did not start (prompt declined).</summary>
+    public static async Task<int?> RunWithVerbAsync(string fileName, IEnumerable<string> arguments, string verb, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var info = new ProcessStartInfo(fileName) { UseShellExecute = true, Verb = verb, WindowStyle = ProcessWindowStyle.Hidden };
+            foreach (var argument in arguments)
+                info.ArgumentList.Add(argument);
+            using var process = Process.Start(info);
+            if (process is null)
+                return null;
+            await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+            return process.ExitCode;
+        }
+        catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or FileNotFoundException or PlatformNotSupportedException)
+        {
+            return null;
+        }
+    }
+
     private static void TryKill(Process process)
     {
         try

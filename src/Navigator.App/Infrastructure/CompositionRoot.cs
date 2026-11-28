@@ -77,6 +77,11 @@ internal static class CompositionRoot
         services.AddSingleton(_ => PlatformServices.CreateFolderIcons());
         services.AddSingleton(provider => PlatformServices.CreateSystemIcons(provider.GetRequiredService<IPlatformInfo>(), provider.GetRequiredService<IKnownFolderProvider>()));
         services.AddSingleton(_ => PlatformServices.CreateShellMenus());
+        services.AddSingleton(provider => new ItemActionServices(
+            PlatformServices.CreateDesktopBackground(provider.GetRequiredService<IPlatformInfo>()),
+            PlatformServices.CreateFontInstaller(),
+            PlatformServices.CreateDriveService(),
+            PlatformServices.CreateShareService()));
         services.AddSingleton(_ => PlatformServices.CreateFileClipboard());
         services.AddSingleton(provider => PlatformServices.CreateNewItemTemplates(provider.GetRequiredService<IPlatformInfo>()));
         services.AddSingleton(provider => PlatformServices.CreateGlobalHotkey(provider.GetRequiredService<IPlatformInfo>()));

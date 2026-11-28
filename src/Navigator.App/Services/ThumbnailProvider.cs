@@ -5,6 +5,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Navigator.Core.Caching;
 using Navigator.Core.Documents;
+using Navigator.Core.Imaging;
 using Navigator.Core.IO;
 using Navigator.Core.Media;
 using Navigator.Core.Platform;
@@ -139,11 +140,63 @@ internal sealed class ThumbnailProvider : IThumbnailProvider, IDisposable
         try
         {
             using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 64 * 1024, FileOptions.SequentialScan);
-            return Bitmap.DecodeToWidth(stream, Math.Max(16, pixelSize), BitmapInterpolationMode.MediumQuality);
+
+            // Photos (and pictures rotated in Navigator) store their upright direction as EXIF orientation; the decoder
+            // ignores it, so the decoded pixels are turned here. Reading it costs the segment headers only.
+            var orientation = ImageOrientation.Normal;
+            if (JpegOrientation.IsJpeg(path))
+            {
+                orientation = JpegOrientation.Read(stream);
+                stream.Position = 0;
+            }
+
+            var size = Math.Max(16, pixelSize);
+            if (orientation == ImageOrientation.Normal)
+                return Bitmap.DecodeToWidth(stream, size, BitmapInterpolationMode.MediumQuality);
+
+            // A quarter-turned picture is decoded to the height that becomes its displayed width.
+            var decoded = PixelOrientation.SwapsDimensions(orientation)
+                ? Bitmap.DecodeToHeight(stream, size, BitmapInterpolationMode.MediumQuality)
+                : Bitmap.DecodeToWidth(stream, size, BitmapInterpolationMode.MediumQuality);
+            return Orient(decoded, orientation);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or NotSupportedException)
         {
             return null; // corrupt or unsupported image: the type icon stays
+        }
+    }
+
+    /// <summary>Applies an EXIF orientation to a decoded 32-bit bitmap (other formats are returned unchanged).</summary>
+    private static Bitmap Orient(Bitmap bitmap, ImageOrientation orientation)
+    {
+        var format = bitmap.Format ?? PixelFormat.Bgra8888;
+        if (!format.Equals(PixelFormat.Bgra8888) && !format.Equals(PixelFormat.Rgba8888))
+            return bitmap;
+
+        var size = bitmap.PixelSize;
+        var stride = size.Width * 4;
+        var pixels = new byte[stride * size.Height];
+        var source = GCHandle.Alloc(pixels, GCHandleType.Pinned);
+        try
+        {
+            bitmap.CopyPixels(new PixelRect(size), source.AddrOfPinnedObject(), pixels.Length, stride);
+        }
+        finally
+        {
+            source.Free();
+        }
+
+        var turned = PixelOrientation.Apply(pixels, size.Width, size.Height, 4, orientation);
+        var target = PixelOrientation.SwapsDimensions(orientation) ? new PixelSize(size.Height, size.Width) : size;
+        var handle = GCHandle.Alloc(turned, GCHandleType.Pinned);
+        try
+        {
+            return new Bitmap(format, bitmap.AlphaFormat ?? AlphaFormat.Premul, handle.AddrOfPinnedObject(), target, bitmap.Dpi, target.Width * 4);
+        }
+        finally
+        {
+            handle.Free();
+            bitmap.Dispose();
         }
     }
 

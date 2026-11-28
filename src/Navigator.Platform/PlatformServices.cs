@@ -1,6 +1,7 @@
 using Navigator.Core.Platform;
 using Navigator.Platform.Hotkeys;
 using Navigator.Platform.Icons;
+using Navigator.Platform.ItemActions;
 using Navigator.Platform.Launch;
 using Navigator.Platform.Preview;
 using Navigator.Platform.ItemProperties;
@@ -25,6 +26,53 @@ public static class PlatformServices
         if (OperatingSystem.IsLinux() || OperatingSystem.IsFreeBSD())
             return new FreedesktopTrash();
         return new UnsupportedTrash();
+    }
+
+    /// <summary>Desktop and lock screen pictures ("Set as").</summary>
+    public static IDesktopBackgroundService CreateDesktopBackground(IPlatformInfo platform)
+    {
+        ArgumentNullException.ThrowIfNull(platform);
+        if (OperatingSystem.IsWindows())
+            return new WindowsDesktopBackground();
+        if (OperatingSystem.IsMacOS())
+            return new MacDesktopBackground();
+        if (OperatingSystem.IsLinux())
+            return new LinuxDesktopBackground(platform);
+        return UnsupportedItemActions.Instance;
+    }
+
+    /// <summary>Per-user font installation.</summary>
+    public static IFontInstaller CreateFontInstaller()
+    {
+        if (OperatingSystem.IsWindows())
+            return new WindowsFontInstaller();
+        if (OperatingSystem.IsMacOS())
+            return new MacFontInstaller();
+        if (OperatingSystem.IsLinux())
+            return new LinuxFontInstaller();
+        return UnsupportedItemActions.Instance;
+    }
+
+    /// <summary>Mounting disk images, ejecting drives, mapping and disconnecting network drives.</summary>
+    public static IDriveService CreateDriveService()
+    {
+        if (OperatingSystem.IsWindows())
+            return new WindowsDriveService();
+        if (OperatingSystem.IsMacOS())
+            return new MacDriveService();
+        if (OperatingSystem.IsLinux())
+            return new LinuxDriveService();
+        return UnsupportedItemActions.Instance;
+    }
+
+    /// <summary>"Share" targets on macOS and Linux; Windows shares through the shell's own verb (see the pane menus).</summary>
+    public static IShareService CreateShareService()
+    {
+        if (OperatingSystem.IsMacOS())
+            return new MacShareService();
+        if (OperatingSystem.IsLinux())
+            return new LinuxShareService();
+        return UnsupportedItemActions.Instance;
     }
 
     public static IFileLauncher CreateLauncher()

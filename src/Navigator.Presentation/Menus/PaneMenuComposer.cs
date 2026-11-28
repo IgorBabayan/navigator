@@ -60,6 +60,22 @@ public sealed record PaneMenuCommands
 
     /// <summary>New → Shortcut: asks for the target and creates a link to it here. Optional.</summary>
     public ICommand? NewShortcut { get; init; }
+
+    /// <summary>Pictures: a quarter turn counter-clockwise / clockwise. Optional.</summary>
+    public ICommand? RotateLeft { get; init; }
+
+    public ICommand? RotateRight { get; init; }
+
+    /// <summary>"Set as" → desktop / lock screen picture. Optional.</summary>
+    public ICommand? SetAsWallpaper { get; init; }
+
+    public ICommand? SetAsLockScreen { get; init; }
+
+    /// <summary>Fonts: install for the current user. Optional.</summary>
+    public ICommand? InstallFont { get; init; }
+
+    /// <summary>Disk images (ISO, VHD, DMG…): mount. Optional.</summary>
+    public ICommand? MountImage { get; init; }
 }
 
 /// <summary>
@@ -111,6 +127,9 @@ public sealed record PaneMenuInput
 
     /// <summary>The operating system's own entries for "Show more options"; null where there are none.</summary>
     public Func<CancellationToken, Task<IReadOnlyList<MenuEntry>>>? ShellEntries { get; init; }
+
+    /// <summary>"Share" (a command, or a sub-menu of targets), built by the pane for the platform; null for none.</summary>
+    public MenuEntry? Share { get; init; }
 }
 
 /// <summary>
@@ -160,6 +179,11 @@ public static class PaneMenuComposer
             {
                 Show = picked.IsElevatableProgram && picked.Elevation.HasFlag(Core.Platform.ElevationOptions.OtherUser) ? null : false,
             }.Build(),
+            Optional(run.InstallFont, text["Command.InstallFont"], "FormatFont"),
+            Optional(run.MountImage, text["Command.Mount"], "Disc", singleOnly: true),
+            SetAsMenu(input),
+            Optional(run.RotateRight, text["Command.RotateRight"], "RotateRight"),
+            Optional(run.RotateLeft, text["Command.RotateLeft"], "RotateLeft"),
             MenuEntry.Divider(),
 
             // Strip: always present (disabled when not applicable) so the row keeps its shape.
@@ -209,6 +233,7 @@ public static class PaneMenuComposer
                 IsWanted = set.ShowSendToInContextMenu && input.SendToEntries is not null,
                 LoadChildren = input.SendToEntries,
             },
+            input.Share ?? MenuEntry.Omitted,
             new CommandEntry(run.OpenInCodeEditor, text["Command.OpenInCodeEditor"], "CodeEditor")
             {
                 Show = picked.IsEditableText || (picked.IsSingle && picked.OnlyFolders) ? null : false,
@@ -378,6 +403,25 @@ public static class PaneMenuComposer
         if (run.NewShortcut is { } shortcut)
             choices.Add(new CommandEntry(shortcut, text["New.Shortcut"], "Shortcut") { Show = true }.Build());
         return choices;
+    }
+
+    /// <summary>An entry for an optional command, shown when the command can run for this selection.</summary>
+    private static MenuEntry Optional(ICommand? command, string label, string glyph, bool singleOnly = false)
+        => command is null ? MenuEntry.Omitted : new CommandEntry(command, label, glyph) { SingleOnly = singleOnly }.Build();
+
+    /// <summary>"Set as" → desktop picture, lock screen picture (whichever the system supports for this picture).</summary>
+    private static MenuEntry SetAsMenu(PaneMenuInput input)
+    {
+        var text = input.Text;
+        var run = input.Commands;
+        var choices = new List<MenuEntry>(2);
+        if (Optional(run.SetAsWallpaper, text["Command.SetAsWallpaper"], "Wallpaper") is { IsWanted: true } wallpaper)
+            choices.Add(wallpaper);
+        if (Optional(run.SetAsLockScreen, text["Command.SetAsLockScreen"], "Lock") is { IsWanted: true } lockScreen)
+            choices.Add(lockScreen);
+        return choices.Count == 0
+            ? MenuEntry.Omitted
+            : new MenuEntry { Label = text["Command.SetAs"], Glyph = "Wallpaper", SingleOnly = true, Children = choices };
     }
 
     private static MenuEntry OpenWith(PaneMenuInput input)

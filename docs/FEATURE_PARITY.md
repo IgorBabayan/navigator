@@ -97,7 +97,8 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Permanent delete (with confirmation) | ✅ | 🟦 | ✓ | ✓ | ✓ | |
 | Trash browsing, restore, empty | 🟨 | 🟦 | 🟦 | ✅ | 🟨 | macOS restore only for items Navigator trashed |
 | Archives: create ZIP; extract ZIP/TAR/TAR.GZ (smart destination, zip-slip safe) | 🟨 | 🟦 | ✓ | ✓ | ✓ | ZIP round trip and traversal tested; TAR paths untested; context menu: extract files… (pick folder), here (smart), here, to own folder; compress together or each |
-| 7z / RAR / other archive formats | ⬜ | ⬜ | | | | |
+| Open (extract) 7z and RAR archives | ✅ | 🟦 | 🟦 | ✅ | 🟦 | `ArchiveReaderTool` through an installed program: 7-Zip (`7z`/`7zz`; `7za` reads 7z only), libarchive `bsdtar` (Windows 11 23H2+ `tar.exe`), `unrar`, `unar`. Unpacked into a hidden staging folder, then moved in with Navigator's conflict handling; links leaving the destination are dropped. Same Extract menu as ZIP; offered only when a reader is installed. 7z creation stays external too (`SevenZipTool`). Tested with 7-Zip and bsdtar on Linux |
+| Other archive formats (XZ, BZip2, CAB…) | ⬜ | ⬜ | | | | |
 | Hashes (MD5, SHA-1, SHA-256/384/512, compare) | ✅ | 🟦 | ✓ | ✓ | ✓ | `FileHasher` |
 
 ## Opening and integration
@@ -116,6 +117,13 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Create shortcut; create folder with selection; send to | 🟦 | 🟦 | 🟦 | 🟦 | 🟦 | Windows `.lnk` via Windows PowerShell + WScript.Shell; Linux/macOS symbolic link; never overwrites. Send to: the shell's list on Windows, known folders + removable drives elsewhere |
 | Shell context menu extensions — "Show more options" (Explorer) | 🟦 | 🟦 | 🟦 | ➖ | ➖ | `WindowsShellMenus`: classic IContextMenu on a per-menu STA thread, lazy sub-menus, entry bitmaps; duplicates of Navigator commands hidden. Windows 11 packaged-app commands (IExplorerCommand) are not hosted yet. Linux/macOS have no hostable shell menu |
 | Set as default file manager | ⬜ | ⬜ | | | | Linux desktop file declares `inode/directory` |
+| Rotate pictures left / right | ✅ | 🟦 | ✓ | ✓ | ✓ | `ImageRotation`: JPEG losslessly through the EXIF orientation (two bytes patched in place; EXIF added when missing; XMP kept in step), PNG pixel-exact re-encode (`PngRotation`, every color type and bit depth, interlaced input). Navigator's thumbnails and previews honor EXIF orientation |
+| Set as desktop / lock screen background | 🟦 | 🟦 | 🟦 | 🟦 | 🟦 | Windows `SystemParametersInfo` / WinRT `LockScreen` (via Windows PowerShell); Linux GNOME, Cinnamon, MATE, KDE Plasma, Xfce, LXQt/LXDE (lock screen: GNOME, KDE); macOS `NSWorkspace` (no lock screen API) |
+| Install fonts (per user) | ✅ | 🟦 | 🟦 | 🟦 | 🟦 | `FontFileInfo` reads names (tested); Windows: user font folder + HKCU registration + `AddFontResource`; Linux `~/.local/share/fonts` + `fc-cache`; macOS `~/Library/Fonts`. Never replaces an installed file |
+| Mount ISO / VHD / DMG | 🟦 | 🟦 | 🟦 | 🟦 | 🟦 | Windows `Mount-DiskImage` (VHD/VHDX behind UAC); Linux `udisksctl loop-setup` + `mount` (ISO/IMG); macOS `hdiutil attach`. Opens the new drive |
+| Eject drives and mounted images | 🟦 | 🟦 | 🟦 | 🟦 | 🟦 | Sidebar and Home drive menus. Windows: shell "Eject" verb, `Dismount-DiskImage` for VHDs mounted from Navigator; Linux udisks2 unmount + power-off / loop-delete (or `gio mount -e`); macOS `diskutil eject` |
+| Map / disconnect network drives | 🟦 | 🟦 | 🟦 | 🟦 | 🟦 | `DriveActions`: Windows "Map Network Drive" dialog (`WNetConnectionDialog`) and `WNetCancelConnection2`; Linux/macOS "Connect to server" (smb://, afp://, nfs://, sftp://…) through GVfs `gio mount` (credentials asked by Navigator, passed on standard input) or AppleScript `mount volume`; disconnect via `gio mount -u`/`umount`, `diskutil unmount` |
+| Share to other apps | 🟦 | 🟦 | 🟦 | 🟦 | 🟦 | Windows: the shell's share sheet (Explorer's `Windows.ModernShare` verb from the item's shell menu); macOS: NSSharingService targets (AirDrop, Mail, Messages…); Linux: mail composer via `xdg-email` |
 | Native notifications for finished operations | 🟨 | 🟦 | 🟨 | 🟦 | 🟦 | `notify-send`, `osascript`; Windows in-app toast only |
 
 ## Details, preview, properties

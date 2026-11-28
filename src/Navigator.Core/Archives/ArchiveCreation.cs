@@ -228,7 +228,7 @@ public static class SevenZipTool
         return OnPath("bsdtar") is { } bsdtar ? (bsdtar, true) : null;
     }
 
-    private static string? OnPath(string name)
+    internal static string? OnPath(string name)
     {
         var path = Environment.GetEnvironmentVariable("PATH");
         if (string.IsNullOrEmpty(path))

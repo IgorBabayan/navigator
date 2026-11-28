@@ -34,6 +34,14 @@ public sealed class VolumeItemViewModel(VolumeInfo volume, string name, string d
 
     public bool IsAlmostFull => Volume.UsedFraction > 0.9;
 
+    /// <summary>Removable media, optical discs and mounted images offer "Eject" in the drive's context menu.</summary>
+    public bool CanEject { get; init; }
+
+    /// <summary>Mapped network drives / mounted shares offer "Disconnect".</summary>
+    public bool CanDisconnect { get; init; }
+
+    public bool HasDriveActions => CanEject || CanDisconnect;
+
     public string IconKey => Volume.Kind switch
     {
         VolumeKind.Removable => "DriveRemovable",
@@ -83,7 +91,32 @@ public sealed class HomeViewModel : ObservableObject
         UnpinCommand = new RelayCommand<string>(path => { if (path is not null) _pins.Unpin(path); });
         RemoveRecentCommand = new RelayCommand<RecentFileViewModel>(item => { if (item is not null) _services.Recent.Remove(item.Path); });
         ClearRecentCommand = new RelayCommand(_services.Recent.Clear);
+        _drives = new DriveActions(services);
+        EjectCommand = new AsyncRelayCommand<VolumeItemViewModel>(async item =>
+        {
+            if (item is not null && await _drives.EjectAsync(item.Volume).ConfigureAwait(true))
+                Drives.Remove(item);
+        });
+        DisconnectCommand = new AsyncRelayCommand<VolumeItemViewModel>(async item =>
+        {
+            if (item is not null && await _drives.DisconnectAsync(item.Volume).ConfigureAwait(true))
+                Drives.Remove(item);
+        });
+        ConnectNetworkDriveCommand = new AsyncRelayCommand(_drives.ConnectNetworkDriveAsync, () => _drives.CanConnectNetworkDrive);
     }
+
+    private readonly DriveActions _drives;
+
+    public IAsyncRelayCommand<VolumeItemViewModel> EjectCommand { get; }
+
+    public IAsyncRelayCommand<VolumeItemViewModel> DisconnectCommand { get; }
+
+    /// <summary>"Map network drive" (Windows) / "Connect to server"; offered in a drive's context menu.</summary>
+    public IAsyncRelayCommand ConnectNetworkDriveCommand { get; }
+
+    public bool CanConnectNetworkDrive => _drives.CanConnectNetworkDrive;
+
+    public string ConnectNetworkDriveTitle => _drives.ConnectTitle;
 
     public ObservableCollection<QuickAccessCardViewModel> QuickAccess { get; } = [];
 
@@ -140,12 +173,12 @@ public sealed class HomeViewModel : ObservableObject
         var volumes = await Task.Run(_services.Volumes.GetVolumes, cancellationToken).ConfigureAwait(true);
         Drives.Clear();
         foreach (var volume in volumes)
-            Drives.Add(CreateVolumeItem(volume, localizer));
+            Drives.Add(CreateVolumeItem(volume, localizer, _drives));
 
         OnPropertyChanged(string.Empty);
     }
 
-    internal static VolumeItemViewModel CreateVolumeItem(VolumeInfo volume, Localization.Localizer localizer)
+    internal static VolumeItemViewModel CreateVolumeItem(VolumeInfo volume, Localization.Localizer localizer, DriveActions? drives = null)
     {
         var name = OperatingSystem.IsWindows()
             ? WindowsVolumeName(volume, localizer)
@@ -153,7 +186,11 @@ public sealed class HomeViewModel : ObservableObject
         var detail = volume.IsReady && volume.TotalBytes > 0
             ? localizer.Format("Drive.FreeOf", ByteSize.Format(volume.FreeBytes, localizer.Culture), ByteSize.Format(volume.TotalBytes, localizer.Culture))
             : localizer["Drive.NotReady"];
-        return new VolumeItemViewModel(volume, name, detail);
+        return new VolumeItemViewModel(volume, name, detail)
+        {
+            CanEject = drives?.CanEject(volume) == true,
+            CanDisconnect = drives?.CanDisconnect(volume) == true,
+        };
     }
 
     /// <summary>File Explorer style: "Games (D:)", or the drive type for unlabeled drives — "Local Disk (C:)".</summary>

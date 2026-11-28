@@ -198,4 +198,7 @@ public interface IWindowService
     /// the point (or beside the source window). A lone tab is only moved into another window, never into a new one.
     /// </summary>
     void MoveTabToWindow(Shell.ShellViewModel source, Shell.TabViewModel tab, double? screenX = null, double? screenY = null);
+
+    /// <summary>Native handle of the active window (HWND on Windows), parent of system dialogs; 0 when unknown.</summary>
+    nint ActiveWindowHandle => 0;
 }

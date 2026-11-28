@@ -41,6 +41,7 @@ public sealed partial class PaneViewModel
         if (Interlocked.Exchange(ref _creationWarmed, 1) == 0)
         {
             SevenZipTool.Warm();
+            ArchiveReaderTool.Warm();
             _ = _services.NewItems.GetAsync();
         }
     }

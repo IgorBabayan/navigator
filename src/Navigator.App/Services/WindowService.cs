@@ -27,6 +27,8 @@ internal sealed class WindowService(IServiceProvider services, SettingsService s
 
     public int WindowCount => _windows.Count;
 
+    public nint ActiveWindowHandle => ActiveTopLevel?.TryGetPlatformHandle()?.Handle ?? 0;
+
     /// <summary>Raised after the last main window has closed (the app keeps running only in background mode).</summary>
     public event EventHandler? LastWindowClosed;
 

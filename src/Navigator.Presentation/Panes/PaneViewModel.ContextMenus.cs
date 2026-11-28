@@ -82,6 +82,12 @@ public sealed partial class PaneViewModel
         CreateArchive = CreateArchiveCommand,
         CompressToSevenZip = CompressToSevenZipCommand,
         NewShortcut = NewShortcutCommand,
+        RotateLeft = RotateLeftCommand,
+        RotateRight = RotateRightCommand,
+        SetAsWallpaper = SetAsWallpaperCommand,
+        SetAsLockScreen = SetAsLockScreenCommand,
+        InstallFont = InstallFontCommand,
+        MountImage = MountImageCommand,
     };
 
     private MenuScope CurrentScope => _location.Kind switch
@@ -126,6 +132,7 @@ public sealed partial class PaneViewModel
             OpenWithEntries = first is null || first.IsDirectory || scope == MenuScope.Remote ? null : token => OpenWithEntriesAsync(first.FullPath, bridge, token),
             SendToEntries = scope == MenuScope.Remote ? null : token => SendToEntriesAsync(bridge, token),
             ShellEntries = bridge is null ? null : token => ShellRemainderAsync(bridge, token),
+            Share = scope == MenuScope.Remote ? null : ShareEntry(bridge),
         };
 
         return new PaneMenu(PaneMenuComposer.ForItems(input), lifetime, shell);

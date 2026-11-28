@@ -8,6 +8,19 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
 
 ### Added
 
+- Item actions in the context menu. Pictures: **Rotate left / Rotate right** (JPEG photos losslessly through their EXIF
+  orientation — usually two bytes changed in place — PNG images re-encoded pixel-exactly) and **Set as** desktop or
+  lock screen background. Fonts: **Install font** for the current user. Disk images: **Mount** (ISO/IMG/VHD/VHDX on
+  Windows, ISO/IMG through udisks2 on Linux, ISO/DMG/IMG on macOS), opening the new drive. **Share** hands files to
+  other apps (Windows share sheet, macOS sharing services, the mail composer on Linux). Navigator's own thumbnails and
+  previews now honor EXIF orientation.
+- Drives: **Eject** for removable media, discs and mounted images, **Disconnect** for network drives, and **Map
+  network drive** (Windows) / **Connect to server** (smb://, afp://, nfs://, sftp://… on Linux and macOS) in the
+  sidebar's Drives header and the drive menus on Home and in the sidebar.
+- 7z and RAR archives can be opened (Extract menu, smart destination) through an installed 7-Zip, libarchive
+  (`bsdtar`, Windows 11's `tar.exe`), `unrar` or `unar`; creating 7z keeps using an installed 7-Zip / libarchive.
+  Entries are unpacked into a hidden staging folder and moved in with the usual conflict handling.
+
 - Quick look with the space bar (Settings → Files and folders → Quick look). With "Automatic" a running external
   previewer gets the selected file — QuickLook (QL-Win, through its pipe, following the selection), Seer or PowerToys
   Peek on Windows, Quick Look (`qlmanage`) on macOS — and Navigator's own Quick Look window is used otherwise. Each can

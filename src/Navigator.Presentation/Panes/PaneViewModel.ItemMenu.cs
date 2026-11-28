@@ -74,10 +74,12 @@ public sealed partial class PaneViewModel
         OpenSelectionInCodeEditorCommand = new AsyncRelayCommand(
             () => Selection.SelectedItems is [var only] ? LaunchCodeEditorAsync(only.FullPath) : Task.CompletedTask,
             () => !IsRemote && Selection.Count == 1);
+        InitializeItemActionCommands();
     }
 
     private void RaiseItemMenuCommandState()
     {
+        RaiseItemActionCommandState();
         RunAsAdministratorCommand.NotifyCanExecuteChanged();
         RunAsOtherUserCommand.NotifyCanExecuteChanged();
         ExtractToFolderCommand.NotifyCanExecuteChanged();
