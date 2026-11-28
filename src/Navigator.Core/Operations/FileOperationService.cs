@@ -68,23 +68,33 @@ public sealed class FileOperationService
     public FileOperation Delete(IReadOnlyList<string> paths, bool permanently, IFileOperationInteraction interaction)
     {
         if (!permanently && _trash.IsSupported)
-        {
-            var recycle = _queue.Enqueue(FileOperationKind.Recycle, paths, null, interaction,
-                context => DeleteExecutor.RecycleAsync(paths, _trash, context));
-            _ = recycle.Completion.ContinueWith(
-                _ =>
-                {
-                    if (recycle.TrashedItems.Count > 0)
-                        Undo.Record(new RecycleRecord(recycle.TrashedItems));
-                },
-                CancellationToken.None,
-                TaskContinuationOptions.ExecuteSynchronously,
-                TaskScheduler.Default);
-            return recycle;
-        }
+            return Recycle(paths, interaction, recordUndo: true);
 
         return _queue.Enqueue(FileOperationKind.Delete, paths, null, interaction,
             context => DeleteExecutor.DeletePermanentlyAsync(paths, context));
+    }
+
+    /// <summary>
+    /// Moves items to the trash. Undo/redo pass <paramref name="recordUndo"/> = false: they push the inverse step
+    /// themselves, so recording here would add a stray undo step and wipe the redo stack.
+    /// </summary>
+    private FileOperation Recycle(IReadOnlyList<string> paths, IFileOperationInteraction interaction, bool recordUndo)
+    {
+        var recycle = _queue.Enqueue(FileOperationKind.Recycle, paths, null, interaction,
+            context => DeleteExecutor.RecycleAsync(paths, _trash, context));
+        if (!recordUndo)
+            return recycle;
+
+        _ = recycle.Completion.ContinueWith(
+            _ =>
+            {
+                if (recycle.TrashedItems.Count > 0)
+                    Undo.Record(new RecycleRecord(recycle.TrashedItems));
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+        return recycle;
     }
 
     /// <summary>Creates a folder. Throws <see cref="OperationStepException"/> for invalid or existing names.</summary>
@@ -357,7 +367,7 @@ public sealed class FileOperationService
                 var created = copy.Items.Select(i => i.DestinationPath).Where(ItemInfo.AnyExists).ToList();
                 if (created.Count == 0)
                     return (UndoOutcome.NotPossible, null);
-                var operation = Delete(created, permanently: false, interaction);
+                var operation = Recycle(created, interaction, recordUndo: false);
                 await operation.Completion.ConfigureAwait(false);
                 return (operation.State == FileOperationState.Completed ? UndoOutcome.Done : UndoOutcome.PartiallyDone,
                     operation.TrashedItems.Count > 0 ? new RecycleRecord(operation.TrashedItems) : null);
@@ -367,7 +377,7 @@ public sealed class FileOperationService
             {
                 if (!_trash.IsSupported || !ItemInfo.AnyExists(create.Path))
                     return (UndoOutcome.NotPossible, null);
-                var operation = Delete([create.Path], permanently: false, interaction);
+                var operation = Recycle([create.Path], interaction, recordUndo: false);
                 await operation.Completion.ConfigureAwait(false);
                 return operation.TrashedItems.Count > 0
                     ? (UndoOutcome.Done, new RecycleRecord(operation.TrashedItems))

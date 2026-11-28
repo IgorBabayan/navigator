@@ -298,6 +298,47 @@ public sealed class FileOperationTests
     }
 
     [TestMethod]
+    public async Task UndoCreate_DoesNotRecordItsOwnRecycleStep_AndCanBeRedone()
+    {
+        using var temp = new TempDirectory();
+        var (service, _) = Create(temp);
+        var created = service.CreateFolder(temp.Path, "Fresh");
+
+        Assert.AreEqual(UndoOutcome.Done, await service.UndoAsync(Skip));
+        await Task.Delay(50); // a stray record would be written by a continuation
+        Assert.IsFalse(Directory.Exists(created));
+        Assert.IsFalse(service.Undo.CanUndo, "undoing must not leave a new undo step behind");
+        Assert.IsTrue(service.Undo.CanRedo, "redo survives the undo");
+
+        Assert.AreEqual(UndoOutcome.Done, await service.RedoAsync(Skip));
+        Assert.IsTrue(Directory.Exists(created));
+    }
+
+    [TestMethod]
+    public async Task UndoCopy_DoesNotRecordItsOwnRecycleStep_AndCanBeRedone()
+    {
+        using var temp = new TempDirectory();
+        var file = temp.CreateFile("src/a.txt", "alpha");
+        var destination = temp.CreateDirectory("dst");
+        var (service, _) = Create(temp);
+        var operation = service.Copy([file], destination, Skip);
+        await operation.Completion;
+        await Task.Delay(50); // undo record is written by a continuation
+        var copied = temp.Combine("dst", "a.txt");
+        Assert.IsTrue(File.Exists(copied));
+
+        Assert.AreEqual(UndoOutcome.Done, await service.UndoAsync(Skip));
+        await Task.Delay(50);
+        Assert.IsFalse(File.Exists(copied));
+        Assert.IsTrue(File.Exists(file), "the source is untouched");
+        Assert.IsFalse(service.Undo.CanUndo, "undoing must not leave a new undo step behind");
+        Assert.IsTrue(service.Undo.CanRedo, "redo survives the undo");
+
+        Assert.AreEqual(UndoOutcome.Done, await service.RedoAsync(Skip));
+        Assert.AreEqual("alpha", File.ReadAllText(copied));
+    }
+
+    [TestMethod]
     public async Task Move_Undo_MovesBack()
     {
         using var temp = new TempDirectory();
