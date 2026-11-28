@@ -30,10 +30,13 @@ Honest list of what is missing, partial or unverified. Keep it current.
 | Windows notifications | Finished-operation notifications are in-app toasts only. |
 | Global shortcut when closed | Needs the shortcut agent (≈7 MB private memory, no CPU while idle, measured on Linux/X11) or, on GNOME/Wayland, a GNOME custom shortcut. Other Wayland desktops (KDE, Sway…) cannot get it automatically. The Linux autostart entry and macOS LaunchAgent stay behind if the app is deleted without turning the setting off (harmless: they point to a missing file); the Windows uninstaller removes its entry. |
 | Cloud plugins | Need OAuth clients (`docs/PLUGINS.md`); not yet tested against the live services. Google Drive: "My Drive" only (no "Shared with me" or shared drives root), Google Docs show no size. Refresh tokens stay in the OS keychain when a cloud plugin is removed without signing out first. |
-| Thumbnails | Images only, memory cache only (no disk cache); no video/PDF/OS shell thumbnails. |
+| Thumbnails | Video/PDF/document thumbnails appear in icon and tile layouts only. Linux needs `pdftoppm` (poppler-utils) for PDFs and `ffmpegthumbnailer` or `ffmpeg` for videos; other types (legacy Office, HEIF, RAW) only when the desktop already put a thumbnail in the shared cache. A file without a thumbnail is remembered until it changes or the disk cache is cleared (installing a codec later needs Settings → Performance → Clear). |
 | Archives | ZIP create/extract, TAR and TAR.GZ extract only; no 7z, RAR, XZ, BZip2. |
-| Preview | Markdown is shown as source; no PDF, audio/video, Office previews. |
-| Owner/permissions | Owner via `stat(1)`; permissions/ACLs are read-only. |
+| Preview | Videos show a frame and their details, not playback (Open plays them). Markdown: a CommonMark/GFM subset (no HTML, footnotes or remote images; links are not clickable). Legacy .doc/.xls/.ppt show only the platform's page thumbnail. PDF page counts are unknown for files whose page tree is in compressed object streams. Audio playback on Linux needs ffplay, mpv, gst-play-1.0 or paplay. Seer is reached by its window message (no selection following); PowerToys Peek is started per file. |
+| Quick look | The space bar acts only while the file list has focus; a custom gesture can be set in Settings → Keyboard. GNOME Sushi is used only when chosen explicitly. |
+| Owner/permissions | Owner via `stat(1)`. Windows ACLs are shown read-only (Security → Advanced… opens Explorer's editor, which opens on its first page on non-English Windows); Unix modes can be changed (no recursive apply, no chown). |
+| Signatures | Linux cannot decide whether a Windows signature is trusted (shown as "not verified"); Windows checks run offline (no revocation check). |
+| Folder icons | On Linux the icon is stored where the desktop's file manager looks (GIO metadata for GTK file managers, `.directory` on KDE); whether it is drawn depends on that file manager. Navigator's own lists show custom folder icons on Windows only. |
 | Search | No OS index integration (Windows Search, Spotlight, Tracker); content search is a linear scan. |
 | Tags | Stored in Navigator's data folder, not in file metadata; renaming files outside Navigator loses tags. |
 | Network | Only mounted network volumes; no SMB/NFS browsing, FTP, SFTP, WebDAV or cloud APIs. |

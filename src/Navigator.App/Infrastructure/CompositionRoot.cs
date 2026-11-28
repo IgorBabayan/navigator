@@ -67,6 +67,14 @@ internal static class CompositionRoot
         services.AddSingleton(_ => PlatformServices.CreateLauncher());
         services.AddSingleton<INativeNotificationService, NativeNotificationService>();
         services.AddSingleton<IFileOwnershipProvider, FileOwnershipProvider>();
+        // Preview and Properties: each created on first use (the space bar, a media thumbnail, a Properties tab).
+        services.AddSingleton(_ => PlatformServices.CreateQuickLook());
+        services.AddSingleton(_ => PlatformServices.CreateThumbnailer());
+        services.AddSingleton(_ => PlatformServices.CreateAudioPlayer());
+        services.AddSingleton(_ => PlatformServices.CreateSignatureVerifier());
+        services.AddSingleton(provider => PlatformServices.CreateSecurityInfo(provider.GetRequiredService<IFileOwnershipProvider>()));
+        services.AddSingleton(_ => PlatformServices.CreateAppCompatibility());
+        services.AddSingleton(_ => PlatformServices.CreateFolderIcons());
         services.AddSingleton(provider => PlatformServices.CreateSystemIcons(provider.GetRequiredService<IPlatformInfo>(), provider.GetRequiredService<IKnownFolderProvider>()));
         services.AddSingleton(_ => PlatformServices.CreateShellMenus());
         services.AddSingleton(_ => PlatformServices.CreateFileClipboard());
@@ -98,6 +106,13 @@ internal static class CompositionRoot
         services.AddSingleton<IUiDispatcher, AvaloniaDispatcher>();
         services.AddSingleton<WindowService>();
         services.AddSingleton<IWindowService>(provider => provider.GetRequiredService<WindowService>());
+        services.AddSingleton(provider => new Navigator.Presentation.Details.PropertiesServices(
+            provider.GetRequiredService<Localizer>(),
+            provider.GetRequiredService<IFileOwnershipProvider>(),
+            provider.GetRequiredService<ISecurityInfoProvider>(),
+            provider.GetRequiredService<ISignatureVerifier>(),
+            provider.GetRequiredService<IAppCompatibilityStore>(),
+            provider.GetRequiredService<IFolderIconService>()));
         services.AddSingleton<IDialogService, DialogService>();
         services.AddSingleton<IClipboardService, ClipboardService>();
         services.AddSingleton<ThumbnailProvider>();

@@ -56,6 +56,14 @@ Originality scan: 0 matching code windows against Files app sources — see `doc
   address bar. Path logic (`ColumnTrail`, `ColumnOrder`), toolbar arrangement and settings search are unit-tested
   (tests written; not run in this environment, which had no .NET SDK); the Avalonia parts are written, not compiled.
 
+- Preview and properties (2026-11-28): quick look with the space bar (built-in window; QuickLook, Seer, PowerToys
+  Peek, macOS Quick Look, GNOME Sushi), rendered Markdown, PDF/media/Office previews with details, audio playback,
+  thumbnails of videos/PDFs/documents/album art with disk caching, Properties tabs Security, Digital signatures,
+  Compatibility and Customize (folder icon). Readers (`MediaInfoReader`, `PdfInfoReader`, `OfficeDocumentReader`,
+  `AuthenticodeReader`, `MarkdownParser`, `CompatibilityLayers`, `IniText`) are unit-tested (21 tests, run against
+  the MSTest shim) and were exercised on real ffmpeg/python-docx/reportlab output and Microsoft-signed DLLs; Core,
+  Platform and Presentation build with warnings as errors; the Avalonia views are written, not compiled.
+
 ## In progress / next (in order)
 
 1. Build `Navigator.App` with NuGet access and fix compile errors.

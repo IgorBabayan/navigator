@@ -8,16 +8,41 @@
   <Border Classes="layer" BorderThickness="1,1,0,0" CornerRadius="0" Margin="4,0,0,0" c:Motion.Enter="True">
     <ScrollViewer>
       <StackPanel Margin="20" Spacing="12">
-        <Panel Height="200">
-          <c:IconView Kind="{Binding IconKey}" Width="96" Height="96" IsVisible="{Binding !IsImage}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-          <Image Source="{Binding Image, Converter={x:Static v:ImageConverter.Instance}}" IsVisible="{Binding IsImage}" Stretch="Uniform" />
+        <!-- Picture: photo, video frame, PDF or document page, album art; the type icon otherwise. -->
+        <Panel MinHeight="120" MaxHeight="320">
+          <c:IconView Kind="{Binding IconKey}" Width="96" Height="96" IsVisible="{Binding !HasImage}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          <Image Source="{Binding Image, Converter={x:Static v:ImageConverter.Instance}}" IsVisible="{Binding HasImage}" Stretch="Uniform" MaxHeight="320" />
         </Panel>
-        <TextBlock Classes="subtitle" Text="{Binding Title}" TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center" />
+        <StackPanel Spacing="2">
+          <TextBlock Classes="subtitle" Text="{Binding Title}" TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center" />
+          <TextBlock Classes="caption" Text="{Binding Subtitle}" TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center" />
+        </StackPanel>
         <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsLoading}" />
+
+        <Button Classes="accent" HorizontalAlignment="Center" IsVisible="{Binding CanPlay}" Command="{Binding TogglePlaybackCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <c:IconView Kind="Play" IsVisible="{Binding !IsPlaying}" />
+            <c:IconView Kind="Stop" IsVisible="{Binding IsPlaying}" />
+            <TextBlock Text="{c:Tr Preview.Play}" IsVisible="{Binding !IsPlaying}" VerticalAlignment="Center" />
+            <TextBlock Text="{c:Tr Preview.Stop}" IsVisible="{Binding IsPlaying}" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+
+        <Border Classes="card" Padding="12" IsVisible="{Binding IsMarkdown}" MaxHeight="480">
+          <ScrollViewer>
+            <c:MarkdownView Blocks="{Binding Markdown}" />
+          </ScrollViewer>
+        </Border>
 
         <Border Classes="card" Padding="12" IsVisible="{Binding IsText}" MaxHeight="320">
           <ScrollViewer>
             <SelectableTextBlock Text="{Binding Text}" FontFamily="Cascadia Mono, Consolas, Menlo, DejaVu Sans Mono, monospace" FontSize="{DynamicResource Font.Caption}" TextWrapping="Wrap" />
+          </ScrollViewer>
+        </Border>
+
+        <Border Classes="card" Padding="12" IsVisible="{Binding IsDocumentText}" MaxHeight="320">
+          <ScrollViewer>
+            <SelectableTextBlock Text="{Binding Text}" FontSize="{DynamicResource Font.Caption}" TextWrapping="Wrap" />
           </ScrollViewer>
         </Border>
 

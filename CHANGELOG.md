@@ -8,6 +8,31 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
 
 ### Added
 
+- Quick look with the space bar (Settings → Files and folders → Quick look). With "Automatic" a running external
+  previewer gets the selected file — QuickLook (QL-Win, through its pipe, following the selection), Seer or PowerToys
+  Peek on Windows, Quick Look (`qlmanage`) on macOS — and Navigator's own Quick Look window is used otherwise. Each can
+  also be chosen explicitly (GNOME Sushi on Linux). The built-in window shows the same preview as the pane, larger:
+  arrow keys move through the folder, Enter opens the file, Space or Escape closes it. The space bar keeps its usual
+  meaning on buttons, check boxes, in text boxes and while a type-to-select prefix is being typed.
+- Richer previews (preview pane and Quick Look): rendered Markdown (headings, emphasis, code, quotes, lists, tables);
+  PDFs (first page from the platform, plus version, pages, title, author, producer); videos (a frame plus duration,
+  resolution, codecs, bit rate) and audio (album art, tags, duration, sample rate, channels, with Play/Stop) for MP3,
+  FLAC, WAV, Ogg/Opus, MP4/M4A/MOV, Matroska/WebM and AVI; Office Open XML and OpenDocument files (the saved page
+  thumbnail or the platform's, plus title, author, pages/words/slides/sheets and the text of the first pages or
+  cells). Media, PDF and document details are read from headers only (a few small reads, no extra dependency).
+- Thumbnails of videos, PDFs, documents and album art in icon and tile layouts (setting, on by default): embedded
+  pictures first, then the Windows shell's thumbnail handlers, macOS Quick Look, or on Linux the freedesktop.org shared
+  thumbnail cache, `pdftoppm` and `ffmpegthumbnailer`/`ffmpeg`. Every result, including "none", is kept in the
+  thumbnail disk cache; details and list rows keep the type icon so scrolling long lists starts no extra work.
+- Properties window tabs, each loaded only when opened: **Security** (owner, group, Windows access rules with a link
+  to the system editor; Unix permissions editable as check boxes, extended ACL entries via `getfacl` / `ls -le`),
+  **Digital signatures** (WinVerifyTrust offline on Windows including catalog-signed system files, codesign/pkgutil
+  on macOS, Authenticode decoding elsewhere: signer, issuer, signing time, digest, certificate path), **Compatibility**
+  for Windows programs (compatibility mode, reduced color, 640 × 480, fullscreen optimizations, run as administrator,
+  high-DPI override — the same per-user AppCompat layers Explorer writes, other layers kept) and **Customize** for
+  folders (change or restore the folder icon: desktop.ini on Windows, GIO metadata or KDE .directory on Linux,
+  NSWorkspace on macOS). On Windows, folders with a custom icon now show it in Navigator's lists too.
+
 - Column (Miller) layout (Layout → Columns, Ctrl+Shift+6): the current folder is the rightmost column with the full
   list (selection, menus, rename, drag and drop), and each folder on the way to it gets a column on its left with the
   open entry highlighted. Clicking a folder (or Right) opens it as the next column, Left goes back one column, a

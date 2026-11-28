@@ -1,0 +1,73 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="using:Navigator.App.Controls"
+        xmlns:v="using:Navigator.App.Views"
+        xmlns:d="using:Navigator.Presentation.Details"
+        x:Class="Navigator.App.Views.QuickLookWindow"
+        x:DataType="d:PreviewViewModel"
+        Title="{Binding Title}"
+        Width="1000" Height="720" MinWidth="420" MinHeight="320"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        Background="{DynamicResource Brush.Card}">
+  <!-- Built-in Quick Look: Space or Escape closes, arrow keys move through the folder (see QuickLookWindow.axaml.cs). -->
+  <DockPanel>
+    <Border DockPanel.Dock="Top" Classes="dialog-footer" BorderThickness="0,0,0,1" Padding="16,10">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <c:IconView Kind="{Binding IconKey}" Width="28" Height="28" VerticalAlignment="Center" />
+        <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
+          <TextBlock Classes="subtitle" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+          <TextBlock Classes="caption" Text="{Binding Subtitle}" TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Button Classes="accent" IsVisible="{Binding CanPlay}" Command="{Binding TogglePlaybackCommand}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <c:IconView Kind="Play" IsVisible="{Binding !IsPlaying}" />
+              <c:IconView Kind="Stop" IsVisible="{Binding IsPlaying}" />
+              <TextBlock Text="{c:Tr Preview.Play}" IsVisible="{Binding !IsPlaying}" VerticalAlignment="Center" />
+              <TextBlock Text="{c:Tr Preview.Stop}" IsVisible="{Binding IsPlaying}" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+          <Button Content="{c:Tr Preview.Open}" Command="{Binding OpenCommand}" />
+          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Dialog.Close}" Click="OnClose">
+            <c:IconView Kind="Close" />
+          </Button>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <TextBlock DockPanel.Dock="Bottom" Classes="caption" Text="{c:Tr Preview.QuickLookHint}" HorizontalAlignment="Center" Margin="0,6,0,8" />
+
+    <Grid ColumnDefinitions="*,Auto">
+      <Panel Margin="20">
+        <Image Source="{Binding Image, Converter={x:Static v:ImageConverter.Instance}}" IsVisible="{Binding HasImage}" Stretch="Uniform" StretchDirection="DownOnly" />
+        <c:IconView Kind="{Binding IconKey}" Width="128" Height="128" IsVisible="{Binding ShowLargeIcon}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        <ScrollViewer IsVisible="{Binding IsMarkdown}">
+          <c:MarkdownView Blocks="{Binding Markdown}" MaxWidth="860" HorizontalAlignment="Left" />
+        </ScrollViewer>
+        <ScrollViewer IsVisible="{Binding IsText}" HorizontalScrollBarVisibility="Auto">
+          <SelectableTextBlock Text="{Binding Text}" FontFamily="Cascadia Mono, Consolas, Menlo, DejaVu Sans Mono, monospace" TextWrapping="NoWrap" />
+        </ScrollViewer>
+        <ScrollViewer IsVisible="{Binding ShowDocumentTextOnly}">
+          <SelectableTextBlock Text="{Binding Text}" TextWrapping="Wrap" MaxWidth="860" HorizontalAlignment="Left" />
+        </ScrollViewer>
+        <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsLoading}" VerticalAlignment="Top" />
+      </Panel>
+
+      <Border Grid.Column="1" Width="280" BorderBrush="{DynamicResource Brush.Stroke}" BorderThickness="1,0,0,0">
+        <ScrollViewer>
+          <ItemsControl ItemsSource="{Binding Properties}" Margin="16">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="d:PropertyRow">
+                <StackPanel Margin="0,4">
+                  <TextBlock Classes="caption" Text="{Binding Label}" />
+                  <SelectableTextBlock Text="{Binding Value}" TextWrapping="Wrap" />
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </Border>
+    </Grid>
+  </DockPanel>
+</Window>

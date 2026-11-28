@@ -252,6 +252,15 @@ public sealed class FilesAndFoldersSettings
 
     public bool ShowThumbnails { get; set; } = true;
 
+    /// <summary>
+    /// Thumbnails of videos, PDFs, Office documents and album art (made by the platform's thumbnailers, kept in the disk
+    /// cache). Shown in icon and tile layouts only; the details and list layouts keep the type icon.
+    /// </summary>
+    public bool ShowMediaThumbnails { get; set; } = true;
+
+    /// <summary>What the space bar opens for the selected item.</summary>
+    public Platform.QuickLookProvider QuickLook { get; set; } = Platform.QuickLookProvider.Automatic;
+
     public bool ShowCheckBoxes { get; set; }
 
     public bool OpenItemsWithSingleClick { get; set; }

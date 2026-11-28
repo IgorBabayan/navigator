@@ -66,7 +66,8 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Hidden / protected system items, file extensions toggles | ✅ | 🟦 | ✓ | ✓ | ✓ | |
 | Incremental live updates (file system watcher) | ✅ | 🟦 | ✓ | ✓ | ✓ | `DirectoryMonitor` + binary-search apply |
 | OS icons for file types and folders (setting) | ✅ | 🟦 | 🟦 | ✅ | 🟦 | Windows shell image lists by type (programs/shortcuts per file); Linux icon theme (GIO + gdk-pixbuf, verified on Adwaita/Humanity); macOS NSWorkspace (not run yet) |
-| Thumbnails (images) | 🟨 | 🟦 | ✓ | ✓ | ✓ | images decoded by Avalonia, memory LRU only; no video/PDF/OS thumbnails, no disk cache |
+| Thumbnails (images) | 🟦 | 🟦 | ✓ | ✓ | ✓ | images decoded by Avalonia at display size; memory LRU + disk cache (images > 256 KB) |
+| Thumbnails of videos, PDFs, documents, album art + disk cache | ✅ | 🟦 | 🟦 | ✅ | 🟦 | icon/tile layouts only (≥ 64 px); embedded art (`MediaInfoReader`, `OfficeDocumentReader`, tested) → Windows `IShellItemImageFactory` / macOS `qlmanage -t` / Linux freedesktop cache + `pdftoppm` + `ffmpegthumbnailer`/`ffmpeg` (Linux ffmpeg path run here); negative results cached |
 | Folder sizes (opt-in) | ✅ | 🟦 | ✓ | ✓ | ✓ | low-priority background |
 | Filter current folder | ✅ | 🟦 | ✓ | ✓ | ✓ | `NameFilter` |
 | Selection: click, Ctrl, Shift ranges, select all/invert/clear | ✅ | 🟦 | ✓ | ✓ | ✓ | `ItemSelection` |
@@ -121,11 +122,15 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 
 | Feature | Logic | UI | W | L | M | Notes |
 |---|---|---|---|---|---|---|
-| Preview pane: image, text/Markdown source, folder summary, multi-select summary | ✅ | 🟦 | ✓ | ✓ | ✓ | |
-| Rendered Markdown, PDF, media, Office previews | ⬜ | ⬜ | | | | |
+| Preview pane: image, text, folder summary, multi-select summary | ✅ | 🟦 | ✓ | ✓ | ✓ | |
+| Quick look with the space bar (built-in window; QuickLook, Seer, PowerToys Peek; macOS Quick Look; GNOME Sushi) | 🟦 | 🟦 | 🟦 | 🟦 | 🟦 | `ShellViewModel.ToggleQuickLookAsync`, `QuickLookService`, `QuickLookWindow`; only while the file list has focus |
+| Rendered Markdown, PDF, media (audio/video), Office/OpenDocument previews | ✅ | 🟦 | ✓ | ✓ | ✓ | `MarkdownParser`, `PdfInfoReader`, `MediaInfoReader`, `OfficeDocumentReader` (tested on synthetic and real encoder output); audio playback via MCI / afplay / ffplay·mpv·gst-play·paplay; no in-app video playback (a frame + details, Open plays it) |
 | Details: size, dates, attributes/permissions, owner | 🟨 | 🟦 | 🟦 | 🟦 | 🟦 | owner via `stat(1)` on Unix |
 | Properties window (general, hashes, tags) | 🟦 | 🟦 | ✓ | ✓ | ✓ | |
-| Editing permissions/ACLs | ⬜ | ⬜ | | | | |
+| Properties → Security (owner, ACL entries; Unix mode editing; extended ACLs) | 🟦 | 🟦 | 🟦 | 🟦 | 🟦 | Windows ACLs read-only here, "Advanced…" opens Explorer's Security page; Unix chmod; getfacl / `ls -le` |
+| Properties → Digital signatures | ✅ | 🟦 | 🟦 | 🟨 | 🟦 | `AuthenticodeReader` (tested, also on real Microsoft-signed files); WinVerifyTrust + catalogs (Windows), codesign/pkgutil (macOS); Linux decodes only (status "not verified") |
+| Properties → Compatibility (Windows programs) | ✅ | 🟦 | 🟦 | ➖ | ➖ | `CompatibilityLayers` (tested), HKCU AppCompatFlags\Layers |
+| Properties → Customize: folder icon | ✅ | 🟦 | 🟦 | 🟦 | 🟦 | desktop.ini (`IniText`, tested) / GIO metadata · KDE .directory / NSWorkspace |
 
 ## Search and tags
 

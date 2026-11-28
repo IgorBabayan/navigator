@@ -69,6 +69,8 @@ public static class SettingsSearch
         new("files", "Settings.ShowFileExtensions"),
         new("files", "Settings.UseSystemIcons"),
         new("files", "Settings.ShowThumbnails"),
+        new("files", "Settings.ShowMediaThumbnails", "Settings.ShowMediaThumbnailsDescription"),
+        new("files", "Settings.QuickLook", "Settings.QuickLookDescription"),
         new("files", "Settings.SingleClick"),
         new("files", "Settings.DoubleClickUp"),
         new("files", "Settings.FolderSizes"),

@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using Navigator.Core.Collections;
 using Navigator.Core.Navigation;
 using Navigator.Core.Operations;
+using Navigator.Core.Platform;
 using Navigator.Core.Settings;
 using Navigator.Core.Sorting;
 using Navigator.Presentation.Commands;
@@ -24,6 +25,10 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
     private readonly BoundedStack<TabSession> _recentlyClosed = new(RecentlyClosedCapacity);
     private TabViewModel? _selectedTab;
     private bool _isPreviewVisible;
+    private PreviewViewModel? _quickLook;
+    private bool _isQuickLookOpen;
+    private QuickLookProvider? _externalQuickLook;
+    private PaneViewModel? _selectionSource;
     private bool _isCommandPaletteOpen;
     private bool _isAlwaysOnTop;
     private bool _isCompactOverlay;
@@ -60,6 +65,7 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
         ToggleSplitViewCommand = new RelayCommand(() => SelectedTab?.ToggleSplit());
         ToggleSidebarCommand = new RelayCommand(() => Sidebar.IsVisible = !Sidebar.IsVisible);
         TogglePreviewCommand = new RelayCommand(() => IsPreviewVisible = !IsPreviewVisible);
+        QuickLookCommand = new AsyncRelayCommand(ToggleQuickLookAsync);
         ToggleHiddenItemsCommand = new RelayCommand(ToggleHiddenItems);
         OpenSettingsCommand = new RelayCommand(() => _services.Windows.OpenSettings());
         OpenPluginShopCommand = new RelayCommand(() => _services.Windows.OpenSettings("plugins"));
@@ -205,6 +211,27 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
     public IRelayCommand ToggleSidebarCommand { get; }
 
     public IRelayCommand TogglePreviewCommand { get; }
+
+    /// <summary>Space bar: previews the selection in the chosen previewer (Settings → Files and folders → Quick Look).</summary>
+    public IAsyncRelayCommand QuickLookCommand { get; }
+
+    /// <summary>The built-in Quick Look window's content; created the first time the window opens.</summary>
+    public PreviewViewModel QuickLook => _quickLook ??= CreateQuickLook();
+
+    /// <summary>The built-in Quick Look window is shown (the window follows this flag; closing it clears it).</summary>
+    public bool IsQuickLookOpen
+    {
+        get => _isQuickLookOpen;
+        set
+        {
+            if (!SetProperty(ref _isQuickLookOpen, value))
+                return;
+            if (value && ActivePane is { } pane)
+                QuickLook.Attach(pane);
+            if (_quickLook is not null)
+                _quickLook.IsEnabled = value;
+        }
+    }
 
     public IRelayCommand ToggleHiddenItemsCommand { get; }
 
@@ -431,6 +458,7 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
             case "view.splitPane": ToggleSplitViewCommand.Execute(null); break;
             case "view.sidebar": ToggleSidebarCommand.Execute(null); break;
             case "view.previewPane": TogglePreviewCommand.Execute(null); break;
+            case "item.quickLook": QuickLookCommand.Execute(null); break;
             case "view.hiddenItems": ToggleHiddenItems(); break;
             case "view.details": pane?.SetLayoutCommand.Execute(FolderLayout.Details); break;
             case "view.list": pane?.SetLayoutCommand.Execute(FolderLayout.List); break;
@@ -530,9 +558,67 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
         {
             Sidebar.SyncSelection(pane.Location);
             Preview.Attach(pane);
+            if (_isQuickLookOpen)
+                QuickLook.Attach(pane);
+            if (!ReferenceEquals(_selectionSource, pane))
+            {
+                if (_selectionSource is not null)
+                    _selectionSource.SelectionChanged -= OnActiveSelectionChanged;
+                _selectionSource = pane;
+                pane.SelectionChanged += OnActiveSelectionChanged;
+            }
             pane.Navigated -= OnPaneNavigated;
             pane.Navigated += OnPaneNavigated;
         }
+    }
+
+    private PreviewViewModel CreateQuickLook()
+        => new(_services, PreviewViewModel.QuickLookImageSize, TimeSpan.FromMilliseconds(40));
+
+    /// <summary>
+    /// Opens or closes the preview of the focused item. External previewers (QuickLook, Seer, PowerToys Peek, macOS
+    /// Quick Look, Sushi) get the file when chosen — or, with "Automatic", when one is running; Navigator's own window is
+    /// used otherwise and whenever the external one cannot be reached.
+    /// </summary>
+    public async Task ToggleQuickLookAsync()
+    {
+        if (_isQuickLookOpen)
+        {
+            IsQuickLookOpen = false;
+            return;
+        }
+
+        if (ActivePane is not { } pane || ((pane.Selection.SelectedItems is { Count: > 0 } selected ? selected[0] : null) ?? pane.Selection.FocusedItem) is not { } item)
+            return;
+
+        var setting = _services.Settings.Current.FilesAndFolders.QuickLook;
+        var external = setting switch
+        {
+            QuickLookProvider.BuiltIn => null,
+            QuickLookProvider.Automatic => _services.QuickLook.ResolveAutomatic(),
+            _ => setting,
+        };
+
+        if (external is { } provider && !item.Entry.IsRemote)
+        {
+            if (await _services.QuickLook.ToggleAsync(provider, item.FullPath).ConfigureAwait(true))
+            {
+                _externalQuickLook = provider;
+                return;
+            }
+
+            _externalQuickLook = null;
+        }
+
+        IsQuickLookOpen = true;
+    }
+
+    /// <summary>Selection moved while an external previewer shows a file: it follows, like it does in Explorer/Finder.</summary>
+    private void OnActiveSelectionChanged(object? sender, EventArgs e)
+    {
+        if (_externalQuickLook is not { } provider || sender is not PaneViewModel pane || pane.Selection.SelectedItems is not [{ Entry.IsRemote: false } item])
+            return;
+        _ = _services.QuickLook.SwitchAsync(provider, item.FullPath);
     }
 
     private void OnPaneNavigated(object? sender, EventArgs e)
@@ -591,6 +677,10 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
         Sidebar.Dispose();
         Operations.Dispose();
         Preview.Dispose();
+        _quickLook?.Dispose();
+        if (_selectionSource is not null)
+            _selectionSource.SelectionChanged -= OnActiveSelectionChanged;
+        _selectionSource = null;
     }
 }
 

@@ -244,6 +244,24 @@
     <Setter Property="BorderBrush" Value="{DynamicResource Brush.Stroke}" />
     <Setter Property="BorderThickness" Value="0,1,0,0" />
   </Style>
+  <!-- Rendered Markdown (preview pane, Quick Look): MarkdownView builds these blocks in code. -->
+  <Style Selector="Border.md-code">
+    <Setter Property="Background" Value="{DynamicResource Brush.Card}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Stroke}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{StaticResource Radius.Control}" />
+    <Setter Property="Padding" Value="10,8" />
+  </Style>
+  <Style Selector="Border.md-quote">
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent.Brush}" />
+    <Setter Property="BorderThickness" Value="3,0,0,0" />
+    <Setter Property="Padding" Value="10,2,0,2" />
+  </Style>
+  <Style Selector="Border.md-rule">
+    <Setter Property="Background" Value="{DynamicResource Brush.Stroke}" />
+    <Setter Property="Height" Value="1" />
+    <Setter Property="Margin" Value="0,4" />
+  </Style>
   <Style Selector="Window.dialog">
     <Setter Property="Background" Value="{DynamicResource Brush.Card}" />
   </Style>

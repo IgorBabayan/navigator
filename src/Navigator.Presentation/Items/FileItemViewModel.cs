@@ -36,7 +36,14 @@ public sealed class ItemDisplayContext(Localizer localizer, bool showExtensions,
         if (_systemIcons is null)
             return null;
         if (entry.IsDirectory)
-            return FolderIcon;
+        {
+            // Windows reads a folder's desktop.ini (custom icon) only when the folder is marked read-only or system;
+            // those few folders get their own icon, every other folder shares one. Costs no I/O: the flags come with the listing.
+            return OperatingSystem.IsWindows() && !entry.IsRemote && (entry.Attributes & (FileAttributes.ReadOnly | FileAttributes.System)) != 0
+                ? SystemIconKey.ForPath(entry.FullPath)
+                : FolderIcon;
+        }
+
         var extension = entry.Extension;
         if (!entry.IsRemote && _systemIcons.HasOwnIcon(extension))
             return SystemIconKey.ForPath(entry.FullPath);

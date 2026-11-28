@@ -722,6 +722,14 @@ public sealed partial class PaneViewModel
     /// <summary>Asks the view to bring an item into view (after paste, create, rename, type-to-select).</summary>
     public event EventHandler<FileItemViewModel>? ScrollIntoViewRequested;
 
+    /// <summary>Moves the focus and selection by <paramref name="delta"/> items and brings it into view (Quick Look window's arrow keys).</summary>
+    public void StepSelection(int delta)
+    {
+        Selection.MoveFocus(delta, shift: false, control: false);
+        if (Selection.FocusedItem is { } item)
+            ScrollIntoViewRequested?.Invoke(this, item);
+    }
+
     internal void FlushPendingSelection()
     {
         if (_pendingSelection is not { } pending)

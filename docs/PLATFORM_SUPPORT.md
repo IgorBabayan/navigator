@@ -22,6 +22,13 @@ All builds are self-contained (.NET runtime included) and ReadyToRun-compiled; n
 | Reveal in system manager | `explorer /select,` | `dbus-send` FileManager1 → `xdg-open` parent | `open -R` |
 | Notifications | in-app toast | `notify-send` (libnotify) | `osascript display notification` |
 | File owner | — | `stat -c %U` | `stat -f %Su` |
+| Quick look (space bar) | QuickLook pipe, Seer `WM_COPYDATA`, PowerToys Peek (`PowerToys.Peek.UI.exe <file>`), built-in window | GNOME Sushi (D-Bus, when chosen), built-in window | `qlmanage -p`, built-in window |
+| Media/PDF/document thumbnails | `IShellItemImageFactory` (thumbnail handlers and cache) | freedesktop shared cache, `pdftoppm`, `ffmpegthumbnailer`/`ffmpeg` | `qlmanage -t` |
+| Audio preview playback | MCI (winmm) | `ffplay`, `mpv`, `gst-play-1.0` or `paplay` | `afplay` |
+| Security tab | ACL via `FileSystemSecurity`; Explorer's Security page (`SHObjectProperties`) | mode (chmod), `getfacl` | mode (chmod), `ls -led` |
+| Digital signatures | `WinVerifyTrust` (offline) + security catalogs | Authenticode decoding only | `codesign`, `pkgutil --check-signature` |
+| Compatibility tab | HKCU `AppCompatFlags\Layers` | — | — |
+| Folder icon | `desktop.ini` + `SHChangeNotify` | GIO `metadata::custom-icon` or KDE `.directory` | `NSWorkspace setIcon:forFile:options:` |
 | Sidebar/Home icons | shell stock icons + known-folder icons (`SHGetStockIconInfo`, `SHGetFileInfoW`, `SHGetImageList`) on a background STA thread | Navigator icon set | Navigator icon set |
 | Window chrome | extended client area, native caption buttons, Mica/Acrylic | extended client area where the WM supports it, native decorations otherwise | traffic lights inset into the title bar |
 | Data directories | `%APPDATA%\Navigator` (settings), `%LOCALAPPDATA%\Navigator\Cache` and `\Logs` | `$XDG_CONFIG_HOME/navigator`, `$XDG_CACHE_HOME/navigator`, `$XDG_STATE_HOME/navigator/logs` | `~/Library/Application Support/Navigator`, `~/Library/Caches/Navigator`, `~/Library/Logs/Navigator` |

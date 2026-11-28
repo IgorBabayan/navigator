@@ -212,6 +212,7 @@
               <CheckBox Content="{c:Tr Settings.ShowFileExtensions}" IsChecked="{Binding ShowFileExtensions}" />
               <CheckBox Content="{c:Tr Settings.UseSystemIcons}" IsChecked="{Binding UseSystemIcons}" />
               <CheckBox Content="{c:Tr Settings.ShowThumbnails}" IsChecked="{Binding ShowThumbnails}" />
+              <CheckBox IsChecked="{Binding ShowMediaThumbnails}" IsEnabled="{Binding ShowThumbnails}" Margin="24,0,0,0" ToolTip.Tip="{c:Tr Settings.ShowMediaThumbnailsDescription}" Content="{c:Tr Settings.ShowMediaThumbnails}" />
               <CheckBox Content="{c:Tr Settings.ShowCheckBoxes}" IsChecked="{Binding ShowCheckBoxes}" />
               <CheckBox Content="{c:Tr Settings.ShowTagsColumn}" IsChecked="{Binding ShowFileTagsColumn}" /></StackPanel></Border>
             <Border Classes="setting"><StackPanel Spacing="4">
@@ -219,6 +220,8 @@
               <CheckBox Content="{c:Tr Settings.DoubleClickUp}" IsChecked="{Binding DoubleClickEmptyAreaGoesUp}" />
               <CheckBox Content="{c:Tr Settings.FolderSizes}" IsChecked="{Binding CalculateFolderSizes}" />
               <CheckBox Content="{c:Tr Settings.ConfirmDelete}" IsChecked="{Binding ConfirmDelete}" /></StackPanel></Border>
+            <Border Classes="setting"><Grid ColumnDefinitions="*,Auto"><StackPanel VerticalAlignment="Center"><TextBlock Text="{c:Tr Settings.QuickLook}" /><TextBlock Classes="description" Text="{c:Tr Settings.QuickLookDescription}" TextWrapping="Wrap" /></StackPanel>
+              <ComboBox Grid.Column="1" ItemsSource="{Binding QuickLookOptions}" SelectedItem="{Binding QuickLook}" VerticalAlignment="Center" /></Grid></Border>
             <TextBlock Classes="section" Text="{c:Tr Settings.DefaultView}" />
             <Border Classes="setting"><Grid ColumnDefinitions="*,Auto"><TextBlock Text="{c:Tr Command.Layout}" VerticalAlignment="Center" />
               <ComboBox Grid.Column="1" ItemsSource="{Binding Layouts}" SelectedItem="{Binding DefaultLayout}" /></Grid></Border>

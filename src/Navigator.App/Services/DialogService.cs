@@ -14,7 +14,7 @@ using Navigator.Presentation.Services;
 
 namespace Navigator.App.Services;
 
-internal sealed class DialogService(WindowService windows, Localizer localizer, IFileOwnershipProvider ownership) : IDialogService
+internal sealed class DialogService(WindowService windows, Localizer localizer, PropertiesServices properties) : IDialogService
 {
     private Window? Owner => windows.ActiveTopLevel;
 
@@ -445,7 +445,7 @@ internal sealed class DialogService(WindowService windows, Localizer localizer, 
 
     public void ShowProperties(IReadOnlyList<string> paths)
     {
-        var model = new PropertiesViewModel(paths, localizer, ownership);
+        var model = new PropertiesViewModel(paths, properties, (title, extensions) => PickFileAsync(title, extensions));
         var window = new PropertiesWindow { DataContext = model };
         window.Closed += (_, _) => model.Dispose();
         if (Owner is { } owner)

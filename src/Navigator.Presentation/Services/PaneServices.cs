@@ -35,6 +35,8 @@ public sealed class PaneServices(
     DirectoryListingCache directoryCache,
     RemoteFileService remote,
     Navigator.Plugins.PluginHost plugins,
+    IQuickLookService quickLook,
+    IAudioPreviewPlayer audioPlayer,
     ILoggerFactory loggerFactory)
 {
     public SettingsService Settings { get; } = settings;
@@ -91,6 +93,12 @@ public sealed class PaneServices(
 
     /// <summary>Plugin contributions (sidebar sections, file systems).</summary>
     public Navigator.Plugins.PluginHost Plugins { get; } = plugins;
+
+    /// <summary>External previewers the space bar can hand the selection to (QuickLook, Seer, Peek, macOS Quick Look…).</summary>
+    public IQuickLookService QuickLook { get; } = quickLook;
+
+    /// <summary>Plays audio files in the preview pane and the Quick Look window.</summary>
+    public IAudioPreviewPlayer AudioPlayer { get; } = audioPlayer;
 
     public ILoggerFactory LoggerFactory { get; } = loggerFactory;
 

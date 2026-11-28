@@ -165,6 +165,8 @@ public sealed class SettingsStore
         settings.Performance.MaxBackgroundWorkers = Math.Clamp(settings.Performance.MaxBackgroundWorkers, 1, Environment.ProcessorCount);
         settings.Updates.CheckIntervalHours = Math.Clamp(settings.Updates.CheckIntervalHours, 0, 24 * 30);
         settings.FilesAndFolders.FolderViews ??= [];
+        if (!Enum.IsDefined(settings.FilesAndFolders.QuickLook))
+            settings.FilesAndFolders.QuickLook = Platform.QuickLookProvider.Automatic;
         settings.FilesAndFolders.Columns ??= new FilesAndFoldersSettings().Columns;
         settings.Search.History ??= [];
         if (settings.Search.History.Count > 50)

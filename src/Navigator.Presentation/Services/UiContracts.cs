@@ -153,6 +153,15 @@ public interface IThumbnailProvider
 
     Task<object?> GetThumbnailAsync(FileEntry entry, int pixelSize, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Whether the preview pane can show a picture of the item: the image itself, a video frame, a PDF or document page,
+    /// album art. Unlike <see cref="CanCreateThumbnail"/> it ignores the thumbnail settings (the user asked to look).
+    /// </summary>
+    bool CanCreatePreviewImage(FileEntry entry);
+
+    /// <summary>The preview picture (longer side about <paramref name="pixelSize"/>), or null when none could be made.</summary>
+    Task<object?> GetPreviewImageAsync(FileEntry entry, int pixelSize, CancellationToken cancellationToken);
+
     /// <summary>Deletes the thumbnails stored on disk (Settings → Performance).</summary>
     Task ClearDiskCacheAsync();
 }

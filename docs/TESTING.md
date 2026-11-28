@@ -28,6 +28,7 @@ publishes all six RIDs as a smoke test. `release.yml` repeats the tests before b
 | 2026-11-25 | Ubuntu 24.04 container, .NET 10.0.115, **no nuget.org access** | New `ItemMenuPlannerTests` run against the same kind of shims (full suite not re-run in this session) | **11 passed, 0 failed** |
 | 2026-11-25 (later) | same | Whole `Navigator.UnitTests` suite (incl. new `PaneMenuTests`, `ExtractDestinationTests`; `ItemMenuPlannerTests` removed) against MSTest / CommunityToolkit.Mvvm / Logging shims | **245 passed, 0 failed** |
 | 2026-11-25 (icons, tags) | same | Whole `Navigator.UnitTests` suite incl. new `SystemIconTests` and Clear-tag tests; Linux OS-icon provider also run for real against Adwaita/Humanity themes (GIO, gdk-pixbuf, librsvg loader) | **256 passed, 0 failed** |
+| 2026-11-28 (preview, properties) | Ubuntu 24.04 container, .NET SDK 10.0.404, **no nuget.org access** | Whole `Navigator.UnitTests` suite incl. new `PreviewAndPropertiesTests` (media, document, PDF, Authenticode, compatibility, INI, Markdown) against MSTest / CommunityToolkit.Mvvm shims; readers also run on real files (ffmpeg-encoded MP3/FLAC/Ogg/Opus/WAV/M4A/MP4/MOV/MKV/WebM/AVI with album art, python-docx/openpyxl/python-pptx/odfpy/reportlab documents, Microsoft-signed DLLs) and the Linux ffmpeg thumbnail path | **328 passed, 1 failed** — the failure is `PluginApi_MatchesTheVersionPackagedPluginsAreBuiltAgainst`, which looks for the repository root above its output folder (the shim build lives outside the repository) |
 
 Caveats:
 

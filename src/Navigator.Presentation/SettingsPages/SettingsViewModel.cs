@@ -273,6 +273,7 @@ public sealed class SettingsViewModel : ObservableObject
         Layouts = [.. Enum.GetValues<FolderLayout>().Select(v => new Option<FolderLayout>(v, localizer["Layout." + v]))];
         SortColumns = [.. Enum.GetValues<SortColumn>().Select(v => new Option<SortColumn>(v, localizer["Sort." + v]))];
         GroupOptions = [.. Enum.GetValues<GroupBy>().Select(v => new Option<GroupBy>(v, localizer["GroupBy." + v]))];
+        QuickLookOptions = [.. QuickLookChoices().Select(v => new Option<Navigator.Core.Platform.QuickLookProvider>(v, localizer[QuickLookTextKey(v)]))];
         Channels = [.. Enum.GetValues<UpdateChannel>().Select(v => new Option<UpdateChannel>(v, localizer["Channel." + v]))];
         LogLevels = [.. Enum.GetValues<LogVerbosity>().Select(v => new Option<LogVerbosity>(v, localizer["LogLevel." + v]))];
         AccentPresets = ["#0078D4", "#0063B1", "#8764B8", "#E3008C", "#E81123", "#F7630C", "#CA5010", "#498205", "#00B7C3", "#2D7D9A", "#5D5A58"];
@@ -375,6 +376,9 @@ public sealed class SettingsViewModel : ObservableObject
     public IReadOnlyList<Option<SortColumn>> SortColumns { get; }
 
     public IReadOnlyList<Option<GroupBy>> GroupOptions { get; }
+
+    /// <summary>Previewers offered for the space bar on this platform.</summary>
+    public IReadOnlyList<Option<Navigator.Core.Platform.QuickLookProvider>> QuickLookOptions { get; }
 
     public IReadOnlyList<Option<UpdateChannel>> Channels { get; }
 
@@ -658,6 +662,28 @@ public sealed class SettingsViewModel : ObservableObject
 
     public bool ShowThumbnails { get => S.FilesAndFolders.ShowThumbnails; set => Set("filesAndFolders", value, s => s.FilesAndFolders.ShowThumbnails, (s, v) => s.FilesAndFolders.ShowThumbnails = v); }
 
+    public bool ShowMediaThumbnails { get => S.FilesAndFolders.ShowMediaThumbnails; set => Set("filesAndFolders", value, s => s.FilesAndFolders.ShowMediaThumbnails, (s, v) => s.FilesAndFolders.ShowMediaThumbnails = v); }
+
+    public Option<Navigator.Core.Platform.QuickLookProvider> QuickLook
+    {
+        get => QuickLookOptions.FirstOrDefault(o => o.Value == S.FilesAndFolders.QuickLook) ?? QuickLookOptions[0];
+        set { if (value is not null) Set("filesAndFolders", value.Value, s => s.FilesAndFolders.QuickLook, (s, v) => s.FilesAndFolders.QuickLook = v); }
+    }
+
+    internal static IReadOnlyList<Navigator.Core.Platform.QuickLookProvider> QuickLookChoices()
+    {
+        if (OperatingSystem.IsWindows())
+            return [Navigator.Core.Platform.QuickLookProvider.Automatic, Navigator.Core.Platform.QuickLookProvider.BuiltIn, Navigator.Core.Platform.QuickLookProvider.PowerToysPeek, Navigator.Core.Platform.QuickLookProvider.QuickLook, Navigator.Core.Platform.QuickLookProvider.Seer];
+        if (OperatingSystem.IsMacOS() || OperatingSystem.IsLinux())
+            return [Navigator.Core.Platform.QuickLookProvider.Automatic, Navigator.Core.Platform.QuickLookProvider.BuiltIn, Navigator.Core.Platform.QuickLookProvider.System];
+        return [Navigator.Core.Platform.QuickLookProvider.Automatic, Navigator.Core.Platform.QuickLookProvider.BuiltIn];
+    }
+
+    internal static string QuickLookTextKey(Navigator.Core.Platform.QuickLookProvider provider)
+        => provider == Navigator.Core.Platform.QuickLookProvider.System
+            ? OperatingSystem.IsMacOS() ? "QuickLook.SystemMac" : "QuickLook.SystemLinux"
+            : "QuickLook." + provider;
+
     public bool ShowCheckBoxes { get => S.FilesAndFolders.ShowCheckBoxes; set => Set("filesAndFolders", value, s => s.FilesAndFolders.ShowCheckBoxes, (s, v) => s.FilesAndFolders.ShowCheckBoxes = v); }
 
     public bool OpenItemsWithSingleClick { get => S.FilesAndFolders.OpenItemsWithSingleClick; set => Set("filesAndFolders", value, s => s.FilesAndFolders.OpenItemsWithSingleClick, (s, v) => s.FilesAndFolders.OpenItemsWithSingleClick = v); }
@@ -865,6 +891,7 @@ public sealed class SettingsViewModel : ObservableObject
         Register(nameof(DefaultLayout), "filesAndFolders", (s, d) => s.FilesAndFolders.DefaultLayout = d.FilesAndFolders.DefaultLayout);
         Register(nameof(DefaultSortColumn), "filesAndFolders", (s, d) => s.FilesAndFolders.DefaultSortColumn = d.FilesAndFolders.DefaultSortColumn);
         Register(nameof(DefaultGroupBy), "filesAndFolders", (s, d) => s.FilesAndFolders.DefaultGroupBy = d.FilesAndFolders.DefaultGroupBy);
+        Register(nameof(QuickLook), "filesAndFolders", (s, d) => s.FilesAndFolders.QuickLook = d.FilesAndFolders.QuickLook);
         Register(nameof(MaxConcurrentOperations), "operations", (s, d) => s.Operations.MaxConcurrentOperations = d.Operations.MaxConcurrentOperations);
         Register(nameof(SearchMaxResults), "search", (s, d) => s.Search.MaxResults = d.Search.MaxResults);
         Register(nameof(ThumbnailMemoryCacheMegabytes), "performance", (s, d) => s.Performance.ThumbnailMemoryCacheMegabytes = d.Performance.ThumbnailMemoryCacheMegabytes);

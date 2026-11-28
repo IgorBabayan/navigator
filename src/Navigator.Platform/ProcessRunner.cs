@@ -136,6 +136,53 @@ internal static class ProcessRunner
         }
     }
 
+    /// <summary>
+    /// Runs a short command and returns its exit code with both standard output and standard error (tools such as
+    /// codesign report on stderr). Null when it could not be started or timed out (the process is then killed).
+    /// </summary>
+    public static async Task<(int ExitCode, string Output, string Error)?> RunCapturingAsync(string fileName, IEnumerable<string> arguments, TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var info = new ProcessStartInfo(fileName)
+            {
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+            };
+            foreach (var argument in arguments)
+                info.ArgumentList.Add(argument);
+
+            using var process = Process.Start(info);
+            if (process is null)
+                return null;
+
+            using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutSource.CancelAfter(timeout);
+            try
+            {
+                var output = process.StandardOutput.ReadToEndAsync(timeoutSource.Token);
+                var errors = process.StandardError.ReadToEndAsync(timeoutSource.Token);
+                await process.WaitForExitAsync(timeoutSource.Token).ConfigureAwait(false);
+                return (process.ExitCode, await output.ConfigureAwait(false), await errors.ConfigureAwait(false));
+            }
+            catch (OperationCanceledException)
+            {
+                TryKill(process);
+                throw;
+            }
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return null;
+        }
+        catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or FileNotFoundException or IOException)
+        {
+            return null;
+        }
+    }
+
     private static void TryKill(Process process)
     {
         try

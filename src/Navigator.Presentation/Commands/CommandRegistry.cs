@@ -65,6 +65,8 @@ public static class CommandRegistry
         new("item.invertSelection", "Command.InvertSelection", ["Primary+I"], "Items"),
         new("item.clearSelection", "Command.ClearSelection", ["Primary+Shift+A"], "Items"),
         new("item.properties", "Command.Properties", ["Alt+Enter"], "Items"),
+        // Like Finder and Explorer with PowerToys Peek. Only handled while the file list has focus (see MainWindow).
+        new("item.quickLook", "Command.QuickLook", ["Space"], "Items"),
         new("item.compress", "Command.Compress", [], "Items"),
         new("item.extract", "Command.Extract", ["Primary+Shift+E"], "Items"),
         new("item.extractFiles", "Command.ExtractFiles", ["Primary+E"], "Items"),

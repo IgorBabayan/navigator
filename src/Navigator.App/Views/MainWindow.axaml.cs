@@ -40,6 +40,7 @@ public sealed partial class MainWindow : Window
     private WindowState _stateBeforeMinimize = WindowState.Normal;
     private CompactRestore? _compactRestore;
     private bool _tabTearing;
+    private QuickLookWindow? _quickLookWindow;
 
     /// <summary>Pointer distance outside the tab strip (DIPs) at which a dragged tab is torn off into its own window.</summary>
     private const double TabTearOffDistance = 36;
@@ -102,6 +103,8 @@ public sealed partial class MainWindow : Window
                 ApplyCompactOverlay();
             else if (e.PropertyName == nameof(ShellViewModel.IsAlwaysOnTop))
                 Topmost = shell.IsAlwaysOnTop || shell.IsCompactOverlay;
+            else if (e.PropertyName == nameof(ShellViewModel.IsQuickLookOpen))
+                SyncQuickLookWindow();
         };
 
         // The address box can also be opened by the view model (clicking the Home/Trash/Tag crumb): focus it whenever it appears.
@@ -1052,6 +1055,8 @@ public sealed partial class MainWindow : Window
                 continue;
             if (inText && (id.StartsWith("item.", StringComparison.Ordinal) || id.StartsWith("edit.", StringComparison.Ordinal) || id is "nav.back" or "nav.forward" or "nav.up"))
                 return;
+            if (id == "item.quickLook" && !CanQuickLookFromFocus())
+                return; // the space bar belongs to the focused button, check box or type-to-select prefix
             Shell.Execute(id);
             e.Handled = true;
             return;
@@ -1061,6 +1066,46 @@ public sealed partial class MainWindow : Window
         {
             Shell.ActivePane?.GoBackCommand.Execute(null);
             e.Handled = true;
+        }
+    }
+
+    /// <summary>Quick Look's key (Space by default) acts only while the file list has focus (or nothing has).</summary>
+    private bool CanQuickLookFromFocus()
+    {
+        if (FocusManager?.GetFocusedElement() is not Visual focused)
+            return true;
+        var pane = focused as PaneView ?? focused.FindAncestorOfType<PaneView>();
+        return pane is { IsTypingAhead: false };
+    }
+
+    /// <summary>Opens or closes the built-in Quick Look window to follow <see cref="ShellViewModel.IsQuickLookOpen"/>.</summary>
+    private void SyncQuickLookWindow()
+    {
+        if (Shell.IsQuickLookOpen)
+        {
+            if (_quickLookWindow is { } existing)
+            {
+                existing.Activate();
+                return;
+            }
+
+            var window = new QuickLookWindow(Shell);
+            window.Closed += (_, _) =>
+            {
+                if (!ReferenceEquals(_quickLookWindow, window))
+                    return;
+                _quickLookWindow = null;
+                Shell.IsQuickLookOpen = false;
+                Activate(); // keyboard focus returns to the file list
+            };
+            _quickLookWindow = window;
+            window.Show(this);
+        }
+        else if (_quickLookWindow is { } open)
+        {
+            _quickLookWindow = null;
+            open.Close();
+            Activate();
         }
     }
 

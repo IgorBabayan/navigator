@@ -738,11 +738,24 @@ public sealed partial class PaneView : UserControl
         }
     }
 
+    /// <summary>
+    /// A type-to-select prefix is being typed (a key within the last second): the space bar then belongs to the prefix
+    /// ("my file") instead of opening Quick Look.
+    /// </summary>
+    internal bool IsTypingAhead => _typeAhead.Length > 0 && Environment.TickCount64 - _typeAheadAt <= 1000;
+
     /// <summary>Type-to-select: typed characters within one second build a prefix.</summary>
     private void OnTextInput(object? sender, TextInputEventArgs e)
     {
         if (_pane is null || string.IsNullOrEmpty(e.Text) || e.Source is TextBox)
             return;
+        // A space never starts a prefix: on its own the space bar is Quick Look (handled as a key gesture).
+        if (string.IsNullOrWhiteSpace(e.Text) && !IsTypingAhead)
+        {
+            e.Handled = true;
+            return;
+        }
+
         var now = Environment.TickCount64;
         _typeAhead = now - _typeAheadAt > 1000 ? e.Text : _typeAhead + e.Text;
         _typeAheadAt = now;
