@@ -82,7 +82,7 @@ public sealed class MarkdownView : StackPanel
         }
     }
 
-    private Control Table(MarkdownBlock block)
+    private static ScrollViewer Table(MarkdownBlock block)
     {
         var rows = block.Rows ?? [];
         var columns = rows.Count == 0 ? 0 : rows.Max(r => r.Count);
@@ -108,7 +108,7 @@ public sealed class MarkdownView : StackPanel
         return new ScrollViewer { HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto, VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled, Content = grid };
     }
 
-    private SelectableTextBlock Text(IReadOnlyList<MarkdownSpan> spans)
+    private static SelectableTextBlock Text(IReadOnlyList<MarkdownSpan> spans)
     {
         var block = new SelectableTextBlock { TextWrapping = TextWrapping.Wrap, HorizontalAlignment = HorizontalAlignment.Stretch };
         var inlines = new InlineCollection();

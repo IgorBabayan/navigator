@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Runtime.Versioning;
 using System.Text;
 using Navigator.Core.Archives;
 using Navigator.Core.Hashing;
@@ -276,6 +277,8 @@ public sealed class StorageTests
     }
 
     [TestMethod]
+    [SupportedOSPlatform("linux")]
+    [SupportedOSPlatform("freebsd")]
     public async Task FreedesktopTrash_TrashListRestoreDelete()
     {
         if (!OperatingSystem.IsLinux() && !OperatingSystem.IsFreeBSD())

@@ -130,7 +130,7 @@ public sealed class WorkflowTests
             return workflow;
         }
 
-        public IReadOnlyList<string> Needs(string job) => _needs[job];
+        public List<string> Needs(string job) => _needs[job];
 
         public string JobText(string job) => _jobText[job];
 
