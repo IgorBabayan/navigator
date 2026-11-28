@@ -76,8 +76,9 @@ jobs:
 
   publish-smoke:
     # Cross-platform compatibility: every shipping runtime identifier must publish self-contained.
+    # Gated on the test job (every OS of its matrix): nothing is built for publishing until all tests pass.
     name: Publish ${{ matrix.rid }}
-    needs: quality
+    needs: [quality, test]
     strategy:
       fail-fast: false
       matrix:

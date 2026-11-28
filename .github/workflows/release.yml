@@ -3,6 +3,7 @@ name: Release
 # Every pull request merged into `release` publishes a new GitHub Release (docs/RELEASE.md).
 # Safety properties:
 #   * Only merged PRs (or a manual run on the release branch) can release; closed-unmerged PRs never do.
+#   * All tests must pass before anything else happens: no version tag is reserved and nothing is built otherwise.
 #   * The exact merge commit is built; the tag points at that commit; all packages come from it.
 #   * Versions are reserved by atomically pushing the tag (a duplicate push fails), so concurrent
 #     runs can never produce the same version. Re-running a run reuses the tag already on its commit.
@@ -58,8 +59,34 @@ jobs:
             gh run cancel "$id" || true
           done
 
+  test:
+    # Runs first: no version is reserved (tag pushed) and nothing is built unless every test passes,
+    # for merged PRs and manual runs alike.
+    name: Tests
+    if: >-
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/release')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - name: Restore
+        run: dotnet restore Navigator.slnx
+      - name: Build
+        run: dotnet build Navigator.slnx --no-restore -c Release
+      - name: Unit tests
+        run: dotnet test tests/Navigator.UnitTests/Navigator.UnitTests.csproj --no-build -c Release
+      - name: Integration tests
+        run: dotnet test tests/Navigator.IntegrationTests/Navigator.IntegrationTests.csproj --no-build -c Release
+
   prepare:
     name: Validate event and reserve version
+    needs: test
     if: >-
       (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/release')
@@ -145,24 +172,9 @@ jobs:
           done
           echo "::error::Could not reserve a release version"; exit 1
 
-  test:
-    name: Tests
-    needs: prepare
-    runs-on: ubuntu-22.04
-    timeout-minutes: 40
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ needs.prepare.outputs.commit }}
-      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
-        with:
-          global-json-file: global.json
-      - run: dotnet test tests/Navigator.UnitTests/Navigator.UnitTests.csproj -c Release
-      - run: dotnet test tests/Navigator.IntegrationTests/Navigator.IntegrationTests.csproj -c Release
-
   build:
     name: Package ${{ matrix.rid }}
-    needs: [prepare, test]
+    needs: [test, prepare]
     strategy:
       fail-fast: true
       matrix:
