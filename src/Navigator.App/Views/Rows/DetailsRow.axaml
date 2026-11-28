@@ -14,7 +14,7 @@
           <c:IconView Kind="{Binding IconKey}" SystemIcon="{Binding SystemIconKey}" Width="{StaticResource Size.RowIcon}" Height="{StaticResource Size.RowIcon}" IsVisible="{Binding !HasThumbnail}" />
           <Image Source="{Binding Thumbnail, Converter={x:Static v:ImageConverter.Instance}}" IsVisible="{Binding HasThumbnail}" Stretch="UniformToFill" />
         </Panel>
-        <TextBlock Grid.Column="2" Text="{Binding DisplayName}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
+        <TextBlock Grid.Column="2" Classes="itemName" Text="{Binding DisplayName}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
       </Grid>
       <TextBlock Width="{Binding $parent[v:PaneView].Columns.ModifiedWidth}" Classes="secondary" Text="{Binding ModifiedText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Padding="8,0" />
       <TextBlock Width="{Binding $parent[v:PaneView].Columns.TypeWidth}" Classes="secondary" Text="{Binding TypeText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Padding="8,0" />

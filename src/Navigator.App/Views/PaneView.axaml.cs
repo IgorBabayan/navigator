@@ -43,6 +43,8 @@ public sealed partial class PaneView : UserControl
     private bool _dragging;
     private string _typeAhead = string.Empty;
     private long _typeAheadAt;
+    private FileItemViewModel? _renaming;
+    private bool _renameEnding;
 
     public PaneView()
     {
@@ -76,6 +78,14 @@ public sealed partial class PaneView : UserControl
         Scroller.AddHandler(DragDrop.DropEvent, OnDrop);
         KeyDown += OnKeyDown;
         TextInput += OnTextInput;
+
+        // In-place rename: Enter/Escape/Tab are taken before the text box sees them; leaving the box commits.
+        RenameBox.AddHandler(KeyDownEvent, OnRenameKeyDown, RoutingStrategies.Tunnel);
+        RenameBox.LostFocus += (_, _) => _ = CommitRenameAsync(move: 0, fromFocusLoss: true);
+        RenameBox.TextChanged += (_, _) => ShowRenameValidation(explicitly: false);
+        Scroller.ScrollChanged += (_, _) => FollowRenamedItem();
+        Scroller.SizeChanged += (_, _) => FollowRenamedItem();
+        Columns.PropertyChanged += (_, _) => FollowRenamedItem();
     }
 
     public PaneViewModel? Pane => _pane;
@@ -147,8 +157,10 @@ public sealed partial class PaneView : UserControl
             _pane.PropertyChanged -= OnPaneChanged;
             _pane.ScrollIntoViewRequested -= OnScrollIntoView;
             _pane.OpenWithRequested -= OnOpenWithRequested;
+            _pane.InlineRenameRequested -= OnInlineRenameRequested;
         }
 
+        CancelRename();
         _pane = pane;
         if (pane is null)
             return;
@@ -156,6 +168,7 @@ public sealed partial class PaneView : UserControl
         pane.PropertyChanged += OnPaneChanged;
         pane.ScrollIntoViewRequested += OnScrollIntoView;
         pane.OpenWithRequested += OnOpenWithRequested;
+        pane.InlineRenameRequested += OnInlineRenameRequested;
         pane.SetViewportWidth(Scroller.Bounds.Width > 0 ? Scroller.Bounds.Width : 800);
         UpdateSortGlyphs();
         UpdateActiveIndicator();
@@ -174,8 +187,12 @@ public sealed partial class PaneView : UserControl
                 UpdateActiveIndicator();
                 break;
             case nameof(PaneViewModel.Location):
+                CancelRename();
                 FilterBar.IsVisible = false;
                 Scroller.Offset = default;
+                break;
+            case nameof(PaneViewModel.Layout):
+                _ = CommitRenameAsync(move: 0, fromFocusLoss: true);
                 break;
         }
     }
@@ -627,6 +644,221 @@ public sealed partial class PaneView : UserControl
                 return;
             }
         }
+    }
+
+    // ── In-place rename ──────────────────────────────────────────
+
+    /// <summary>
+    /// F2 on one item: the pane's single editor is laid over the item's name (scrolled into view first), with the stem
+    /// selected. Enter commits, Escape cancels, Tab / Shift+Tab commit and move to the next / previous item, and
+    /// clicking elsewhere commits. Rows themselves never host an editor, so the list stays as cheap as before.
+    /// </summary>
+    private void OnInlineRenameRequested(object? sender, InlineRenameEventArgs request)
+    {
+        if (_pane is not { IsBrowsingList: true } || !IsEffectivelyVisible)
+            return; // not shown: the view model falls back to the dialog
+
+        request.Handled = true;
+        if (_renaming is not null)
+            CancelRename();
+
+        _renaming = request.Item;
+        RenameBox.Text = request.Text;
+        RenameBox.Classes.Remove("invalid");
+        RenameError.IsVisible = false;
+        OnScrollIntoView(this, request.Item);
+
+        // The row may only exist after the scroll has been laid out.
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!ReferenceEquals(_renaming, request.Item))
+                return;
+            if (!PlaceRenameBox())
+            {
+                CancelRename();
+                return;
+            }
+
+            RenameBox.IsVisible = true;
+            RenameBox.Focus();
+            RenameBox.SelectionStart = 0;
+            RenameBox.SelectionEnd = Math.Clamp(request.SelectionLength, 0, request.Text.Length);
+        }, DispatcherPriority.Background);
+    }
+
+    private void OnRenameKeyDown(object? sender, KeyEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case Key.Enter:
+                _ = CommitRenameAsync(move: 0, fromFocusLoss: false);
+                e.Handled = true;
+                break;
+            case Key.Escape:
+                CancelRename();
+                Focus();
+                e.Handled = true;
+                break;
+            case Key.Tab:
+                _ = CommitRenameAsync(move: e.KeyModifiers.HasFlag(KeyModifiers.Shift) ? -1 : 1, fromFocusLoss: false);
+                e.Handled = true;
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Ends the edit with the typed name. An unusable name keeps the editor open with the reason shown, except when
+    /// focus left the box: then the edit is dropped, like Explorer does.
+    /// </summary>
+    private async Task CommitRenameAsync(int move, bool fromFocusLoss)
+    {
+        if (_renameEnding || _renaming is not { } item || _pane is not { } pane || !RenameBox.IsVisible)
+            return;
+
+        var text = RenameBox.Text ?? string.Empty;
+        if (pane.ValidateInlineName(item, text) is not null)
+        {
+            if (fromFocusLoss)
+                CancelRename();
+            else
+                ShowRenameValidation(explicitly: true);
+            return;
+        }
+
+        var next = move == 0 ? null : pane.NeighbourOf(item, move);
+        var keepFocus = !fromFocusLoss;
+        _renameEnding = true;
+        try
+        {
+            HideRenameBox();
+            if (keepFocus)
+                Focus();
+            await pane.CommitInlineRenameAsync(item, text, selectRenamed: next is null).ConfigureAwait(true);
+        }
+        finally
+        {
+            _renameEnding = false;
+        }
+
+        if (next is not null && ReferenceEquals(_pane, pane))
+            pane.BeginRename(next);
+    }
+
+    private void CancelRename()
+    {
+        if (_renaming is null)
+            return;
+        _renameEnding = true;
+        try
+        {
+            HideRenameBox();
+        }
+        finally
+        {
+            _renameEnding = false;
+        }
+    }
+
+    private void HideRenameBox()
+    {
+        _renaming = null;
+        RenameError.IsVisible = false;
+        var hadFocus = RenameBox.IsFocused;
+        RenameBox.IsVisible = false;
+        if (hadFocus)
+            Focus();
+    }
+
+    /// <summary>While typing, only the border turns red; the reason is shown once Enter or Tab is pressed.</summary>
+    private void ShowRenameValidation(bool explicitly)
+    {
+        if (_renaming is not { } item || _pane is null || !RenameBox.IsVisible)
+            return;
+        var error = _pane.ValidateInlineName(item, RenameBox.Text ?? string.Empty);
+        RenameBox.Classes.Set("invalid", error is not null);
+        if (error is null)
+        {
+            RenameError.IsVisible = false;
+            return;
+        }
+
+        if (!explicitly && !RenameError.IsVisible)
+            return;
+        RenameErrorText.Text = error;
+        Canvas.SetLeft(RenameError, Canvas.GetLeft(RenameBox));
+        Canvas.SetTop(RenameError, Canvas.GetTop(RenameBox) + RenameBox.Bounds.Height + 4);
+        RenameError.IsVisible = true;
+    }
+
+    /// <summary>Keeps the editor on its item while the list scrolls or resizes; commits once the item leaves the view.</summary>
+    private void FollowRenamedItem()
+    {
+        if (_renaming is null || !RenameBox.IsVisible || _renameEnding)
+            return;
+        if (!PlaceRenameBox())
+            _ = CommitRenameAsync(move: 0, fromFocusLoss: true);
+        else if (RenameError.IsVisible)
+            ShowRenameValidation(explicitly: true);
+    }
+
+    /// <summary>Lays the editor over the name of the realized row/tile of the item; false when it is not on screen.</summary>
+    private bool PlaceRenameBox()
+    {
+        if (_renaming is not { } item || _pane is not { } pane || FindItemSurface(item.FullPath) is not { } surface)
+            return false;
+
+        var name = surface.GetVisualDescendants().OfType<TextBlock>().FirstOrDefault(t => t.Classes.Contains("itemName"));
+        var origin = (name ?? (Visual)surface).TranslatePoint(default, RenameCanvas);
+        var rowOrigin = surface.TranslatePoint(default, RenameCanvas);
+        if (origin is not { } at || rowOrigin is not { } row)
+            return false;
+
+        var viewport = RenameCanvas.Bounds;
+        if (row.Y + surface.Bounds.Height <= 0 || row.Y >= viewport.Height)
+            return false;
+
+        double left, top, width;
+        if (pane.IsTileLayout)
+        {
+            left = row.X + 2;
+            width = Math.Max(80, surface.Bounds.Width - 4);
+            top = at.Y - 3;
+            RenameBox.TextWrapping = Avalonia.Media.TextWrapping.Wrap;
+            RenameBox.TextAlignment = Avalonia.Media.TextAlignment.Center;
+            RenameBox.Height = double.NaN;
+        }
+        else
+        {
+            left = at.X - 7; // text box padding + border, so the text does not jump
+            width = Math.Max(160, (name?.Bounds.Width ?? surface.Bounds.Width) + 14);
+            var height = Math.Max(24, surface.Bounds.Height - 4);
+            top = row.Y + ((surface.Bounds.Height - height) / 2);
+            RenameBox.TextWrapping = Avalonia.Media.TextWrapping.NoWrap;
+            RenameBox.TextAlignment = Avalonia.Media.TextAlignment.Left;
+            RenameBox.Height = height;
+        }
+
+        width = Math.Min(width, Math.Max(80, viewport.Width - left - 8));
+        RenameBox.Width = width;
+        Canvas.SetLeft(RenameBox, Math.Max(0, left));
+        Canvas.SetTop(RenameBox, top);
+        return true;
+    }
+
+    /// <summary>The realized row/tile surface showing the item at <paramref name="path"/> (items are matched by path: a
+    /// reload may replace the view model while the editor is open).</summary>
+    private Border? FindItemSurface(string path)
+    {
+        foreach (var container in ItemsHost.GetRealizedContainers())
+        {
+            foreach (var border in container.GetSelfAndVisualDescendants().OfType<Border>())
+            {
+                if (border.DataContext is FileItemViewModel model && border.Classes.Contains("item") && PathUtil.AreEqual(model.FullPath, path))
+                    return border;
+            }
+        }
+
+        return null;
     }
 
     // ── Context menus (built on demand; cheap and always in sync with the selection) ──

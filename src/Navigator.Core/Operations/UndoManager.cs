@@ -8,6 +8,9 @@ public abstract record UndoRecord;
 
 public sealed record RenameRecord(string OriginalPath, string RenamedPath) : UndoRecord;
 
+/// <summary>A multi-rename: undone (and redone) as one step, in reverse order of how it was applied.</summary>
+public sealed record BatchRenameRecord(IReadOnlyList<RenameRecord> Items) : UndoRecord;
+
 public sealed record TransferRecord(IReadOnlyList<TransferredItem> Items, bool WasMove) : UndoRecord;
 
 public sealed record CreateRecord(string Path, bool IsDirectory) : UndoRecord;

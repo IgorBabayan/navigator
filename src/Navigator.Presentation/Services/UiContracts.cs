@@ -94,6 +94,9 @@ public interface IDialogService
 
     Task<string?> PromptTextAsync(TextInputRequest request);
 
+    /// <summary>The multi-rename dialog; true when the user confirmed (the model then holds the renames).</summary>
+    Task<bool> ShowMultiRenameAsync(Panes.MultiRenameViewModel model);
+
     /// <summary>Shows a form; returns the values by field id, or null when cancelled.</summary>
     Task<IReadOnlyDictionary<string, string>?> ShowFormAsync(FormRequest request);
 

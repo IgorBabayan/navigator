@@ -12,7 +12,7 @@
         <c:IconView Kind="{Binding IconKey}" SystemIcon="{Binding SystemIconKey}" Width="{StaticResource Size.RowIcon}" Height="{StaticResource Size.RowIcon}" IsVisible="{Binding !HasThumbnail}" />
         <Image Source="{Binding Thumbnail, Converter={x:Static v:ImageConverter.Instance}}" IsVisible="{Binding HasThumbnail}" Stretch="UniformToFill" />
       </Panel>
-      <TextBlock Grid.Column="2" Text="{Binding DisplayName}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+      <TextBlock Grid.Column="2" Classes="itemName" Text="{Binding DisplayName}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
       <TextBlock Grid.Column="3" Classes="caption" Text="{Binding SizeText}" VerticalAlignment="Center" Margin="12,0,0,0" />
     </Grid>
   </c:RowSurface>

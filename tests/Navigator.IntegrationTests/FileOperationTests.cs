@@ -281,6 +281,29 @@ public sealed class FileOperationTests
     }
 
     [TestMethod]
+    public async Task RenameMany_IsOneUndoStep()
+    {
+        using var temp = new TempDirectory();
+        var a = temp.CreateFile("a.txt");
+        var b = temp.CreateFile("b.txt");
+        var (service, _) = Create(temp);
+        var outcome = service.RenameMany([(a, "b.txt"), (b, "c.txt")]);
+        Assert.IsNotNull(outcome.Failure, "a.txt → b.txt must fail while b.txt is still there");
+        Assert.AreEqual(0, outcome.Done.Count);
+
+        // In dependency order (what BulkRenamePlanner.Order produces) both succeed.
+        outcome = service.RenameMany([(b, "c.txt"), (a, "b.txt")]);
+        Assert.IsNull(outcome.Failure);
+        service.RecordRenames(outcome.Done);
+        Assert.IsTrue(File.Exists(temp.Combine("b.txt")) && File.Exists(temp.Combine("c.txt")) && !File.Exists(a));
+
+        Assert.AreEqual(UndoOutcome.Done, await service.UndoAsync(Skip));
+        Assert.IsTrue(File.Exists(a) && File.Exists(b) && !File.Exists(temp.Combine("c.txt")));
+        Assert.AreEqual(UndoOutcome.Done, await service.RedoAsync(Skip));
+        Assert.IsTrue(File.Exists(temp.Combine("b.txt")) && File.Exists(temp.Combine("c.txt")) && !File.Exists(a));
+    }
+
+    [TestMethod]
     public void Rename_RefusesExistingAndInvalidNames()
     {
         using var temp = new TempDirectory();

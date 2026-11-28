@@ -89,8 +89,8 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Cross-volume move with verify-before-delete | ✅ | ➖ | ✓ | ✓ | ✓ | `TransferExecutor` |
 | Symlinks recreated, never followed | ✅ | ➖ | 🟦 | ✅ | 🟦 | Windows symlink creation needs privilege/dev mode |
 | Retry / skip / cancel on errors | ✅ | 🟦 | ✓ | ✓ | ✓ | `IoErrorClassifier` |
-| Rename (incl. case-only), duplicate, new folder/file | ✅ | 🟦 | ✓ | ✓ | ✓ | |
-| Bulk rename (pattern, numbering, find/replace) | ✅ | 🟦 | ✓ | ✓ | ✓ | `BulkRenamePlanner` |
+| Rename (incl. case-only), duplicate, new folder/file | ✅ | 🟦 | ✓ | ✓ | ✓ | rename happens in place in the list (`PaneViewModel.Rename`, one overlay editor per pane) |
+| Multi-rename, Total Commander style (masks, ranges, counter, dates, case, search/replace incl. regex, live preview, one undo step) | ✅ | 🟦 | ✓ | ✓ | ✓ | `MultiRenameTemplate`, `MultiRenameViewModel`, `BulkRenamePlanner.Order`, `FileOperationService.RenameMany`; Ctrl+R |
 | Undo / redo (rename, move, copy, create, recycle) | ✅ | 🟦 | ✓ | ✓ | ✓ | `UndoManager` |
 | Delete to Recycle Bin / Trash | ✅ | 🟦 | 🟦 | ✅ | 🟦 | Linux freedesktop trash tested; Windows `SHFileOperationW`; macOS `NSFileManager` |
 | Permanent delete (with confirmation) | ✅ | 🟦 | ✓ | ✓ | ✓ | |
@@ -104,7 +104,7 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Feature | Logic | UI | W | L | M | Notes |
 |---|---|---|---|---|---|---|
 | Open with default app | 🟦 | 🟦 | 🟦 | 🟦 | 🟦 | `ShellExecute` / `xdg-open` / `open` |
-| Open with… (handler list) | 🟨 | 🟦 | 🟨 | ✅ | 🟨 | Linux parses `.desktop`/`mimeapps.list` (tested); Windows shows the system dialog; macOS uses `open -a` without enumeration |
+| Open with… (handler list) | 🟨 | 🟦 | 🟦 | ✅ | 🟨 | Linux parses `.desktop`/`mimeapps.list` (tested); Windows lists recommended handlers (`SHAssocEnumHandlers`, launched via `IAssocHandler::Invoke`) before the shell's store/chooser entries; macOS uses `open -a` without enumeration |
 | Open in terminal | 🟦 | 🟦 | 🟦 | 🟦 | 🟦 | platform default terminal |
 | Open in code editor | 🟦 | 🟦 | 🟦 | 🟦 | 🟦 | configurable command |
 | Reveal in system file manager | 🟦 | 🟦 | 🟦 | 🟦 | 🟦 | |

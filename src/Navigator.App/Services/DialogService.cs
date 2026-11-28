@@ -71,6 +71,22 @@ internal sealed class DialogService(WindowService windows, Localizer localizer, 
         return result == "ok" && ok.IsEnabled ? box.Text ?? string.Empty : null;
     }
 
+    public async Task<bool> ShowMultiRenameAsync(Navigator.Presentation.Panes.MultiRenameViewModel model)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+        var window = new MultiRenameWindow { DataContext = model };
+        if (Owner is { } owner)
+        {
+            await window.ShowDialog(owner).ConfigureAwait(true);
+            return window.Confirmed;
+        }
+
+        var closed = new TaskCompletionSource<bool>();
+        window.Closed += (_, _) => closed.TrySetResult(window.Confirmed);
+        window.Show();
+        return await closed.Task.ConfigureAwait(true);
+    }
+
     /// <summary>
     /// A small form built from field descriptions (plugin connection settings). Each field validates as the user types;
     /// the primary button is enabled only when every required field is filled and every validator passes.

@@ -193,28 +193,34 @@ public sealed partial class PaneViewModel
     }
 
     /// <summary>
-    /// "Open with", filled the way the reference app does it on Windows: the shell's own list (the item menu's "Open with"
-    /// sub-menu, or the shell's Open With handler asked directly when that menu only has a plain command), so packaged
-    /// apps, "Search the Microsoft Store" and "Choose another app" appear exactly as in Explorer. Elsewhere: the
-    /// applications registered for the type (LaunchServices on macOS, desktop entries on Linux) plus a chooser.
+    /// "Open with": the applications registered for the type (SHAssocEnumHandlers on Windows, LaunchServices on macOS,
+    /// desktop entries on Linux), the default one first, followed by the shell's own entries where it has them
+    /// ("Search the Microsoft Store", "Choose another app"). The application list is asked for at once, in parallel
+    /// with the shell menu, because Explorer's "Open with" sub-menu often only holds the chooser when it is hosted
+    /// outside Explorer. Shell entries naming an application already listed are dropped.
     /// </summary>
     private async Task<IReadOnlyList<MenuEntry>> OpenWithEntriesAsync(string path, Task<ShellMenuBridge?>? bridge, CancellationToken cancellationToken)
     {
+        var handlers = HandlersOrNothingAsync(path, cancellationToken);
+
+        IReadOnlyList<MenuEntry>? fromShell = null;
         if (bridge is not null && await bridge.WaitAsync(cancellationToken).ConfigureAwait(false) is { } shell
             && shell.FindSubmenu(ShellMenuBridge.OpenWithVerb) is { } shellList)
         {
-            var fromShell = await shell.ChildrenOfAsync(shellList, cancellationToken).ConfigureAwait(false);
-            if (fromShell.Count > 0)
-                return fromShell;
+            var children = await shell.ChildrenOfAsync(shellList, cancellationToken).ConfigureAwait(false);
+            if (children.Count > 0)
+                fromShell = children;
         }
 
-        if (_services.ShellMenus.IsSupported && await OpenWithHandlerEntriesAsync(path, cancellationToken).ConfigureAwait(false) is { Count: > 0 } direct)
-            return direct;
+        if (fromShell is null && _services.ShellMenus.IsSupported)
+            fromShell = await OpenWithHandlerEntriesAsync(path, cancellationToken).ConfigureAwait(false);
 
-        var handlers = await _services.Launcher.GetHandlersAsync(path, cancellationToken).ConfigureAwait(false);
-        var entries = new List<MenuEntry>(handlers.Count + 2);
-        foreach (var handler in handlers)
+        var applications = await handlers.ConfigureAwait(false);
+        var entries = new List<MenuEntry>(applications.Count + (fromShell?.Count ?? 0) + 2);
+        var names = new HashSet<string>(StringComparer.CurrentCultureIgnoreCase);
+        foreach (var handler in applications)
         {
+            names.Add(handler.DisplayName);
             entries.Add(new MenuEntry
             {
                 Label = handler.IsDefault ? $"{handler.DisplayName} ({_services.Localizer["OpenWith.Default"]})" : handler.DisplayName,
@@ -224,6 +230,19 @@ public sealed partial class PaneViewModel
                 Parameter = new OpenWithChoice(path, handler),
                 Scopes = MenuScope.Anywhere,
             });
+        }
+
+        if (fromShell is { Count: > 0 })
+        {
+            if (applications.Count == 0)
+                return fromShell;
+            var rest = fromShell.Where(e => !e.IsSeparator && !names.Contains(e.Label)).ToList();
+            if (rest.Count > 0)
+            {
+                entries.Add(MenuEntry.Divider());
+                entries.AddRange(rest);
+                return entries;
+            }
         }
 
         if (entries.Count > 0)
@@ -237,6 +256,19 @@ public sealed partial class PaneViewModel
             Scopes = MenuScope.Anywhere,
         });
         return entries;
+    }
+
+    /// <summary>Registered applications; an OS refusal or a cancelled menu just means none.</summary>
+    private async Task<IReadOnlyList<AppHandler>> HandlersOrNothingAsync(string path, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _services.Launcher.GetHandlersAsync(path, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception refusal) when (refusal is IOException or UnauthorizedAccessException or InvalidOperationException or OperationCanceledException)
+        {
+            return [];
+        }
     }
 
     /// <summary>The shell's Open With handler on its own; the menu it holds lives until the context menu closes.</summary>
@@ -255,12 +287,12 @@ public sealed partial class PaneViewModel
         return new ShellMenuBridge(list, () => _ownerWindow?.Invoke() ?? 0, _logger).Everything();
     }
 
-    /// <summary>The application's own icon: its bundle on macOS, its theme icon (or icon file) on Linux.</summary>
+    /// <summary>The application's own icon: its bundle on macOS, its program file on Windows, its theme icon (or icon file) on Linux.</summary>
     private static string? HandlerIconKey(AppHandler handler)
     {
         if (string.IsNullOrEmpty(handler.IconPath))
             return null;
-        return OperatingSystem.IsMacOS() ? SystemIconKey.ForPath(handler.IconPath) : SystemIconKey.Themed(handler.IconPath);
+        return OperatingSystem.IsMacOS() || OperatingSystem.IsWindows() ? SystemIconKey.ForPath(handler.IconPath) : SystemIconKey.Themed(handler.IconPath);
     }
 
     /// <summary>The shell's "Send to" list where it has one (Windows), otherwise known folders and removable drives.</summary>

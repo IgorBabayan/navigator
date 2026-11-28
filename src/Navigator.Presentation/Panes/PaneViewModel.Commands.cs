@@ -90,6 +90,7 @@ public sealed partial class PaneViewModel
         NewFolderCommand = new AsyncRelayCommand(() => CreateItemAsync(isDirectory: true), () => CanCreateItems || IsRemote);
         NewFileCommand = new AsyncRelayCommand(() => CreateItemAsync(isDirectory: false), () => CanCreateItems);
         RenameCommand = new AsyncRelayCommand(RenameAsync, () => CanModifySelection || (IsRemote && Selection.Count == 1));
+        InitializeRenameCommands();
         DeleteCommand = new AsyncRelayCommand(() => DeleteAsync(permanently: false), () => HasSelection && !IsHome);
         DeletePermanentlyCommand = new AsyncRelayCommand(() => DeleteAsync(permanently: true), () => HasSelection && !IsHome);
         CopyCommand = new AsyncRelayCommand(() => PutOnClipboardAsync(cut: false), () => HasSelection && !IsTrash && !IsRemote);
@@ -125,6 +126,7 @@ public sealed partial class PaneViewModel
         NewFolderCommand.NotifyCanExecuteChanged();
         NewFileCommand.NotifyCanExecuteChanged();
         RenameCommand.NotifyCanExecuteChanged();
+        RaiseRenameCommandState();
         DeleteCommand.NotifyCanExecuteChanged();
         DeletePermanentlyCommand.NotifyCanExecuteChanged();
         CopyCommand.NotifyCanExecuteChanged();
@@ -236,41 +238,37 @@ public sealed partial class PaneViewModel
                 : null;
         };
 
+    /// <summary>
+    /// F2 / "Rename": one item is renamed in place in the list (the dialog only where no list shows it); several items
+    /// open the multi-rename dialog.
+    /// </summary>
     private async Task RenameAsync()
     {
         var selected = Selection.SelectedItems;
         if (selected.Count == 0)
             return;
 
-        if (IsRemote)
-        {
-            await RenameRemoteAsync(selected[0]).ConfigureAwait(true);
-            return;
-        }
-
         if (selected.Count > 1)
         {
-            await BulkRenameAsync(selected).ConfigureAwait(true);
+            if (!IsRemote)
+                await MultiRenameAsync().ConfigureAwait(true);
             return;
         }
 
         var item = selected[0];
-        var directory = Path.GetDirectoryName(item.FullPath)!;
+        if (TryRenameInPlace(item))
+            return;
+
+        if (IsRemote)
+        {
+            await RenameRemoteAsync(item).ConfigureAwait(true);
+            return;
+        }
+
         var stemLength = item.IsDirectory ? -1 : PathUtil.SplitName(item.Name, false).Stem.Length;
         var newName = await _services.Dialogs.PromptTextAsync(new TextInputRequest(
             _services.Localizer["Command.Rename"], _services.Localizer["Dialog.NameLabel"], item.Name, _services.Localizer["Command.Rename"],
-            text =>
-            {
-                var trimmed = text.Trim();
-                var result = PathUtil.ValidateName(trimmed);
-                if (result != NameValidationResult.Valid)
-                    return _services.Localizer["Validation." + result];
-                if (string.Equals(trimmed, item.Name, StringComparison.OrdinalIgnoreCase))
-                    return null;
-                return File.Exists(Path.Combine(directory, trimmed)) || Directory.Exists(Path.Combine(directory, trimmed))
-                    ? _services.Localizer["Validation.AlreadyExists"]
-                    : null;
-            }, stemLength)).ConfigureAwait(true);
+            text => ValidateFullName(item, text.Trim()), stemLength)).ConfigureAwait(true);
 
         if (string.IsNullOrWhiteSpace(newName) || newName.Trim() == item.Name)
             return;
@@ -283,40 +281,6 @@ public sealed partial class PaneViewModel
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             await ReportErrorAsync(ex).ConfigureAwait(true);
-        }
-    }
-
-    /// <summary>
-    /// Bulk rename: a pattern with "#" for a running number ("Holiday #" → "Holiday 1.jpg", "Holiday 2.jpg").
-    /// Extensions are kept. Every target name is validated before anything is renamed.
-    /// </summary>
-    private async Task BulkRenameAsync(IReadOnlyList<FileItemViewModel> items)
-    {
-        var pattern = await _services.Dialogs.PromptTextAsync(new TextInputRequest(
-            _services.Localizer["Command.BulkRename"], _services.Localizer["Dialog.BulkRenameLabel"], _services.Localizer["Dialog.BulkRenameDefault"],
-            _services.Localizer["Command.Rename"],
-            text => text.Contains('#', StringComparison.Ordinal) ? null : _services.Localizer["Validation.BulkRenamePattern"])).ConfigureAwait(true);
-        if (string.IsNullOrWhiteSpace(pattern))
-            return;
-
-        var plan = BulkRenamePlanner.Plan(items.Select(i => (i.FullPath, i.IsDirectory)).ToList(), pattern.Trim());
-        if (plan.Error is { } error)
-        {
-            await _services.Dialogs.ShowMessageAsync(_services.Localizer["Command.BulkRename"], _services.Localizer["Validation." + error]).ConfigureAwait(true);
-            return;
-        }
-
-        foreach (var (path, newName) in plan.Renames)
-        {
-            try
-            {
-                _services.Operations.Rename(path, newName);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                await ReportErrorAsync(ex).ConfigureAwait(true);
-                return;
-            }
         }
     }
 
@@ -832,22 +796,47 @@ public static class BulkRenamePlanner
             renames.Add((path, name));
         }
 
+        return Order(renames);
+    }
+
+    /// <summary>
+    /// Orders already validated renames so that no step lands on a name another item of the batch still holds;
+    /// "Cycle" when that is impossible (a ↔ b swaps).
+    /// </summary>
+    public static Result Order(IReadOnlyList<(string Path, string NewName)> renames)
+    {
         // Renames that collide with another item of the same batch must go through that item's new name first;
         // ordering by "target not currently occupied" avoids transient collisions.
-        var ordered = new List<(string Path, string NewName)>();
-        var pending = new List<(string Path, string NewName)>(renames);
-        var occupied = new HashSet<string>(sources, PathUtil.Comparer);
+        var ordered = new List<(string Path, string NewName)>(renames.Count);
+        var pending = new List<(string Path, string NewName, string Target)>(renames.Count);
+        var occupied = new HashSet<string>(PathUtil.Comparer);
+        foreach (var (path, newName) in renames)
+        {
+            pending.Add((path, newName, Path.Combine(Path.GetDirectoryName(path)!, newName)));
+            occupied.Add(path);
+        }
+
+        // Passes over what is left (linear per pass, not per item): every rename whose target is free goes now.
         while (pending.Count > 0)
         {
-            var next = pending.FindIndex(r => !occupied.Contains(Path.Combine(Path.GetDirectoryName(r.Path)!, r.NewName)) || PathUtil.AreEqual(r.Path, Path.Combine(Path.GetDirectoryName(r.Path)!, r.NewName)));
-            if (next < 0)
+            var waiting = new List<(string Path, string NewName, string Target)>();
+            foreach (var rename in pending)
+            {
+                if (occupied.Contains(rename.Target) && !PathUtil.AreEqual(rename.Path, rename.Target))
+                {
+                    waiting.Add(rename);
+                    continue;
+                }
+
+                occupied.Remove(rename.Path);
+                occupied.Add(rename.Target);
+                if (!string.Equals(rename.Path, rename.Target, StringComparison.Ordinal))
+                    ordered.Add((rename.Path, rename.NewName));
+            }
+
+            if (waiting.Count == pending.Count)
                 return new Result([], "Cycle");
-            var rename = pending[next];
-            pending.RemoveAt(next);
-            occupied.Remove(rename.Path);
-            occupied.Add(Path.Combine(Path.GetDirectoryName(rename.Path)!, rename.NewName));
-            if (!PathUtil.AreEqual(rename.Path, Path.Combine(Path.GetDirectoryName(rename.Path)!, rename.NewName)))
-                ordered.Add(rename);
+            pending = waiting;
         }
 
         return new Result(ordered, null);

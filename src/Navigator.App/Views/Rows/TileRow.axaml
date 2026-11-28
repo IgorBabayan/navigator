@@ -24,7 +24,7 @@
                 <Image Source="{Binding Thumbnail, Converter={x:Static v:ImageConverter.Instance}}" Stretch="Uniform" />
               </Border>
             </Panel>
-            <TextBlock Text="{Binding DisplayName}" TextAlignment="Center" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" FontSize="{DynamicResource Font.Caption}" />
+            <TextBlock Classes="itemName" Text="{Binding DisplayName}" TextAlignment="Center" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" FontSize="{DynamicResource Font.Caption}" />
           </StackPanel>
           <Border Classes="rowCheck" HorizontalAlignment="Left" VerticalAlignment="Top"><c:IconView Kind="Check" /></Border>
           </Panel>

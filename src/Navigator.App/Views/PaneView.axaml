@@ -61,6 +61,19 @@
       frame means "drops into this folder"; over a sub-folder the frame steps aside (the folder itself is outlined) and
       the card names that folder instead. Opacity/transform only, so showing it never relays out the list.
     -->
+    <Style Selector="TextBox.inlineRename">
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="Padding" Value="6,2" />
+      <Setter Property="AcceptsReturn" Value="False" />
+      <Setter Property="AcceptsTab" Value="False" />
+    </Style>
+    <Style Selector="TextBox.inlineRename.invalid">
+      <Setter Property="BorderBrush" Value="{DynamicResource Brush.Danger}" />
+    </Style>
+    <Style Selector="TextBox.inlineRename.invalid:focus /template/ Border#PART_BorderElement">
+      <Setter Property="BorderBrush" Value="{DynamicResource Brush.Danger}" />
+    </Style>
+
     <Style Selector="Panel#DropOverlay">
       <Setter Property="Opacity" Value="0" />
       <Setter Property="Transitions" Value="{DynamicResource Motion.Fade}" />
@@ -145,6 +158,19 @@
             </Grid>
           </Border>
         </Panel>
+
+        <!--
+          In-place rename (F2): one editor for the whole pane, laid over the name of the item being renamed. Rows stay
+          plain text blocks, so realizing and recycling them costs nothing extra.
+        -->
+        <Canvas x:Name="RenameCanvas">
+          <TextBox x:Name="RenameBox" Classes="inlineRename" IsVisible="False" />
+          <Border x:Name="RenameError" IsVisible="False" IsHitTestVisible="False" MaxWidth="320" Padding="10,6" CornerRadius="6"
+                  Background="{DynamicResource Brush.Card}" BorderBrush="{DynamicResource Brush.Danger}" BorderThickness="1"
+                  BoxShadow="{StaticResource Shadow.Flyout}">
+            <TextBlock x:Name="RenameErrorText" TextWrapping="Wrap" FontSize="{DynamicResource Font.Caption}" />
+          </Border>
+        </Canvas>
 
         <!-- Rubber-band selection rectangle -->
         <Canvas x:Name="SelectionCanvas" IsHitTestVisible="False">

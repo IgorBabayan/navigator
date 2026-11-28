@@ -8,6 +8,22 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
 
 ### Added
 
+- In-place rename: F2 (or Rename in the menu / toolbar) edits the item's name right in the list, in every layout,
+  instead of opening a dialog. The stem is selected; Enter or clicking elsewhere commits, Escape cancels, Tab /
+  Shift+Tab commit and move on to the next / previous item. An unusable name turns the box red and Enter shows why.
+  With extensions hidden, only the shown name is edited and the extension is kept. One editor serves the whole pane
+  (rows stay plain text), so the list costs nothing extra to scroll.
+- Multi-rename (Ctrl+R, or Rename with several items selected), modelled on Total Commander's Multi-Rename Tool: name
+  and extension masks with placeholders ([N] name, [E] extension, character ranges such as [N2-5], [N3,4], [N-3-],
+  [C] counter with start/step/digits or inline [C10+5:3], [P]/[G] parent folders, [Y][M][D][h][m][s] date and time
+  modified, [U]/[L]/[F]/[n] case from that point), search and replace (plain with several "a|b" pairs, or regular
+  expressions with $1 references), case conversion, and a live, virtualized preview that flags invalid names,
+  clashes inside the batch and names already taken. The batch is ordered so chains (a→b, b→c) work, renamed on a
+  worker thread, and undone or redone as a single step. The last settings are remembered for the session.
+- Windows "Open with": the sub-menu lists the applications Windows recommends for the type (default first, with
+  their icons), followed by the shell's own "Search the Microsoft Store" / "Choose another app" entries. Applications
+  are launched through their own association handler, so packaged (Store) apps work too.
+
 - Windows: paste files copied in other applications. Files copied or cut in Explorer are pasted through the usual
   copy/move queue (a cut empties the clipboard afterwards, like Explorer). Files copied inside a Remote Desktop
   session (and other clipboard-only files such as zip contents or mail attachments) are streamed straight into the
@@ -90,6 +106,7 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
 
 ### Changed
 
+- Ctrl+R now opens multi-rename; Refresh stays on F5 (both can be reassigned in Settings → Keyboard shortcuts).
 - Tabs all have the same width and shrink equally when the title bar fills up, instead of sizing to their titles.
 - A tab in split view shows both pane titles separated by "|" (left first).
 - The Recycle Bin / Trash moved into the sidebar's quick access (pinned) section.

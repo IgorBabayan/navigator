@@ -139,3 +139,6 @@ public sealed class FileOperationOptions
 
     public int CopyBufferSize { get; init; } = 1024 * 1024;
 }
+
+/// <summary>Result of <see cref="FileOperationService.RenameMany"/>: what was renamed, and the failure that stopped it (if any).</summary>
+public sealed record BatchRenameOutcome(IReadOnlyList<RenameRecord> Done, Exception? Failure);

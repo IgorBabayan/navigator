@@ -170,7 +170,7 @@ public static class PaneMenuComposer
                 : new CommandEntry(run.Paste, text["Command.Paste"], "Paste") { InStrip = true, Show = true, GestureId = "item.paste" }.Build(),
             new CommandEntry(run.Rename, text[picked.Count > 1 ? "Command.BulkRename" : "Command.Rename"], "Rename")
             {
-                InStrip = true, Show = true, GestureId = "item.rename", Scopes = LocalOrRemote,
+                InStrip = true, Show = true, GestureId = picked.Count > 1 ? "item.multiRename" : "item.rename", Scopes = LocalOrRemote,
             }.Build(),
             new CommandEntry(run.Delete, text["Command.Delete"], "Delete")
             {

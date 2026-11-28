@@ -1,0 +1,102 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="using:Navigator.App.Controls"
+        xmlns:p="using:Navigator.Presentation.Panes"
+        x:Class="Navigator.App.Views.MultiRenameWindow"
+        x:DataType="p:MultiRenameViewModel"
+        Title="{Binding Title}"
+        Width="860" Height="660" MinWidth="640" MinHeight="480"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Brush.Card}">
+  <!--
+    Multi-rename (Ctrl+R), modelled on Total Commander's Multi-Rename Tool. The preview is a virtualized list of rows
+    that are never recreated: typing only updates the new names of the rows on screen.
+  -->
+  <Window.Styles>
+    <Style Selector="TextBlock.changed">
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TextBlock.invalid">
+      <Setter Property="Foreground" Value="{DynamicResource Brush.Danger}" />
+    </Style>
+  </Window.Styles>
+  <DockPanel>
+    <Border DockPanel.Dock="Bottom" Classes="dialog-footer" Padding="24,12">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Classes="secondary" Text="{Binding Summary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+          <Button Classes="subtle" MinWidth="96" Content="{c:Tr MultiRename.Reset}" Click="OnReset" />
+          <Button x:Name="RenameButton" Classes="accent" MinWidth="96" Content="{c:Tr Command.Rename}" IsEnabled="{Binding CanRename}" Click="OnRename" />
+          <Button MinWidth="96" Content="{c:Tr Dialog.Cancel}" Click="OnCancel" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <StackPanel DockPanel.Dock="Top" Margin="24,20,24,12" Spacing="10">
+      <TextBlock Classes="title" Text="{Binding Title}" />
+
+      <Grid ColumnDefinitions="*,12,200,8,Auto" RowDefinitions="Auto,Auto">
+        <TextBlock Classes="caption" Text="{c:Tr MultiRename.NameMask}" Margin="0,0,0,4" />
+        <TextBlock Grid.Column="2" Classes="caption" Text="{c:Tr MultiRename.ExtensionMask}" Margin="0,0,0,4" />
+        <TextBox x:Name="NameMaskBox" Grid.Row="1" Text="{Binding NameMask, Mode=TwoWay}" />
+        <TextBox x:Name="ExtensionMaskBox" Grid.Row="1" Grid.Column="2" Text="{Binding ExtensionMask, Mode=TwoWay}" />
+        <Button x:Name="InsertButton" Grid.Row="1" Grid.Column="4" Content="{c:Tr MultiRename.Insert}" Click="OnInsertClick" />
+      </Grid>
+      <TextBlock Classes="caption secondary" Text="{c:Tr MultiRename.Help}" TextWrapping="Wrap" />
+      <TextBlock Classes="error" Text="{Binding TemplateError}" IsVisible="{Binding HasTemplateError}" TextWrapping="Wrap" />
+
+      <Grid ColumnDefinitions="*,24,*">
+        <StackPanel Spacing="6">
+          <TextBlock Classes="section" Text="{c:Tr MultiRename.SearchReplace}" />
+          <Grid ColumnDefinitions="*,8,*" RowDefinitions="Auto,Auto">
+            <TextBlock Classes="caption" Text="{c:Tr MultiRename.Search}" Margin="0,0,0,4" />
+            <TextBlock Grid.Column="2" Classes="caption" Text="{c:Tr MultiRename.Replace}" Margin="0,0,0,4" />
+            <TextBox Grid.Row="1" Text="{Binding Search, Mode=TwoWay}" />
+            <TextBox Grid.Row="1" Grid.Column="2" Text="{Binding Replace, Mode=TwoWay}" />
+          </Grid>
+          <StackPanel Orientation="Horizontal" Spacing="16">
+            <CheckBox Content="{c:Tr MultiRename.Regex}" IsChecked="{Binding UseRegex, Mode=TwoWay}" />
+            <CheckBox Content="{c:Tr MultiRename.MatchCase}" IsChecked="{Binding MatchCase, Mode=TwoWay}" />
+          </StackPanel>
+        </StackPanel>
+
+        <StackPanel Grid.Column="2" Spacing="6">
+          <TextBlock Classes="section" Text="{c:Tr MultiRename.Counter}" />
+          <Grid ColumnDefinitions="*,8,*,8,*" RowDefinitions="Auto,Auto">
+            <TextBlock Classes="caption" Text="{c:Tr MultiRename.CounterStart}" Margin="0,0,0,4" />
+            <TextBlock Grid.Column="2" Classes="caption" Text="{c:Tr MultiRename.CounterStep}" Margin="0,0,0,4" />
+            <TextBlock Grid.Column="4" Classes="caption" Text="{c:Tr MultiRename.CounterDigits}" Margin="0,0,0,4" />
+            <TextBox Grid.Row="1" Text="{Binding CounterStart, Mode=TwoWay}" />
+            <TextBox Grid.Row="1" Grid.Column="2" Text="{Binding CounterStep, Mode=TwoWay}" />
+            <TextBox Grid.Row="1" Grid.Column="4" Text="{Binding CounterDigits, Mode=TwoWay}" />
+          </Grid>
+          <Grid ColumnDefinitions="Auto,12,*">
+            <TextBlock Classes="caption" Text="{c:Tr MultiRename.Case}" VerticalAlignment="Center" />
+            <ComboBox Grid.Column="2" HorizontalAlignment="Stretch" ItemsSource="{Binding CaseChoices}" SelectedIndex="{Binding CaseIndex, Mode=TwoWay}" />
+          </Grid>
+        </StackPanel>
+      </Grid>
+    </StackPanel>
+
+    <Border Classes="card" Margin="24,0,24,16" Padding="0">
+      <Grid RowDefinitions="Auto,*">
+        <Grid ColumnDefinitions="*,*" Margin="12,8">
+          <TextBlock Classes="caption" Text="{c:Tr MultiRename.OldName}" />
+          <TextBlock Grid.Column="1" Classes="caption" Text="{c:Tr MultiRename.NewName}" />
+        </Grid>
+        <ListBox Grid.Row="1" ItemsSource="{Binding Rows}" Background="Transparent">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="p:MultiRenameRow">
+              <Grid ColumnDefinitions="*,*" ToolTip.Tip="{Binding Error}">
+                <TextBlock Text="{Binding OldName}" TextTrimming="CharacterEllipsis" Margin="0,0,12,0" />
+                <TextBlock Grid.Column="1" Text="{Binding NewName}" TextTrimming="CharacterEllipsis"
+                           Classes.changed="{Binding IsChanged}" Classes.invalid="{Binding HasError}" />
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Grid>
+    </Border>
+  </DockPanel>
+</Window>

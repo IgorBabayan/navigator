@@ -357,6 +357,7 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
             case "item.newFolder": pane?.NewFolderCommand.Execute(null); break;
             case "item.newFile": pane?.NewFileCommand.Execute(null); break;
             case "item.rename": pane?.RenameCommand.Execute(null); break;
+            case "item.multiRename": pane?.MultiRenameCommand.Execute(null); break;
             case "item.delete": pane?.DeleteCommand.Execute(null); break;
             case "item.deletePermanently": pane?.DeletePermanentlyCommand.Execute(null); break;
             case "item.copy": pane?.CopyCommand.Execute(null); break;
