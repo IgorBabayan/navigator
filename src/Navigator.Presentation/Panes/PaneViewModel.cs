@@ -364,6 +364,7 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
     {
         var keep = Selection.SelectedItems.Select(i => i.FullPath).ToList();
         _reselectAfterLoad = keep;
+        _nextDecorationReason = Navigator.Plugins.FolderDecorationReason.Refresh;
         ApplyLocation();
     }
 
@@ -397,6 +398,7 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         Selection.SetItems([]);
         Rows.ReplaceAll([]);
         UpdateBreadcrumbs();
+        ResetDecorations();
         LoadViewPreferences();
         UpdateTrailColumns(previousFolder, previousItems);
         RaiseNavigationState();
@@ -510,6 +512,7 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         _listingToCache = (path, filter);
         StartMonitoring(path);
         ScheduleFolderSizes(token);
+        StartDecorations(_nextDecorationReason);
     }
 
     /// <summary>
@@ -633,7 +636,7 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         };
 
         var lastPublish = 0L;
-        await foreach (var batch in FileSearchEngine.SearchAsync(query, token).ConfigureAwait(true))
+        await foreach (var batch in SearchAsync(query, token).ConfigureAwait(true))
         {
             foreach (var entry in batch)
                 _entries[entry.FullPath] = entry;
@@ -896,6 +899,8 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
             return;
         _disposed = true;
         _services.TrashStatus.PropertyChanged -= OnTrashStatusChanged;
+        CancelDecorations();
+        DetachDecorations();
         CancelLoad();
         CancelAddressSuggestions();
         StopMonitoring();

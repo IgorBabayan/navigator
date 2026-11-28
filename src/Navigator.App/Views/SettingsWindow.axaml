@@ -409,6 +409,22 @@
                         </StackPanel>
                         <TextBlock Classes="description" Text="{Binding Description}" />
                         <TextBlock Classes="description" Text="{Binding StatusText}" IsVisible="{Binding HasStatus}" />
+                        <!-- The plugin's own settings (plugin API 1.3): switches, buttons and notes. -->
+                        <ItemsControl ItemsSource="{Binding Settings}" IsVisible="{Binding HasSettings}" Margin="0,8,0,0">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="pl:PluginSettingViewModel">
+                              <Grid ColumnDefinitions="*,Auto" Margin="0,4">
+                                <StackPanel VerticalAlignment="Center" Spacing="2" Margin="0,0,16,0">
+                                  <TextBlock Text="{Binding Title}" TextWrapping="Wrap" />
+                                  <TextBlock Classes="description" Text="{Binding Description}" IsVisible="{Binding HasDescription}" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" VerticalAlignment="Center" IsVisible="{Binding IsToggle}" IsEnabled="{Binding IsEnabled}"
+                                              IsChecked="{Binding IsOn}" OnContent="" OffContent="" />
+                                <Button Grid.Column="1" VerticalAlignment="Center" IsVisible="{Binding IsAction}" Content="{Binding ActionText}" Command="{Binding RunCommand}" />
+                              </Grid>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                       </StackPanel>
                       <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                         <Button Classes="accent" IsVisible="{Binding HasUpdate}"

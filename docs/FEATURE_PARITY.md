@@ -50,8 +50,8 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Tags section | 🟦 | 🟦 | ✓ | ✓ | ✓ | |
 | Recycle Bin / Trash entry | ✅ | 🟦 | ✓ | ✓ | ✓ | |
 | Collapsible sections, resizable width | 🟦 | 🟦 | ✓ | ✓ | ✓ | |
-| Cloud drives (OneDrive, Google Drive, iCloud…) | ⬜ | ⬜ | | | | appear only as ordinary folders/volumes |
-| WSL distributions | ⬜ | ⬜ | | ➖ | ➖ | |
+| Cloud sync folders (OneDrive, Dropbox, iCloud Drive, Google Drive, Box, Nextcloud) with sync-status icons (plugin) | ✅ | 🟦 | 🟦 | ✅ | 🟦 | Cloud sync folders plugin: sync roots in the sidebar's Cloud group; badge + "Status" column (available when online / on this device / always available / downloading). Windows: Cloud Files sync roots (SyncRootManager) and placeholder attributes from the listing; macOS: ~/Library/CloudStorage, iCloud Drive, `SF_DATALESS`; Linux: Dropbox, OneDrive client, Nextcloud. Linux discovery and decorations tested; Windows and macOS untested |
+| WSL distributions (plugin) | ✅ | 🟦 | 🟦 | ➖ | ➖ | WSL plugin: "Linux" sidebar section from HKCU…\Lxss (no wsl.exe call), `\\wsl.localhost\{name}\` (`\\wsl$` before Windows 11), Open terminal / Shut down. Paths, icons and order tested; registry and wsl.exe untested |
 
 ## Browsing and views
 
@@ -115,8 +115,9 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Open in other pane; open file location (search, tags); edit tags; per-entry visibility settings | 🟦 | 🟦 | ✓ | ✓ | ✓ | Settings → General → Context menu |
 | Run as administrator / as another user | 🟦 | 🟦 | 🟦 | ➖ | ➖ | Windows shell verbs `runas` / `runasuser` for .exe/.com/.bat/.cmd/.msi; not offered elsewhere |
 | Create shortcut; create folder with selection; send to | 🟦 | 🟦 | 🟦 | 🟦 | 🟦 | Windows `.lnk` via Windows PowerShell + WScript.Shell; Linux/macOS symbolic link; never overwrites. Send to: the shell's list on Windows, known folders + removable drives elsewhere |
-| Shell context menu extensions — "Show more options" (Explorer) | 🟦 | 🟦 | 🟦 | ➖ | ➖ | `WindowsShellMenus`: classic IContextMenu on a per-menu STA thread, lazy sub-menus, entry bitmaps; duplicates of Navigator commands hidden. Windows 11 packaged-app commands (IExplorerCommand) are not hosted yet. Linux/macOS have no hostable shell menu |
-| Set as default file manager | ⬜ | ⬜ | | | | Linux desktop file declares `inode/directory` |
+| Shell context menu extensions — "Show more options" (Explorer) | 🟦 | 🟦 | 🟦 | ➖ | ➖ | `WindowsShellMenus`: classic IContextMenu on a per-menu STA thread, lazy sub-menus, entry bitmaps; duplicates of Navigator commands hidden. Linux/macOS have no hostable shell menu |
+| Windows 11 app commands in the context menu (plugin) | 🟨 | 🟦 | 🟦 | ➖ | ➖ | Windows 11 app commands plugin: `windows.fileExplorerContextMenus` verbs from the installed packages' manifests (rescanned when packages change), hosted out of process through IExplorerCommand on an MTA worker; added above "Show more options" when ready. Manifest parsing and item-type matching tested; COM hosting untested |
+| Set as default file manager (plugin) | 🟨 | 🟦 | 🟦 | 🟦 | ➖ | Default file manager plugin, Settings → Plugins: Windows per-user `Directory`/`Drive` default verb + This PC (Win+E), restored when switched off or removed; Linux `xdg-mime default … inode/directory`. Desktop entry tested; registry and xdg-mime untested. macOS cannot replace Finder |
 | Rotate pictures left / right | ✅ | 🟦 | ✓ | ✓ | ✓ | `ImageRotation`: JPEG losslessly through the EXIF orientation (two bytes patched in place; EXIF added when missing; XMP kept in step), PNG pixel-exact re-encode (`PngRotation`, every color type and bit depth, interlaced input). Navigator's thumbnails and previews honor EXIF orientation |
 | Set as desktop / lock screen background | 🟦 | 🟦 | 🟦 | 🟦 | 🟦 | Windows `SystemParametersInfo` / WinRT `LockScreen` (via Windows PowerShell); Linux GNOME, Cinnamon, MATE, KDE Plasma, Xfce, LXQt/LXDE (lock screen: GNOME, KDE); macOS `NSWorkspace` (no lock screen API) |
 | Install fonts (per user) | ✅ | 🟦 | 🟦 | 🟦 | 🟦 | `FontFileInfo` reads names (tested); Windows: user font folder + HKCU registration + `AddFontResource`; Linux `~/.local/share/fonts` + `fc-cache`; macOS `~/Library/Fonts`. Never replaces an installed file |
@@ -146,7 +147,7 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 |---|---|---|---|---|---|---|
 | Recursive search (wildcards, cancellable, streaming results) | ✅ | 🟦 | ✓ | ✓ | ✓ | `FileSearchEngine` |
 | Search inside file contents (opt-in setting) | ✅ | 🟦 | ✓ | ✓ | ✓ | streaming matcher, tested across buffer boundaries |
-| OS index search (Windows Search, Spotlight, Tracker) | ⬜ | ⬜ | | | | |
+| OS index search: Windows Search (plugin) | 🟨 | 🟦 | 🟦 | ➖ | ➖ | Windows Search index plugin: indexed folders are searched through OLE DB (`Search.CollatorDSO`, vtable calls on an MTA worker); names (`LIKE`, wildcards) and contents (`CONTAINS`); not indexed or failing → Navigator's own search. SQL generation tested; the provider calls are untested (no Windows in the development environment). Spotlight and Tracker: ⬜ |
 | Tags (create, colors, assign, browse by tag) | 🟦 | 🟦 | ✓ | ✓ | ✓ | stored in app data (`TagStore`), not in file system metadata |
 | Clear tag(s) from the selection (Edit tags menu) | ✅ | 🟦 | ✓ | ✓ | ✓ | `TagStore.RemoveTag`, `PaneMenuComposer` (tested) |
 
@@ -178,7 +179,14 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Packages: setup.exe + portable zip; AppImage + tar.gz; DMG + zip | 🟦 | ➖ | 🟦 | 🟦 | 🟦 | scripts not executed yet |
 | DEB / RPM / Flatpak / MSIX / winget / Homebrew | ⬜ | ➖ | | | | |
 
+## Git (plugin)
+
+| Feature | Logic | UI | W | L | M | Notes |
+|---|---|---|---|---|---|---|
+| Branch in the status bar (ahead/behind), Pull / Push / Publish branch / Fetch | ✅ | 🟦 | 🟦 | ✅ | 🟦 | Git plugin through the installed `git`; status segment menu and a "Git" sub-menu in the folder's background menu; one remote operation per repository at a time; credential helpers' own windows work, terminal prompts never block |
+| Git columns: status, last commit, author, commit date | ✅ | 🟦 | 🟦 | ✅ | 🟦 | one `git status --porcelain=v2` per repository shared by all panes and subfolders; commit columns (hidden by default) from one bounded `git log` walk per folder, stopped when every item is found; tested against a real repository |
+| Git status badges on icons (M, A, U, D, R, C) | ✅ | 🟦 | 🟦 | ✅ | 🟦 | switchable in Settings → Plugins → Git |
+
 ## Not planned for the first release
 
-Git integration, FTP/SFTP/WebDAV, cloud provider APIs, Windows shell extensions, file system
-metadata tags (xattr/NTFS streams), smart folders.
+WebDAV, file system metadata tags (xattr/NTFS streams), smart folders.

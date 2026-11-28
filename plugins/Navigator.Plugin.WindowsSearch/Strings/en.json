@@ -1,0 +1,7 @@
+{
+  "WindowsSearch.Settings.Enabled": "Search indexed folders with Windows Search",
+  "WindowsSearch.Settings.EnabledHint": "Results come from the index File Explorer uses: fast in large folders, and content searches look inside documents. Folders that are not indexed are searched by Navigator itself.",
+  "WindowsSearch.Settings.Options": "Indexed locations",
+  "WindowsSearch.Settings.OptionsHint": "Choose which folders Windows indexes.",
+  "WindowsSearch.Settings.OptionsButton": "Indexing options"
+}

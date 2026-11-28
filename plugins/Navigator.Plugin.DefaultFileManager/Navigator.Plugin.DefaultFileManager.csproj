@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Default file manager: makes Navigator open folders and drives everywhere — the desktop, other apps, Win+E —
+    instead of File Explorer (Windows: per-user registry verbs, no administrator rights; Linux: the inode/directory
+    default through xdg-mime). Everything it changes is recorded and undone when it is switched off or the plugin is
+    removed. Base class library only. Installed from the plugin shop; NOT part of the app build.
+  -->
+  <PropertyGroup>
+    <RootNamespace>Navigator.Plugin.DefaultFileManager</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NavigatorPluginId>default-file-manager</NavigatorPluginId>
+    <NavigatorPluginVersion>1.0.0</NavigatorPluginVersion>
+    <NavigatorPluginName>Default file manager</NavigatorPluginName>
+    <NavigatorPluginDescription>Opens folders, drives and Win+E in Navigator instead of File Explorer. Switch it on in the plugin's settings; switching it off restores the system default.</NavigatorPluginDescription>
+    <NavigatorPluginAuthor>Navigator</NavigatorPluginAuthor>
+    <NavigatorPluginEntryType>Navigator.Plugin.DefaultFileManager.DefaultFileManagerPlugin</NavigatorPluginEntryType>
+    <NavigatorPluginIconKey>FolderStar</NavigatorPluginIconKey>
+    <NavigatorPluginPlatforms>windows;linux</NavigatorPluginPlatforms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The host provides the contract (and Navigator.Core) at run time: never copied into the package. -->
+    <ProjectReference Include="..\..\src\Navigator.Plugins.Abstractions\Navigator.Plugins.Abstractions.csproj" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Strings\*.json" LogicalName="Strings.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Navigator.UnitTests" />
+  </ItemGroup>
+</Project>

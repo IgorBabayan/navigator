@@ -56,6 +56,19 @@ public sealed class PluginHost : IDisposable
     public bool TryGetFileSystem(string scheme, out IRemoteFileSystem fileSystem)
         => Volatile.Read(ref _contributions).FileSystems.TryGetValue(scheme, out fileSystem!);
 
+    /// <summary>Folder decorators of every running plugin (columns, icon badges, status bar segments), in plugin order.</summary>
+    public IReadOnlyList<IFolderDecorator> FolderDecorators => Volatile.Read(ref _contributions).Decorators;
+
+    /// <summary>Context-menu providers of every running plugin.</summary>
+    public IReadOnlyList<IItemMenuProvider> MenuProviders => Volatile.Read(ref _contributions).MenuProviders;
+
+    /// <summary>Search providers of every running plugin; the first that accepts a search serves it.</summary>
+    public IReadOnlyList<ISearchProvider> SearchProviders => Volatile.Read(ref _contributions).SearchProviders;
+
+    /// <summary>The settings a running plugin shows in Settings → Plugins, or null.</summary>
+    public IPluginSettingsPage? GetSettingsPage(string pluginId)
+        => Volatile.Read(ref _contributions).SettingsPages.TryGetValue(pluginId, out var page) ? page : null;
+
     public IReadOnlyList<PluginInfo> GetPlugins()
     {
         lock (_gate)
@@ -174,6 +187,7 @@ public sealed class PluginHost : IDisposable
                     throw new InvalidOperationException($"'{slot.Manifest.Name}' is part of Navigator and cannot be removed.");
             }
 
+            await NotifyUninstallingAsync(slot).ConfigureAwait(false);
             Stop(slot);
             RebuildContributions(raise: false);
 
@@ -202,6 +216,22 @@ public sealed class PluginHost : IDisposable
         finally
         {
             _changes.Release();
+        }
+    }
+
+    /// <summary>Lets the plugin undo changes it made outside its folder (plugin API 1.3); a failure never blocks the removal.</summary>
+    private async Task NotifyUninstallingAsync(Slot slot)
+    {
+        if (slot.Instance is not IPluginUninstallHandler handler)
+            return;
+        try
+        {
+            using var patience = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            await handler.OnUninstallingAsync(patience.Token).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            _services.CreateLog(slot.Manifest.Id).Warning("Plugin failed to clean up before removal", ex);
         }
     }
 
@@ -258,6 +288,13 @@ public sealed class PluginHost : IDisposable
         {
             slot.Status = PluginStatus.Incompatible;
             slot.Error = $"Plugin API {manifest.ApiVersion}; Navigator provides {PluginApi.Version}.";
+            return;
+        }
+
+        if (!manifest.SupportsCurrentPlatform)
+        {
+            slot.Status = PluginStatus.Incompatible;
+            slot.Error = $"Available on {string.Join(", ", manifest.Platforms!)} only.";
             return;
         }
 
@@ -323,31 +360,55 @@ public sealed class PluginHost : IDisposable
             throw new InvalidDataException($"The package contains plugin '{manifest.Id}', not '{expectedId}'.");
         if (!PluginApi.IsCompatible(manifest.ApiVersion))
             throw new InvalidDataException($"The plugin needs plugin API {manifest.ApiVersion}; this Navigator provides {PluginApi.Version}.");
+        if (!manifest.SupportsCurrentPlatform)
+            throw new InvalidDataException($"'{manifest.Name}' is available on {string.Join(", ", manifest.Platforms!)} only.");
     }
 
     private void RebuildContributions(bool raise)
     {
         var sections = new List<IPluginSidebarSection>();
         var fileSystems = new Dictionary<string, IRemoteFileSystem>(StringComparer.OrdinalIgnoreCase);
+        var decorators = new List<IFolderDecorator>();
+        var menus = new List<IItemMenuProvider>();
+        var searches = new List<ISearchProvider>();
+        var pages = new Dictionary<string, IPluginSettingsPage>(StringComparer.Ordinal);
         lock (_gate)
         {
-            foreach (var slot in _slots.Values)
+            // Built-in plugins first, then by id: a stable order for columns, menu entries and search providers.
+            foreach (var slot in _slots.Values.OrderByDescending(s => s.IsBuiltIn).ThenBy(s => s.Manifest.Id, StringComparer.Ordinal))
             {
                 if (slot.Context is not { IsAttached: true } context)
                     continue;
-                var (ownSections, ownFileSystems) = context.Snapshot();
-                sections.AddRange(ownSections);
-                foreach (var fileSystem in ownFileSystems)
+                var own = context.Snapshot();
+                sections.AddRange(own.Sections);
+                foreach (var fileSystem in own.FileSystems)
                 {
                     foreach (var scheme in fileSystem.Schemes)
                         fileSystems.TryAdd(scheme, fileSystem);
                 }
+
+                foreach (var decorator in own.Decorators)
+                {
+                    if (!decorators.Exists(d => string.Equals(d.Id, decorator.Id, StringComparison.Ordinal)))
+                        decorators.Add(decorator);
+                }
+
+                menus.AddRange(own.MenuProviders);
+                searches.AddRange(own.SearchProviders);
+                if (own.SettingsPage is { } page)
+                    pages[slot.Manifest.Id] = page;
             }
         }
 
         sections.Sort((a, b) => a.Order != b.Order ? a.Order.CompareTo(b.Order) : string.CompareOrdinal(a.Id, b.Id));
         GroupSections(sections);
-        Volatile.Write(ref _contributions, new Contributions([.. sections], fileSystems.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase)));
+        Volatile.Write(ref _contributions, new Contributions([.. sections], fileSystems.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase))
+        {
+            Decorators = [.. decorators],
+            MenuProviders = [.. menus],
+            SearchProviders = [.. searches],
+            SettingsPages = pages.ToFrozenDictionary(StringComparer.Ordinal),
+        });
         if (raise)
             Changed?.Invoke(this, EventArgs.Empty);
     }
@@ -474,6 +535,14 @@ public sealed class PluginHost : IDisposable
     private sealed record Contributions(IReadOnlyList<IPluginSidebarSection> Sections, FrozenDictionary<string, IRemoteFileSystem> FileSystems)
     {
         public IReadOnlyList<IRemoteFileSystem> Distinct { get; } = [.. FileSystems.Values.Distinct()];
+
+        public IReadOnlyList<IFolderDecorator> Decorators { get; init; } = [];
+
+        public IReadOnlyList<IItemMenuProvider> MenuProviders { get; init; } = [];
+
+        public IReadOnlyList<ISearchProvider> SearchProviders { get; init; } = [];
+
+        public FrozenDictionary<string, IPluginSettingsPage> SettingsPages { get; init; } = FrozenDictionary<string, IPluginSettingsPage>.Empty;
 
         public static Contributions Empty { get; } = new([], FrozenDictionary<string, IRemoteFileSystem>.Empty);
     }

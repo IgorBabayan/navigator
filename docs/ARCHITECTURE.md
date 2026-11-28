@@ -85,6 +85,10 @@ testable without a display and the UI framework is replaceable.
     Contributions are published as immutable snapshots, so readers never lock. Plugin addresses are a separate
     `LocationKind.Remote`; the local file engine never receives one, which keeps its safety rules intact.
     Third-party libraries a plugin needs (SSH.NET for SSH) ship only inside that plugin's package, never in the app.
+    Plugin API 1.3 adds folder decorators (plugin columns, icon badges, status bar segments), context-menu providers,
+    search providers and settings pages. Panes ask them off the UI thread after a listing is complete and never wait
+    for them: decorations arrive as merged snapshots, plugin menu entries are inserted into the open menu, a search
+    provider that declines or fails is replaced by the built-in engine.
 
 ## Threading model
 

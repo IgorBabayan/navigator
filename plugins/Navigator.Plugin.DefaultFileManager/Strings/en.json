@@ -1,0 +1,10 @@
+{
+  "Default.Title": "Default file manager",
+  "Default.Settings.Enabled": "Use Navigator as the default file manager",
+  "Default.Settings.EnabledHintWindows": "Folders and drives opened from the desktop and other apps, and Win+E, open in Navigator. Switching it off gives the role back to File Explorer.",
+  "Default.Settings.EnabledHintLinux": "Folders opened from the desktop and other apps open in Navigator. Switching it off restores the previous file manager.",
+  "Default.Settings.DevelopmentBuild": "Available when Navigator runs from its installed executable.",
+  "Default.Enabled": "Folders now open in Navigator.",
+  "Default.Disabled": "Folders open in the system's file manager again.",
+  "Default.NoXdgMime": "xdg-mime (xdg-utils) is not installed, so the default file manager cannot be changed."
+}

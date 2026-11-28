@@ -15,6 +15,9 @@ public interface IPluginUi
 
     /// <summary>A small form. Returns the field values by <see cref="PluginFormField.Id"/>, or null when cancelled.</summary>
     Task<IReadOnlyDictionary<string, string>?> ShowFormAsync(PluginForm form);
+
+    /// <summary>A transient notification in the window's corner (e.g. "Pushed to origin/main"); never blocks (plugin API 1.3).</summary>
+    void Notify(string title, string message, PluginNotificationKind kind = PluginNotificationKind.Information);
 }
 
 public enum PluginFieldKind

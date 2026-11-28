@@ -1,0 +1,18 @@
+{
+  "CloudSync.Section": "Sync folders",
+  "CloudSync.Column.Status": "Status",
+  "CloudSync.State.OnlineOnly": "Available when online",
+  "CloudSync.State.Local": "Available on this device",
+  "CloudSync.State.AlwaysAvailable": "Always available on this device",
+  "CloudSync.State.Downloading": "Downloading",
+  "CloudSync.State.None": "",
+  "CloudSync.Settings.Found": "Sync folders found",
+  "CloudSync.Settings.NoneFound": "No sync folders were found. Sign in to OneDrive, Dropbox, iCloud Drive, Google Drive or another sync client.",
+  "CloudSync.Settings.Sidebar": "Show sync folders in the sidebar",
+  "CloudSync.Settings.SidebarHint": "Listed in the Cloud group of the sidebar.",
+  "CloudSync.Settings.Badges": "Sync-status icons",
+  "CloudSync.Settings.BadgesHint": "A cloud on online-only items, a check mark on items available on this device.",
+  "CloudSync.Settings.Rescan": "Look for sync folders again",
+  "CloudSync.Settings.RescanHint": "After installing or signing in to a sync client.",
+  "CloudSync.Settings.RescanButton": "Look again"
+}

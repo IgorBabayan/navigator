@@ -1,0 +1,5 @@
+{
+  "ModernMenu.Settings.Enabled": "Показувати команди застосунків Windows 11 у контекстних меню",
+  "ModernMenu.Settings.EnabledHint": "Команди, які застосунки додають до нового контекстного меню Провідника, наприклад «Відкрити в Code».",
+  "ModernMenu.Settings.Found": "Застосунків із командами: {0}."
+}

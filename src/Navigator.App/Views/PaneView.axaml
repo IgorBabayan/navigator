@@ -136,6 +136,8 @@
         <v:ColumnHeader x:Name="SizeHeader" c:DetailsCellsPanel.Cell="size" ColumnId="size" Column="Size" Text="{c:Tr Column.Size}" Width="{Binding $parent[v:PaneView].Columns.SizeWidth}" />
         <v:ColumnHeader x:Name="CreatedHeader" c:DetailsCellsPanel.Cell="created" ColumnId="created" Column="DateCreated" Text="{c:Tr Column.Created}" Width="{Binding $parent[v:PaneView].Columns.CreatedWidth}" IsVisible="{Binding $parent[v:PaneView].Columns.ShowCreated}" />
         <v:ColumnHeader x:Name="TagsHeader" c:DetailsCellsPanel.Cell="tags" ColumnId="tags" Column="Name" Text="{c:Tr Column.Tags}" Width="{Binding $parent[v:PaneView].Columns.TagsWidth}" IsVisible="{Binding $parent[v:PaneView].Columns.ShowTags}" IsSortable="False" />
+        <!-- Headers of plugin columns (PluginColumns.Visible), created in code: they follow the built-in columns. -->
+        <StackPanel x:Name="PluginHeaders" Orientation="Horizontal" />
       </c:DetailsCellsPanel>
     </Border>
 

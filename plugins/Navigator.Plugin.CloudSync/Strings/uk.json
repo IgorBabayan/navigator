@@ -1,0 +1,18 @@
+{
+  "CloudSync.Section": "Синхронізовані папки",
+  "CloudSync.Column.Status": "Стан",
+  "CloudSync.State.OnlineOnly": "Доступно, коли онлайн",
+  "CloudSync.State.Local": "Доступно на цьому пристрої",
+  "CloudSync.State.AlwaysAvailable": "Завжди доступно на цьому пристрої",
+  "CloudSync.State.Downloading": "Завантаження",
+  "CloudSync.State.None": "",
+  "CloudSync.Settings.Found": "Знайдені синхронізовані папки",
+  "CloudSync.Settings.NoneFound": "Синхронізованих папок не знайдено. Увійдіть у OneDrive, Dropbox, iCloud Drive, Google Drive або інший клієнт синхронізації.",
+  "CloudSync.Settings.Sidebar": "Показувати синхронізовані папки на бічній панелі",
+  "CloudSync.Settings.SidebarHint": "У групі «Хмара» бічної панелі.",
+  "CloudSync.Settings.Badges": "Значки стану синхронізації",
+  "CloudSync.Settings.BadgesHint": "Хмаринка на елементах лише онлайн, позначка на елементах, доступних на цьому пристрої.",
+  "CloudSync.Settings.Rescan": "Знову пошукати синхронізовані папки",
+  "CloudSync.Settings.RescanHint": "Після встановлення клієнта синхронізації або входу в нього.",
+  "CloudSync.Settings.RescanButton": "Пошукати"
+}

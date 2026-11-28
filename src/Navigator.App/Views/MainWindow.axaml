@@ -4,6 +4,7 @@
         xmlns:v="using:Navigator.App.Views"
         xmlns:vm="using:Navigator.Presentation.Shell"
         xmlns:panes="using:Navigator.Presentation.Panes"
+        xmlns:pl="using:Navigator.Presentation.Plugins"
         xmlns:s="using:Navigator.Core.Settings"
         xmlns:sort="using:Navigator.Core.Sorting"
         x:Class="Navigator.App.Views.MainWindow"
@@ -368,6 +369,25 @@
       <Grid Grid.Row="4" ColumnDefinitions="Auto,Auto,*,Auto" Height="28" Margin="16,0,12,0">
         <TextBlock Classes="caption" Text="{Binding ActivePane.StatusText}" VerticalAlignment="Center" ToolTip.Tip="{Binding ActivePane.LastLoadMilliseconds, StringFormat='{}{0} ms'}" />
         <TextBlock Grid.Column="1" Classes="caption" Margin="16,0,0,0" Text="{Binding ActivePane.SelectionText}" VerticalAlignment="Center" />
+        <!-- Plugin segments for the folder shown (Git branch…); a click opens their commands (Pull, Push…). -->
+        <ItemsControl Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" ItemsSource="{Binding ActivePane.StatusSegments}"
+                      IsVisible="{Binding ActivePane.HasStatusSegments}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Orientation="Horizontal" Spacing="4" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="pl:StatusSegmentViewModel">
+              <Button Classes="subtle" Padding="6,1" Click="OnStatusSegmentClick" ToolTip.Tip="{Binding ToolTip}">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                  <c:IconView Kind="{Binding IconKey}" Width="14" Height="14" VerticalAlignment="Center" />
+                  <TextBlock Classes="caption" Text="{Binding Text}" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
         <v:PerformanceIndicator Grid.Column="3" Margin="12,0,0,0" VerticalAlignment="Center" />
       </Grid>
     </Grid>

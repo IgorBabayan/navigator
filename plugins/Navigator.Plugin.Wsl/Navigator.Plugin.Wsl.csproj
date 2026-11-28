@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    WSL plugin (Windows): the installed Windows Subsystem for Linux distributions in the sidebar ("Linux", like File
+    Explorer), opened as \\wsl.localhost\{distribution}\ so every file action works there. Reads the distribution list
+    from the registry (no wsl.exe call, so listing never starts a distribution); opening one starts it as Windows does.
+    Base class library only. Installed from the plugin shop; NOT part of the app build.
+  -->
+  <PropertyGroup>
+    <RootNamespace>Navigator.Plugin.Wsl</RootNamespace>
+    <NavigatorPluginId>wsl</NavigatorPluginId>
+    <NavigatorPluginVersion>1.0.0</NavigatorPluginVersion>
+    <NavigatorPluginName>WSL distributions</NavigatorPluginName>
+    <NavigatorPluginDescription>Linux distributions of the Windows Subsystem for Linux in the sidebar, with Open terminal and Shut down for each.</NavigatorPluginDescription>
+    <NavigatorPluginAuthor>Navigator</NavigatorPluginAuthor>
+    <NavigatorPluginEntryType>Navigator.Plugin.Wsl.WslPlugin</NavigatorPluginEntryType>
+    <NavigatorPluginIconKey>Linux</NavigatorPluginIconKey>
+    <NavigatorPluginPlatforms>windows</NavigatorPluginPlatforms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The host provides the contract (and Navigator.Core) at run time: never copied into the package. -->
+    <ProjectReference Include="..\..\src\Navigator.Plugins.Abstractions\Navigator.Plugins.Abstractions.csproj" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Strings\*.json" LogicalName="Strings.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Navigator.UnitTests" />
+  </ItemGroup>
+</Project>

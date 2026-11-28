@@ -303,6 +303,14 @@ public sealed class FilesAndFoldersSettings
         new() { Id = "created", Width = 170, IsVisible = false },
         new() { Id = "tags", Width = 120, IsVisible = true },
     ];
+
+    /// <summary>
+    /// Widths and visibility of columns that plugins fill ("git.status"), by "{decorator id}.{column id}"; a column the
+    /// user never touched is absent and uses the plugin's defaults. Bounded by <see cref="MaxPluginColumns"/>.
+    /// </summary>
+    public List<ColumnSetting> PluginColumns { get; set; } = [];
+
+    public const int MaxPluginColumns = 64;
 }
 
 public sealed class FolderViewPreference

@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Cloud sync folders: finds the folders that OneDrive, Dropbox, iCloud Drive, Google Drive, Box, Nextcloud… keep in
+    sync on this computer, lists them in the sidebar's Cloud group and shows each item's sync state (online-only,
+    available on this device, always available) as an icon badge and in a "Status" column. Sync state comes from the
+    attributes the listing already has (Windows Cloud Files) or one lstat per item (macOS File Provider): no extra
+    listing, no network. Base class library only. Installed from the plugin shop; NOT part of the app build.
+  -->
+  <PropertyGroup>
+    <RootNamespace>Navigator.Plugin.CloudSync</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NavigatorPluginId>cloudsync</NavigatorPluginId>
+    <NavigatorPluginVersion>1.0.0</NavigatorPluginVersion>
+    <NavigatorPluginName>Cloud sync folders</NavigatorPluginName>
+    <NavigatorPluginDescription>OneDrive, Dropbox, iCloud Drive, Google Drive and other synced folders in the sidebar, with sync-status icons and a Status column.</NavigatorPluginDescription>
+    <NavigatorPluginAuthor>Navigator</NavigatorPluginAuthor>
+    <NavigatorPluginEntryType>Navigator.Plugin.CloudSync.CloudSyncPlugin</NavigatorPluginEntryType>
+    <NavigatorPluginIconKey>CloudSync</NavigatorPluginIconKey>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The host provides the contract (and Navigator.Core) at run time: never copied into the package. -->
+    <ProjectReference Include="..\..\src\Navigator.Plugins.Abstractions\Navigator.Plugins.Abstractions.csproj" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Strings\*.json" LogicalName="Strings.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Navigator.UnitTests" />
+  </ItemGroup>
+</Project>

@@ -168,6 +168,12 @@ public sealed class SettingsStore
         if (!Enum.IsDefined(settings.FilesAndFolders.QuickLook))
             settings.FilesAndFolders.QuickLook = Platform.QuickLookProvider.Automatic;
         settings.FilesAndFolders.Columns ??= new FilesAndFoldersSettings().Columns;
+        var pluginColumns = settings.FilesAndFolders.PluginColumns ??= [];
+        pluginColumns.RemoveAll(column => column is null || string.IsNullOrWhiteSpace(column.Id) || column.Id.Length > 128);
+        if (pluginColumns.Count > FilesAndFoldersSettings.MaxPluginColumns)
+            pluginColumns.RemoveRange(FilesAndFoldersSettings.MaxPluginColumns, pluginColumns.Count - FilesAndFoldersSettings.MaxPluginColumns);
+        foreach (var column in pluginColumns)
+            column.Width = double.IsFinite(column.Width) ? Math.Clamp(column.Width, 48, 1200) : 140;
         settings.Search.History ??= [];
         if (settings.Search.History.Count > 50)
             settings.Search.History.RemoveRange(50, settings.Search.History.Count - 50);

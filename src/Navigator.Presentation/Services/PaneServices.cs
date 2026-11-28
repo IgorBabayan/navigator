@@ -92,8 +92,11 @@ public sealed class PaneServices(
     /// <summary>Folders served by plugins (SFTP, FTP…).</summary>
     public RemoteFileService Remote { get; } = remote;
 
-    /// <summary>Plugin contributions (sidebar sections, file systems).</summary>
+    /// <summary>Plugin contributions (sidebar sections, file systems, decorators, menus, search providers).</summary>
     public Navigator.Plugins.PluginHost Plugins { get; } = plugins;
+
+    /// <summary>Folder decorators of plugins (columns, icon badges, status bar segments) and their change notices.</summary>
+    public global::Navigator.Presentation.Plugins.FolderDecorationHub Decorations { get; } = new(plugins);
 
     /// <summary>External previewers the space bar can hand the selection to (QuickLook, Seer, Peek, macOS Quick Look…).</summary>
     public IQuickLookService QuickLook { get; } = quickLook;

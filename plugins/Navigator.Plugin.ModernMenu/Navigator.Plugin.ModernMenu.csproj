@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Windows 11 app commands: the context-menu entries that packaged apps register for File Explorer's new menu
+    (desktop4/desktop5 "windows.fileExplorerContextMenus": "Open with Code", "Edit with Clipchamp", 7-Zip, PowerToys…),
+    which the classic menu behind "Show more options" does not contain. Found in the installed packages' manifests
+    (scanned once, again only when packages change) and hosted out of process through IExplorerCommand on a worker
+    thread, so a slow handler never holds up the menu. Base class library only; vtable calls (no built-in COM interop).
+    Installed from the plugin shop; NOT part of the app build.
+  -->
+  <PropertyGroup>
+    <RootNamespace>Navigator.Plugin.ModernMenu</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NavigatorPluginId>win11-menu</NavigatorPluginId>
+    <NavigatorPluginVersion>1.0.0</NavigatorPluginVersion>
+    <NavigatorPluginName>Windows 11 app commands</NavigatorPluginName>
+    <NavigatorPluginDescription>Adds the context-menu commands of Windows 11 apps (Open with Code, PowerToys, 7-Zip and others) that only File Explorer's new menu shows.</NavigatorPluginDescription>
+    <NavigatorPluginAuthor>Navigator</NavigatorPluginAuthor>
+    <NavigatorPluginEntryType>Navigator.Plugin.ModernMenu.ModernMenuPlugin</NavigatorPluginEntryType>
+    <NavigatorPluginIconKey>MenuOpen</NavigatorPluginIconKey>
+    <NavigatorPluginPlatforms>windows</NavigatorPluginPlatforms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The host provides the contract (and Navigator.Core) at run time: never copied into the package. -->
+    <ProjectReference Include="..\..\src\Navigator.Plugins.Abstractions\Navigator.Plugins.Abstractions.csproj" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Strings\*.json" LogicalName="Strings.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Navigator.UnitTests" />
+  </ItemGroup>
+</Project>

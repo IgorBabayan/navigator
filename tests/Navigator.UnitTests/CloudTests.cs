@@ -516,6 +516,14 @@ public sealed class CloudTests
         public void AddSidebarSection(IPluginSidebarSection section) => throw new NotSupportedException();
 
         public void AddFileSystem(IRemoteFileSystem fileSystem) => throw new NotSupportedException();
+
+        public void AddFolderDecorator(IFolderDecorator decorator) => throw new NotSupportedException();
+
+        public void AddMenuProvider(IItemMenuProvider provider) => throw new NotSupportedException();
+
+        public void AddSearchProvider(ISearchProvider provider) => throw new NotSupportedException();
+
+        public void SetSettingsPage(IPluginSettingsPage page) => throw new NotSupportedException();
     }
 
     /// <summary>One-request-at-a-time HTTP/1.1 server on 127.0.0.1 for the token endpoint.</summary>

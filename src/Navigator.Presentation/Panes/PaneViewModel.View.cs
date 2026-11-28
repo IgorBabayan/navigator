@@ -146,7 +146,7 @@ public sealed partial class PaneViewModel
             if (!_itemsByPath.TryGetValue(entry.FullPath, out var model) || !ReferenceEquals(model.Entry, entry))
             {
                 var trash = model?.TrashItem;
-                model = new FileItemViewModel(entry, _displayContext, trash);
+                model = new FileItemViewModel(entry, _displayContext, trash) { Decoration = DecorationFor(entry) };
                 _itemsByPath[entry.FullPath] = model;
             }
 
@@ -311,6 +311,9 @@ public sealed partial class PaneViewModel
                 _entries[entry.FullPath] = entry;
             _ = ResortAsync();
         }
+
+        // Git status, sync state… of the changed items: one run after the burst of changes settles.
+        ScheduleDecorations(Navigator.Plugins.FolderDecorationReason.Changed);
     }
 
     /// <summary>
@@ -343,7 +346,7 @@ public sealed partial class PaneViewModel
         foreach (var entry in added)
         {
             _entries[entry.FullPath] = entry;
-            var model = new FileItemViewModel(entry, _displayContext);
+            var model = new FileItemViewModel(entry, _displayContext) { Decoration = DecorationFor(entry) };
             _itemsByPath[entry.FullPath] = model;
             var index = _ordered.BinarySearch(model, comparer);
             if (index < 0)

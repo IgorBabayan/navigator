@@ -39,8 +39,17 @@ internal sealed class PaneMenuView(PaneServices services, ILogger logger)
                 menu.Items.Add(new Separator());
         }
 
+        Control? moreOptions = null;
         foreach (var entry in rows)
-            menu.Items.Add(Row(entry, pictures, model.Lifetime));
+        {
+            var row = Row(entry, pictures, model.Lifetime);
+            if (entry.Slot == MenuSlots.MoreOptions)
+                moreOptions = row;
+            menu.Items.Add(row);
+        }
+
+        if (model.LateEntries is { } late)
+            AddLateEntries(menu, late, moreOptions, pictures, model.Lifetime);
 
         menu.Closed += (_, _) =>
         {
@@ -49,6 +58,44 @@ internal sealed class PaneMenuView(PaneServices services, ILogger logger)
                 picture.Dispose();
         };
         return menu;
+    }
+
+    /// <summary>
+    /// Plugin entries (Windows 11 app commands, Git…) join the open menu above "Show more options" as soon as they arrive;
+    /// entries that are already there (cached) are placed before the menu is first drawn.
+    /// </summary>
+    private async void AddLateEntries(ContextMenu menu, Task<IReadOnlyList<MenuEntry>> late, Control? anchor, List<Bitmap> pictures, CancellationToken lifetime)
+    {
+        IReadOnlyList<MenuEntry> entries;
+        try
+        {
+            // Already finished (cached results): the continuation runs right away, before the menu is first drawn.
+            entries = await late.ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or InvalidOperationException)
+        {
+            logger.LogDebug(ex, "Plugin menu entries were not added");
+            return;
+        }
+
+        if (lifetime.IsCancellationRequested || entries.Count == 0)
+            return;
+
+        var index = anchor is null ? menu.Items.Count : menu.Items.IndexOf(anchor);
+        if (index < 0)
+            index = menu.Items.Count;
+        // The separator in front of "Show more options" stays where it is; the plugin entries get their own above it.
+        if (index > 0 && menu.Items[index - 1] is Separator)
+            index--;
+        var rows = new List<Control>(entries.Count + 1);
+        if (index > 0 && menu.Items[index - 1] is not Separator)
+            rows.Add(new Separator());
+        foreach (var entry in entries)
+            rows.Add(Row(entry, pictures, lifetime));
+        if (index < menu.Items.Count && menu.Items[index] is not Separator)
+            rows.Add(new Separator());
+        foreach (var row in rows)
+            menu.Items.Insert(index++, row);
     }
 
     /// <summary>A menu dropped down from a toolbar button (the command bar's "New").</summary>

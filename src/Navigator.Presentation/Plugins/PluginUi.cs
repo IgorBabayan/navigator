@@ -5,8 +5,23 @@ using Navigator.Presentation.Services;
 namespace Navigator.Presentation.Plugins;
 
 /// <summary>Plugin dialogs, shown through <see cref="IDialogService"/> on the UI thread whatever thread the plugin calls from.</summary>
-public sealed class PluginUi(IUiDispatcher dispatcher, IDialogService dialogs, Localizer localizer) : IPluginUi
+public sealed class PluginUi(IUiDispatcher dispatcher, IDialogService dialogs, Localizer localizer, INotificationCenter notifications) : IPluginUi
 {
+    public void Notify(string title, string message, PluginNotificationKind kind = PluginNotificationKind.Information)
+    {
+        var notification = new InAppNotification(title, message, kind switch
+        {
+            PluginNotificationKind.Success => NotificationSeverity.Success,
+            PluginNotificationKind.Warning => NotificationSeverity.Warning,
+            PluginNotificationKind.Error => NotificationSeverity.Error,
+            _ => NotificationSeverity.Information,
+        });
+        if (dispatcher.CheckAccess())
+            notifications.Show(notification);
+        else
+            dispatcher.Post(() => notifications.Show(notification));
+    }
+
     public Task<bool> ConfirmAsync(string title, string message, string primaryText, bool isDestructive = false)
         => OnUiThreadAsync(async () => (await dialogs.ConfirmAsync(new ConfirmRequest(title, message, primaryText, IsDestructive: isDestructive)).ConfigureAwait(true)).Result == DialogResult.Primary);
 

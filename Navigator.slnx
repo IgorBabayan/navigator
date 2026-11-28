@@ -8,13 +8,19 @@
     <Project Path="src/Navigator.Presentation/Navigator.Presentation.csproj" />
     <Project Path="src/Navigator.App/Navigator.App.csproj" />
   </Folder>
-  <!-- Plugins: Network is built into the app; SSH, FTP, Google Drive and OneDrive are separate packages for the plugin shop (docs/PLUGINS.md). -->
+  <!-- Plugins: Network is built into the app; every other plugin is a separate package for the plugin shop (docs/PLUGINS.md). -->
   <Folder Name="/plugins/">
     <Project Path="plugins/Navigator.Plugin.Network/Navigator.Plugin.Network.csproj" />
     <Project Path="plugins/Navigator.Plugin.Ssh/Navigator.Plugin.Ssh.csproj" />
     <Project Path="plugins/Navigator.Plugin.Ftp/Navigator.Plugin.Ftp.csproj" />
     <Project Path="plugins/Navigator.Plugin.GoogleDrive/Navigator.Plugin.GoogleDrive.csproj" />
     <Project Path="plugins/Navigator.Plugin.OneDrive/Navigator.Plugin.OneDrive.csproj" />
+    <Project Path="plugins/Navigator.Plugin.Git/Navigator.Plugin.Git.csproj" />
+    <Project Path="plugins/Navigator.Plugin.CloudSync/Navigator.Plugin.CloudSync.csproj" />
+    <Project Path="plugins/Navigator.Plugin.Wsl/Navigator.Plugin.Wsl.csproj" />
+    <Project Path="plugins/Navigator.Plugin.WindowsSearch/Navigator.Plugin.WindowsSearch.csproj" />
+    <Project Path="plugins/Navigator.Plugin.ModernMenu/Navigator.Plugin.ModernMenu.csproj" />
+    <Project Path="plugins/Navigator.Plugin.DefaultFileManager/Navigator.Plugin.DefaultFileManager.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Navigator.UnitTests/Navigator.UnitTests.csproj" />

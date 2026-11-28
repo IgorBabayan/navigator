@@ -44,7 +44,9 @@ Honest list of what is missing, partial or unverified. Keep it current.
 | Settings | Settings are searched from the address bar (by name, description and page); there is no separate search box inside the settings window. |
 | Performance indicator | Shows only what Avalonia's metrics report (all windows together); GPU time and per-window numbers are not available. Frames per second counts rendered frames, so it is near 0 while nothing changes on screen. |
 | Accessibility | No explicit `AutomationProperties` names; high-contrast themes not implemented; OS "reduce motion" is not followed automatically. |
-| Git integration | Not implemented. |
+| Git integration | Git plugin: works through the installed `git` only (no library); repositories on network shares (UNC paths) are not decorated; plugin columns cannot be sorted by. |
+| Cloud sync state | "Sync pending" / "sync error" are not shown (they need per-file Cloud Files calls); Linux clients are assumed to keep full local copies. |
+| Windows-only plugins | WSL, Windows Search index, Windows 11 app commands and the Windows part of Default file manager were built but not run on Windows yet (no Windows in the development environment). |
 | Linux packages | No DEB/RPM/Flatpak; AppImage + tar.gz only. |
 | Windows packages | No MSIX/winget manifest. |
 | macOS | Apple Silicon and Intel builds are separate (no universal binary). |

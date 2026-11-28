@@ -136,7 +136,10 @@ public sealed class ColumnHeader : Grid
     /// <summary>Column id ("modified", "tags"…) as stored in settings; the name column cannot be moved.</summary>
     public string ColumnId { get; set; } = ColumnOrder.NameColumn;
 
-    private bool IsMovable => !string.Equals(ColumnId, ColumnOrder.NameColumn, StringComparison.Ordinal);
+    private bool IsMovable => CanMove && !string.Equals(ColumnId, ColumnOrder.NameColumn, StringComparison.Ordinal);
+
+    /// <summary>False for headers that keep their place (plugin columns follow the built-in ones).</summary>
+    public bool CanMove { get; set; } = true;
 
     public bool IsSortable { get; set; } = true;
 

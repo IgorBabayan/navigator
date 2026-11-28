@@ -426,6 +426,17 @@ public sealed partial class MainWindow : Window
 
     private void OnEditAddressClick(object? sender, RoutedEventArgs e) => EnterAddressEdit();
 
+    /// <summary>A plugin's status bar segment (e.g. the Git branch) was clicked: its commands open above it.</summary>
+    private void OnStatusSegmentClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: Navigator.Presentation.Plugins.StatusSegmentViewModel segment } button || !segment.HasCommands)
+            return;
+        var menu = new MenuFlyout { Placement = PlacementMode.TopEdgeAlignedLeft };
+        foreach (var command in segment.Commands)
+            menu.Items.Add(new MenuItem { Header = command.Title, Icon = new IconView { Kind = command.IconKey, Width = 16, Height = 16 }, Command = command.Command });
+        menu.ShowAt(button);
+    }
+
     /// <summary>Every location can be replaced by typing a path, including Home, Trash, tags and search results.</summary>
     private void EnterAddressEdit()
     {

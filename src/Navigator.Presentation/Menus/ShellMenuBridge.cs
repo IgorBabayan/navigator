@@ -140,14 +140,21 @@ public sealed class PaneMenu : IDisposable
     private readonly CancellationTokenSource _lifetime;
     private readonly Task<IShellMenu?>? _shell;
 
-    public PaneMenu(IReadOnlyList<MenuEntry> entries, CancellationTokenSource lifetime, Task<IShellMenu?>? shell)
+    public PaneMenu(IReadOnlyList<MenuEntry> entries, CancellationTokenSource lifetime, Task<IShellMenu?>? shell, Task<IReadOnlyList<MenuEntry>>? lateEntries = null)
     {
         Entries = entries;
         _lifetime = lifetime;
         _shell = shell;
+        LateEntries = lateEntries;
     }
 
     public IReadOnlyList<MenuEntry> Entries { get; }
+
+    /// <summary>
+    /// Entries of plugins (Windows 11 app commands, Git…), added above "Show more options" when they arrive; null for none.
+    /// The task never faults: failing providers contribute nothing.
+    /// </summary>
+    public Task<IReadOnlyList<MenuEntry>>? LateEntries { get; }
 
     public CancellationToken Lifetime => _lifetime.Token;
 

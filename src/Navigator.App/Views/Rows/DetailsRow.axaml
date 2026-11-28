@@ -12,7 +12,7 @@
       <Grid c:DetailsCellsPanel.Cell="name" Width="{Binding $parent[v:PaneView].Columns.NameWidth}" ColumnDefinitions="Auto,Auto,*">
         <Border Classes="rowCheck"><c:IconView Kind="Check" /></Border>
         <Panel Grid.Column="1" Width="{StaticResource Size.RowIcon}" Height="{StaticResource Size.RowIcon}" Margin="0,0,10,0">
-          <c:IconView Kind="{Binding IconKey}" SystemIcon="{Binding SystemIconKey}" Width="{StaticResource Size.RowIcon}" Height="{StaticResource Size.RowIcon}" IsVisible="{Binding !HasThumbnail}" />
+          <c:IconView Kind="{Binding IconKey}" SystemIcon="{Binding SystemIconKey}" Badge="{Binding BadgeIcon}" BadgeTint="{Binding BadgeTint}" Width="{StaticResource Size.RowIcon}" Height="{StaticResource Size.RowIcon}" IsVisible="{Binding !HasThumbnail}" />
           <Image Source="{Binding Thumbnail, Converter={x:Static v:ImageConverter.Instance}}" IsVisible="{Binding HasThumbnail}" Stretch="UniformToFill" />
         </Panel>
         <TextBlock Grid.Column="2" Classes="itemName" Text="{Binding DisplayName}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
@@ -33,6 +33,9 @@
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
+      <!-- Columns filled by plugins (Git status, sync state…): drawn as text by one control, after the built-in cells. -->
+      <c:PluginCellsView Columns="{Binding $parent[v:PaneView].Pane.PluginColumns.Visible}" Revision="{Binding $parent[v:PaneView].Pane.PluginColumns.Revision}"
+                         Decoration="{Binding Decoration}" Foreground="{DynamicResource Brush.TextSecondary}" />
       <TextBlock Classes="secondary" Text="{Binding OriginalLocationText}" VerticalAlignment="Center" Padding="8,0" IsVisible="{Binding TrashItem, Converter={x:Static ObjectConverters.IsNotNull}}" />
     </c:DetailsCellsPanel>
   </c:RowSurface>

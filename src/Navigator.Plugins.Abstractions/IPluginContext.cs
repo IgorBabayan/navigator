@@ -42,6 +42,18 @@ public interface IPluginContext
     void AddSidebarSection(IPluginSidebarSection section);
 
     void AddFileSystem(IRemoteFileSystem fileSystem);
+
+    /// <summary>Columns, icon badges and a status bar segment for local folders (plugin API 1.3).</summary>
+    void AddFolderDecorator(IFolderDecorator decorator);
+
+    /// <summary>Entries of the pane context menus of local items (plugin API 1.3).</summary>
+    void AddMenuProvider(IItemMenuProvider provider);
+
+    /// <summary>Answers pane searches from an index (plugin API 1.3).</summary>
+    void AddSearchProvider(ISearchProvider provider);
+
+    /// <summary>The plugin's settings in Settings → Plugins; one per plugin, a later call replaces it (plugin API 1.3).</summary>
+    void SetSettingsPage(IPluginSettingsPage page);
 }
 
 public sealed record VolumeDisplay(string Name, string? Detail, string IconKey, string? SystemIconKey);

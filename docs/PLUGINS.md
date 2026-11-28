@@ -11,6 +11,12 @@ reachable from the plug button next to Settings in the title bar).
 | FTP (FTP, FTPS) | `ftp` | `plugins/Navigator.Plugin.Ftp` | `navigator-plugin-ftp-{version}.navplugin` | yes |
 | Google Drive (Cloud group) | `gdrive` | `plugins/Navigator.Plugin.GoogleDrive` | `navigator-plugin-gdrive-{version}.navplugin` | yes |
 | OneDrive (Cloud group) | `onedrive` | `plugins/Navigator.Plugin.OneDrive` | `navigator-plugin-onedrive-{version}.navplugin` | yes |
+| Git | `git` | `plugins/Navigator.Plugin.Git` | `navigator-plugin-git-{version}.navplugin` | yes |
+| Cloud sync folders (Cloud group) | `cloudsync` | `plugins/Navigator.Plugin.CloudSync` | `navigator-plugin-cloudsync-{version}.navplugin` | yes |
+| WSL distributions (Windows) | `wsl` | `plugins/Navigator.Plugin.Wsl` | `navigator-plugin-wsl-{version}.navplugin` | yes |
+| Windows Search index (Windows) | `windows-search` | `plugins/Navigator.Plugin.WindowsSearch` | `navigator-plugin-windows-search-{version}.navplugin` | yes |
+| Windows 11 app commands (Windows) | `win11-menu` | `plugins/Navigator.Plugin.ModernMenu` | `navigator-plugin-win11-menu-{version}.navplugin` | yes |
+| Default file manager (Windows, Linux) | `default-file-manager` | `plugins/Navigator.Plugin.DefaultFileManager` | `navigator-plugin-default-file-manager-{version}.navplugin` | yes |
 
 Only the Network plugin is part of the app build: `Navigator.App` references `Navigator.Plugin.Network` and no
 other plugin project. SSH and FTP are built and released as separate packages and installed from the shop.
@@ -26,7 +32,8 @@ Navigator.App ──► Navigator.Plugins (host: discovery, loading, install/upd
 ```
 
 - **Contract** (`src/Navigator.Plugins.Abstractions`): `INavigatorPlugin`, `IPluginContext`, `IPluginSidebarSection`,
-  `IRemoteFileSystem`, `IPluginUi` (dialogs in Navigator's style), `PluginStrings` (a plugin's own localization) and
+  `IRemoteFileSystem`, `IFolderDecorator`, `IItemMenuProvider`, `ISearchProvider`, `IPluginSettingsPage` (API 1.3, see
+  below), `IPluginUi` (dialogs and notifications in Navigator's style), `PluginStrings` (a plugin's own localization) and
   ready-made helpers for server plugins in `Navigator.Plugins.Remote` (saved connections, the "Add connection"
   form, in-memory credential cache, connection pool). Its version is `PluginApi` (major.minor). A plugin runs when the
   major version matches and its minor version is not newer than the host's; breaking changes bump the major.
@@ -83,6 +90,11 @@ A package (`.navplugin`) is a ZIP with `plugin.json` and the plugin's assemblies
   "iconKey": "ServerSsh", "homepage": "https://github.com/IgorBabayan/navigator"
 }
 ```
+
+`"platforms": ["windows", "linux", "macos"]` (API 1.3, optional) limits the operating systems a plugin runs on. It comes
+from `NavigatorPluginPlatforms` in the project ("windows", "windows;linux"), is copied into the catalog, hides the plugin
+from the shop elsewhere, and makes the host refuse to install it (and mark an installed copy *Incompatible*) on other
+systems. No field means every system.
 
 Extraction is defensive: no absolute paths, `..`, drive letters or links; bounded entry count and size; every entry
 is checked against its declared length while copying; files are created new, never overwritten.
@@ -145,6 +157,113 @@ Implement `IRemoteFileSystem` for one or more schemes. Rules the host relies on:
 On the host side, downloads are written to `.{guid}.navigator-partial` and moved into place without overwriting
 (" (2)" names), and local files dropped on a server folder are uploaded. The local file engine never receives a
 plugin address.
+
+## Plugin API 1.3: decorations, menus, search, settings
+
+All of these are called off the UI thread unless stated, must honor cancellation, and are isolated: an exception from a
+plugin is logged and that plugin's contribution is skipped, nothing else.
+
+- **Folder decorators** (`IFolderDecorator`, `IPluginContext.AddFolderDecorator`): columns of the details view
+  (`PluginColumn`, keyed `{decorator}.{column}`, widths and visibility in `FilesAndFolders.PluginColumns`), a badge on
+  item icons (`PluginBadge`, drawn by the icon control itself: no extra visuals per row) and a status bar segment with
+  commands (`PluginStatusSegment`, e.g. the Git branch with Pull/Push). A pane asks the applicable decorators
+  (`AppliesTo`, must be cheap) once a local folder's listing is complete, again 400 ms after a burst of file changes or a
+  decorator's `Changed` notice, and cancels the run on navigation. `DecorateAsync` streams steps (cheap data first,
+  costly columns later) that are merged off the UI thread; the UI thread only assigns results, and unchanged results raise
+  no property changes. `FolderDecorationRequest.VisibleColumns` tells a decorator which of its columns are shown, so
+  hidden columns cost nothing. Plugin columns follow the built-in ones and are drawn as text by one control per row
+  (`PluginCellsView`); the header context menus show and hide them.
+- **Menu providers** (`IItemMenuProvider`): entries for the pane menus of local items and folder backgrounds. The menu
+  opens at once with Navigator's own entries; plugin entries are inserted above "Show more options" when they arrive
+  (left out after 3 s). The menu's lifetime token ends when it closes; entries stay invokable for a few seconds after.
+- **Search providers** (`ISearchProvider`): the first provider whose `CanSearchAsync` accepts a pane search (waited for
+  at most 1 s) serves it; otherwise, or when the provider fails before its first result, Navigator's own engine runs.
+- **Settings pages** (`IPluginSettingsPage`, one per plugin): switches, buttons and notes shown under the plugin in
+  Settings → Plugins. A failing switch shows the plugin's message and turns back.
+- `IPluginUi.Notify` (corner notifications), `IPluginUninstallHandler` (undo system changes before removal; not called on
+  exit), `PluginProcess` (helper programs: argument lists, both streams read concurrently, timeouts and cancellation kill
+  the process tree, record streaming that stops the program when the reader stops), `PluginPreferences` (small
+  per-plugin settings in `preferences.json`, written atomically).
+
+## Git plugin
+
+- Uses the installed `git` (PATH; Git for Windows' default folders; on macOS Homebrew or the developer tools, never the
+  stub that asks to install them). Nothing runs until a folder inside a repository is shown. Repositories are found by
+  looking for `.git` (folder, or a `gitdir:` file for worktrees and submodules) in the folder and its parents, cached;
+  UNC paths and `.git` folders themselves are skipped.
+- **Status**: one `git --no-optional-locks status --porcelain=v2 --branch -z` per repository, shared by every pane and
+  subfolder and reused for 3 s when a folder is merely opened (a change or a refresh asks again). `--no-optional-locks`
+  never writes the index, so Navigator's reads cannot trigger its own watchers. A folder's state is the strongest state
+  inside it ("Contains changes", "Contains untracked files", "Contains conflicts"); untracked and ignored folders count
+  as a whole.
+- **Columns**: "Git status" (shown by default), "Last commit", "Commit author", "Commit date" (hidden by default; switch
+  them on from a column header's context menu). The commit columns come from one `git log --name-only` walk restricted
+  to the folder, stopped as soon as every item has its commit (at most 2,000 commits / 5 s), cached per folder and HEAD.
+- **Badges**: M (modified, amber), M (staged, green), A, U, R (green), D, C (red); switchable in Settings → Plugins → Git.
+- **Status bar**: branch (or the detached commit) with ↑ahead ↓behind; tooltip with upstream and the number of changes;
+  Pull, Push (Publish branch with `--set-upstream` to `origin` or the only remote when there is no upstream) and Fetch.
+  The background menu of a repository folder has the same commands under "Git". One remote operation per repository at a
+  time; `GIT_TERMINAL_PROMPT=0` (credential helpers with their own window, such as Git Credential Manager, still work),
+  no editor for merge commits. Results and errors are shown as notifications / messages with git's own text.
+- The git directories of the 12 most recently shown repositories are watched (HEAD, index, FETCH_HEAD, ORIG_HEAD,
+  MERGE_HEAD, packed-refs; debounced), so commits, checkouts and fetches made elsewhere update the panes.
+
+## Cloud sync folders plugin
+
+- Sync folders: Windows — every Cloud Files sync root of the user (`HKLM\…\Explorer\SyncRootManager\{provider}!{SID}!{account}\UserSyncRoots`,
+  display names resolved with `SHLoadIndirectString`), OneDrive's environment variables, Dropbox's `info.json`, the
+  classic iCloud Drive folder; macOS — `~/Library/CloudStorage/*`, iCloud Drive, Dropbox; Linux — Dropbox, the OneDrive
+  client (abraunegg, `sync_dir`), Nextcloud (`nextcloud.cfg`). Cached for 30 s; looked up again when volumes change or
+  from the plugin's settings.
+- Sidebar: the sync folders join the **Cloud** group (before cloud accounts), with the shell's icon for the folder on
+  Windows (each client's own logo).
+- Sync state (badge and "Status" column): Windows from the placeholder attributes that come with every listing
+  (`RECALL_ON_DATA_ACCESS`/`RECALL_ON_OPEN`/`OFFLINE` → available when online, `PINNED` → always available, pinned but
+  not local → downloading, otherwise available on this device): no I/O at all. macOS: one `lstat` per item for
+  `SF_DATALESS`. Linux clients keep full copies: available on this device. "Sync pending" needs per-file Cloud Files
+  calls and is not shown.
+
+## WSL plugin (Windows)
+
+- The sidebar's **Linux** section (below Network) lists the distributions registered under
+  `HKCU\Software\Microsoft\Windows\CurrentVersion\Lxss` (installed ones, the default first) — read from the registry, so
+  listing never starts a distribution. Entries open `\\wsl.localhost\{name}\` (`\\wsl$\{name}\` before Windows 11) as an
+  ordinary folder, so every file action works there; Windows starts the distribution on first access.
+- Entry menu: **Open terminal** (`wsl.exe -d {name} --cd ~`) and **Shut down** (`wsl.exe --terminate {name}`).
+
+## Windows Search index plugin (Windows)
+
+- A pane search in a local folder that has items in the Windows Search index (one-row probe, remembered for 2 minutes)
+  is answered by the index: `SELECT TOP n … FROM SystemIndex WHERE SCOPE|DIRECTORY='file:…/'` with `System.FileName
+  LIKE` (a plain text matches anywhere in the name; `*` and `?` make it a whole-name pattern) or `CONTAINS(*, '"word*"')`
+  for content searches. Hidden and system items follow the pane's setting.
+- Runs through OLE DB (`IDataInitialize` → `Search.CollatorDSO` → `ICommandText` → `IRowset` with one fixed-size row
+  accessor) on a dedicated MTA thread per query, called through vtables; results stream in batches with back-pressure.
+  64-bit Navigator only. Not indexed, service stopped or any failure before the first result → Navigator's own search.
+- Settings: switch it off; open Indexing Options.
+
+## Windows 11 app commands plugin (Windows 11)
+
+- Packaged apps register their File Explorer commands as `windows.fileExplorerContextMenus` extensions (item types `*`,
+  `.ext`, `Directory`, `Directory\Background`, `Drive`). The plugin reads them from the manifests of the user's packages
+  (AppModel repository in the registry; manifests are read again only when the package list changes) and, for a
+  right-click, creates the matching IExplorerCommand objects out of process (`CLSCTX_LOCAL_SERVER`), asks for state,
+  title, icon and sub-commands with the selection as an IShellItemArray, and invokes the chosen one (with
+  `CoAllowSetForegroundWindow`, so the app comes to the front). All COM work happens on one MTA worker thread; objects
+  are released 5 s after the menu closed. Windows Terminal's "Open in Terminal" is left out (Navigator has its own).
+- Windows 10's classic menu already contains these commands, so the plugin does nothing there.
+
+## Default file manager plugin (Windows, Linux)
+
+- Switched in Settings → Plugins (off until the user turns it on); removing the plugin switches it off first.
+- Windows (per user, no administrator rights): a `navigator` verb becomes the default verb of `Directory` and `Drive`
+  (`"Navigator.exe" "%1"`), and This PC's `opennewwindow` (Win+E) runs Navigator. Previous default verbs are remembered
+  and restored; keys the plugin created are removed. Explorer is notified (`SHChangeNotify`). After every start the
+  registration is pointed at the running executable if Navigator moved.
+- Linux: `xdg-mime default io.github.igorbabayan.Navigator.desktop inode/directory` (a hidden desktop entry is written to
+  `~/.local/share/applications` when none is installed); the previous default is restored, or Navigator's line removed
+  from `mimeapps.list`.
+- macOS does not let another app replace Finder; the plugin is not offered there.
 
 ## Network plugin
 
@@ -253,6 +372,14 @@ packages). Without a client the plugin explains this when "Add account" is used.
 
 ## Verification
 
+- Unit tests (`IntegrationPluginTests`, plugin API 1.3): host publishing of decorators, menu and search providers and
+  settings pages; `platforms` in manifests and the catalog; change notices; preferences; `PluginProcess` (quoting-free
+  arguments, both streams, record streaming that stops the program, timeouts); plugin column strip (visibility, widths,
+  persistence) and decoration equality; Git porcelain v2 parsing, folder aggregation, worktree `.git` files and an
+  end-to-end run against a real repository (status, branch segment, badges, last commits); Cloud Files attribute
+  mapping, CloudStorage naming and Linux sync client discovery; WSL paths and icons; Windows Search SQL; Windows 11
+  manifest parsing and item-type matching; the Linux desktop entry. Not exercised: Windows registry, COM (OLE DB,
+  IExplorerCommand) and WSL calls (no Windows in the development environment).
 - Unit tests (`CloudTests`): Cloud group merging/order/command routing/subscriptions, scoped secrets with memory
   fallback, https-only browser, token parsing, the full PKCE loopback sign-in against a local token server, denied
   consent, account store, error mapping, Drive name mapping and item parsing, Graph references and item parsing.

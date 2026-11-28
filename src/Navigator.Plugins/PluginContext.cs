@@ -8,6 +8,10 @@ internal sealed class PluginContext(string pluginId, string dataDirectory, IPlug
     private readonly Lock _gate = new();
     private readonly List<IPluginSidebarSection> _sections = [];
     private readonly List<IRemoteFileSystem> _fileSystems = [];
+    private readonly List<IFolderDecorator> _decorators = [];
+    private readonly List<IItemMenuProvider> _menus = [];
+    private readonly List<ISearchProvider> _searches = [];
+    private IPluginSettingsPage? _settingsPage;
 
     public string PluginId { get; } = pluginId;
 
@@ -54,35 +58,44 @@ internal sealed class PluginContext(string pluginId, string dataDirectory, IPlug
     public void AddSidebarSection(IPluginSidebarSection section)
     {
         ArgumentNullException.ThrowIfNull(section);
-        lock (_gate)
-        {
-            if (!IsAttached)
-                return;
-            _sections.Add(section);
-        }
-
-        if (IsLive)
-            contributionsChanged();
+        Register(() => _sections.Add(section));
     }
 
     public void AddFileSystem(IRemoteFileSystem fileSystem)
     {
         ArgumentNullException.ThrowIfNull(fileSystem);
-        lock (_gate)
-        {
-            if (!IsAttached)
-                return;
-            _fileSystems.Add(fileSystem);
-        }
-
-        if (IsLive)
-            contributionsChanged();
+        Register(() => _fileSystems.Add(fileSystem));
     }
 
-    public (IPluginSidebarSection[] Sections, IRemoteFileSystem[] FileSystems) Snapshot()
+    public void AddFolderDecorator(IFolderDecorator decorator)
+    {
+        ArgumentNullException.ThrowIfNull(decorator);
+        Register(() => _decorators.Add(decorator));
+    }
+
+    public void AddMenuProvider(IItemMenuProvider provider)
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+        Register(() => _menus.Add(provider));
+    }
+
+    public void AddSearchProvider(ISearchProvider provider)
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+        Register(() => _searches.Add(provider));
+    }
+
+    public void SetSettingsPage(IPluginSettingsPage page)
+    {
+        ArgumentNullException.ThrowIfNull(page);
+        Register(() => _settingsPage = page);
+    }
+
+    /// <summary>Everything the plugin registered so far, copied under the lock.</summary>
+    public ContextContributions Snapshot()
     {
         lock (_gate)
-            return ([.. _sections], [.. _fileSystems]);
+            return new ContextContributions([.. _sections], [.. _fileSystems], [.. _decorators], [.. _menus], [.. _searches], _settingsPage);
     }
 
     public void Detach()
@@ -92,6 +105,32 @@ internal sealed class PluginContext(string pluginId, string dataDirectory, IPlug
             IsAttached = false;
             _sections.Clear();
             _fileSystems.Clear();
+            _decorators.Clear();
+            _menus.Clear();
+            _searches.Clear();
+            _settingsPage = null;
         }
     }
+
+    private void Register(Action add)
+    {
+        lock (_gate)
+        {
+            if (!IsAttached)
+                return;
+            add();
+        }
+
+        if (IsLive)
+            contributionsChanged();
+    }
 }
+
+/// <summary>One plugin's contributions at one moment.</summary>
+internal sealed record ContextContributions(
+    IPluginSidebarSection[] Sections,
+    IRemoteFileSystem[] FileSystems,
+    IFolderDecorator[] Decorators,
+    IItemMenuProvider[] MenuProviders,
+    ISearchProvider[] SearchProviders,
+    IPluginSettingsPage? SettingsPage);

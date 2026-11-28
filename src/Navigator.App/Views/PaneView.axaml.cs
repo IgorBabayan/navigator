@@ -178,13 +178,16 @@ public sealed partial class PaneView : UserControl
             _pane.OpenWithRequested -= OnOpenWithRequested;
             _pane.InlineRenameRequested -= OnInlineRenameRequested;
             _pane.TrailColumns.CollectionChanged -= OnTrailChanged;
+            _pane.PluginColumns.PropertyChanged -= OnPluginColumnsChanged;
         }
 
         CancelRename();
         _pane = pane;
+        RebuildPluginHeaders();
         if (pane is null)
             return;
         pane.TrailColumns.CollectionChanged += OnTrailChanged;
+        pane.PluginColumns.PropertyChanged += OnPluginColumnsChanged;
         ApplyColumnsClass();
 
         pane.PropertyChanged += OnPaneChanged;
@@ -266,6 +269,7 @@ public sealed partial class PaneView : UserControl
                 Columns.Move(id, index);
         };
         var menu = new ContextMenu { Items = { left, right, new Separator(), reset } };
+        var pluginToggles = new List<Control>();
         menu.Opening += (_, _) =>
         {
             // Texts are read when the menu opens, so a language switch shows up without rebuilding the header.
@@ -276,8 +280,65 @@ public sealed partial class PaneView : UserControl
             var at = visible.IndexOf(header.ColumnId);
             left.IsEnabled = at > 1; // the name column stays first
             right.IsEnabled = at >= 0 && at < visible.Count - 1;
+            ReplacePluginToggles(menu, pluginToggles);
         };
         return menu;
+    }
+
+    // ── Plugin columns ───────────────────────────────────────
+
+    private void OnPluginColumnsChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(Navigator.Presentation.Plugins.PluginColumnStrip.Visible))
+            RebuildPluginHeaders();
+    }
+
+    /// <summary>
+    /// One header per visible plugin column, after the built-in ones. Rebuilt only when the set of columns changes
+    /// (entering or leaving a Git repository…); resizing changes the width of the existing header.
+    /// </summary>
+    private void RebuildPluginHeaders()
+    {
+        PluginHeaders.Children.Clear();
+        if (_pane is not { } pane)
+            return;
+        var strip = pane.PluginColumns;
+        foreach (var column in strip.Visible)
+        {
+            var header = new ColumnHeader { Text = column.Title, ColumnId = column.Key, IsSortable = false, CanMove = false, Width = column.Width };
+            header.Resized += (_, delta) =>
+            {
+                strip.Resize(column, delta);
+                header.Width = column.Width;
+            };
+            var menu = new ContextMenu();
+            var toggles = new List<Control>();
+            ReplacePluginToggles(menu, toggles); // filled now as well: an empty context menu would not open
+            menu.Opening += (_, _) => ReplacePluginToggles(menu, toggles);
+            header.ContextMenu = menu;
+            PluginHeaders.Children.Add(header);
+        }
+    }
+
+    /// <summary>Header context menus end with a switch per plugin column of the folder shown ("Git status", "Author"…).</summary>
+    private void ReplacePluginToggles(ContextMenu menu, List<Control> added)
+    {
+        foreach (var item in added)
+            menu.Items.Remove(item);
+        added.Clear();
+        if (_pane is not { } pane || pane.PluginColumns.Available.Count == 0)
+            return;
+        if (menu.Items.Count > 0)
+            added.Add(new Separator());
+        foreach (var column in pane.PluginColumns.Available)
+        {
+            var toggle = new MenuItem { Header = column.Title, ToggleType = MenuItemToggleType.CheckBox, IsChecked = column.IsVisible };
+            toggle.Click += (_, _) => pane.SetPluginColumnVisible(column, !column.IsVisible);
+            added.Add(toggle);
+        }
+
+        foreach (var item in added)
+            menu.Items.Add(item);
     }
 
     private void StepColumn(string id, int direction)

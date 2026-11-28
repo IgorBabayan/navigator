@@ -17,7 +17,13 @@
   </PropertyGroup>
 
   <Target Name="NavigatorWritePluginManifest" AfterTargets="CopyFilesToOutputDirectory" Condition="'$(NavigatorPluginId)' != ''">
+    <!-- NavigatorPluginPlatforms ("windows", "windows;linux"…) limits the operating systems the plugin installs on (plugin API 1.3). -->
+    <ItemGroup>
+      <_NavigatorPluginPlatform Include="$(NavigatorPluginPlatforms)" />
+    </ItemGroup>
     <PropertyGroup>
+      <_NavigatorPluginPlatformsJson Condition="'$(NavigatorPluginPlatforms)' != ''">,
+  "platforms": [@(_NavigatorPluginPlatform->'"%(Identity)"', ', ')]</_NavigatorPluginPlatformsJson>
       <_NavigatorPluginJson>{
   "id": "$(NavigatorPluginId)",
   "name": "$(NavigatorPluginName)",
@@ -28,7 +34,7 @@
   "assembly": "$(AssemblyName).dll",
   "entryType": "$(NavigatorPluginEntryType)",
   "iconKey": "$(NavigatorPluginIconKey)",
-  "homepage": "$(RepositoryUrl)"
+  "homepage": "$(RepositoryUrl)"$(_NavigatorPluginPlatformsJson)
 }</_NavigatorPluginJson>
     </PropertyGroup>
     <WriteLinesToFile File="$(OutDir)plugin.json" Lines="$([MSBuild]::Escape('$(_NavigatorPluginJson)'))" Overwrite="true" WriteOnlyWhenDifferent="true" />

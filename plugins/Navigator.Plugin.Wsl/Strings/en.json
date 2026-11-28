@@ -1,0 +1,8 @@
+{
+  "Wsl.Section": "Linux",
+  "Wsl.Detail": "WSL {0}",
+  "Wsl.DetailDefault": "WSL {0} · default",
+  "Wsl.OpenTerminal": "Open terminal",
+  "Wsl.ShutDown": "Shut down",
+  "Wsl.ShutDownDone": "{0} was shut down."
+}

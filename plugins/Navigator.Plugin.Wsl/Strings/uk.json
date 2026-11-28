@@ -1,0 +1,8 @@
+{
+  "Wsl.Section": "Linux",
+  "Wsl.Detail": "WSL {0}",
+  "Wsl.DetailDefault": "WSL {0} · типовий",
+  "Wsl.OpenTerminal": "Відкрити термінал",
+  "Wsl.ShutDown": "Вимкнути",
+  "Wsl.ShutDownDone": "{0} вимкнено."
+}

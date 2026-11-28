@@ -135,7 +135,10 @@ public sealed partial class PaneViewModel
             Share = scope == MenuScope.Remote ? null : ShareEntry(bridge),
         };
 
-        return new PaneMenu(PaneMenuComposer.ForItems(input), lifetime, shell);
+        var late = (scope & MenuScope.Local) != 0 && selected.Length > 0
+            ? PluginMenuEntriesAsync(new Navigator.Plugins.PluginMenuRequest([.. selected.Select(i => i.FullPath)], CurrentDirectory, IsBackground: false, shiftHeld, ownerWindow()), lifetime.Token)
+            : null;
+        return new PaneMenu(PaneMenuComposer.ForItems(input), lifetime, shell, late);
     }
 
     /// <summary>The menu for the empty area of the pane (the shown folder itself).</summary>
@@ -152,7 +155,10 @@ public sealed partial class PaneViewModel
             ShellEntries = bridge is null ? null : token => ShellRemainderAsync(bridge, token),
         };
 
-        return new PaneMenu(PaneMenuComposer.ForBackground(input), lifetime, shell);
+        var late = CurrentDirectory is { } shownFolder
+            ? PluginMenuEntriesAsync(new Navigator.Plugins.PluginMenuRequest([], shownFolder, IsBackground: true, shiftHeld, ownerWindow()), lifetime.Token)
+            : null;
+        return new PaneMenu(PaneMenuComposer.ForBackground(input), lifetime, shell, late);
     }
 
     private PaneMenuInput BaseInput(MenuScope scope, bool shiftHeld) => new()

@@ -8,6 +8,25 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
 
 ### Added
 
+- Integrations as plugins (plugin shop, plugin API 1.3):
+  - **Git**: the branch with ahead/behind counts in the status bar, with Pull, Push (or Publish branch) and Fetch, also
+    in a "Git" sub-menu of a repository folder's background menu; "Git status", "Last commit", "Commit author" and
+    "Commit date" columns; M/A/U/D/R/C badges on icons. Uses the installed git; one shared `git status` per repository.
+  - **Cloud sync folders**: OneDrive, Dropbox, iCloud Drive, Google Drive, Box and Nextcloud folders in the sidebar's
+    Cloud group, with sync-status icons and a "Status" column (available when online, on this device, always
+    available, downloading) read from the listing itself on Windows.
+  - **WSL distributions** (Windows): a "Linux" sidebar section with every distribution, opened as
+    `\\wsl.localhost\{name}`, with Open terminal and Shut down.
+  - **Windows Search index** (Windows): searches in indexed folders, by name and inside documents, are answered by the
+    index File Explorer uses; other folders keep Navigator's own search.
+  - **Windows 11 app commands** (Windows 11): the context-menu commands of packaged apps (Open with Code, PowerToys,
+    7-Zip…) that only Explorer's new menu showed, added to Navigator's menus as soon as the apps answer.
+  - **Default file manager** (Windows, Linux): one switch in Settings → Plugins to open folders, drives and Win+E in
+    Navigator; switching it off or removing the plugin restores the previous file manager.
+- Plugin API 1.3: folder decorators (columns, icon badges, status bar segments), context-menu and search providers,
+  plugin settings in Settings → Plugins, notifications, an uninstall hook, a `platforms` manifest field (the shop only
+  offers a plugin on systems it supports) and helpers for running programs and storing preferences.
+
 - High-contrast themes: **High contrast dark** (white on black, cyan highlight) and **High contrast light** (black on
   white, purple highlight) in Settings → Appearance → Theme. Text keeps at least 7:1 contrast (WCAG AAA), surfaces are
   solid with visible borders, selection gets an opaque outline, and the window stays opaque (no backdrop, background
