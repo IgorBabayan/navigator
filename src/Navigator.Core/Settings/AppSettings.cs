@@ -4,9 +4,14 @@ namespace Navigator.Core.Settings;
 
 public enum ThemeMode
 {
+    /// <summary>Light or dark as the OS is set, high contrast too when the OS asks for it.</summary>
     System,
     Light,
     Dark,
+    /// <summary>White on black, solid surfaces and strong borders (WCAG AAA text contrast).</summary>
+    HighContrastDark,
+    /// <summary>Black on white, solid surfaces and strong borders (WCAG AAA text contrast).</summary>
+    HighContrastLight,
 }
 
 public enum BackdropMaterial

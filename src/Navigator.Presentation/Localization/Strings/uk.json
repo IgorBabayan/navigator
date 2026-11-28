@@ -887,6 +887,8 @@
   "Status.SelectedWithSize": "Вибрано: {0}, {1}",
   "Tags.NoneDefined": "Міток ще немає. Створіть їх у Налаштуваннях → Мітки.",
   "Theme.Dark": "Темна",
+  "Theme.HighContrastDark": "Висококонтрастна темна",
+  "Theme.HighContrastLight": "Висококонтрастна світла",
   "Theme.Light": "Світла",
   "Theme.System": "Як у системі",
   "Toolbar.Customize": "Налаштувати панель інструментів…",

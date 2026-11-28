@@ -178,6 +178,7 @@ public sealed partial class PaneViewModel
         OnPropertyChanged(nameof(Items));
         RaiseItemCommandState();
         FlushPendingSelection();
+        StartPendingRename();
     }
 
     private void RebuildRows()
@@ -357,6 +358,7 @@ public sealed partial class PaneViewModel
         UpdateStatus();
         OnPropertyChanged(nameof(IsEmpty));
         FlushPendingSelection();
+        StartPendingRename();
         return true;
     }
 

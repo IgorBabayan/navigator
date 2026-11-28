@@ -158,6 +158,24 @@ public sealed class FileOperationService
     /// <summary>Renames a file or folder in place. Returns the new full path.</summary>
     public string Rename(string path, string newName) => Rename(path, newName, recordUndo: true);
 
+    /// <summary>
+    /// Renames an item that was just created and is being named in place (New folder / New file): the creation's undo
+    /// step is rewritten to the new path, so one Undo removes the item instead of first restoring its default name.
+    /// When something else was recorded in between, the rename gets its own step like <see cref="Rename(string, string)"/>.
+    /// </summary>
+    public string RenameCreated(string path, string newName)
+    {
+        var original = PathUtil.TrimTrailingSeparator(path);
+        var renamed = Rename(original, newName, recordUndo: false);
+        if (string.Equals(original, renamed, StringComparison.Ordinal))
+            return renamed;
+        if (!Undo.TryReplaceLatest(
+                step => step is CreateRecord create && string.Equals(PathUtil.TrimTrailingSeparator(create.Path), original, StringComparison.Ordinal),
+                step => ((CreateRecord)step) with { Path = renamed }))
+            Undo.Record(new RenameRecord(original, renamed));
+        return renamed;
+    }
+
     private string Rename(string path, string newName, bool recordUndo, bool announce = true)
     {
         path = PathUtil.TrimTrailingSeparator(path);

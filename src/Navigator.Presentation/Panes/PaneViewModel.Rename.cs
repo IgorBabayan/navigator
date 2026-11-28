@@ -34,9 +34,78 @@ public sealed partial class PaneViewModel
 
     private void RaiseRenameCommandState() => MultiRenameCommand.NotifyCanExecuteChanged();
 
+    /// <summary>
+    /// A just-created item (New folder / New file / New → document) waiting for the listing to show it, so its name can
+    /// be edited in place. Path for local folders; remote listings are matched by name (Path is empty).
+    /// </summary>
+    private (string Path, string Name)? _renameWhenListed;
+
+    /// <summary>The item whose in-place edit names it right after creation: committing rewrites the creation's undo step.</summary>
+    private string? _freshlyCreated;
+
+    /// <summary>Whether new items are named in the list (a view edits names in place) instead of in a dialog first.</summary>
+    private bool CanNameInPlace => InlineRenameRequested is not null && IsBrowsingList;
+
+    /// <summary>Selects the item at <paramref name="path"/> once the folder monitor lists it, then opens its name for editing.</summary>
+    private void RenameWhenListed(string path, string name)
+    {
+        _renameWhenListed = (path, name);
+        SelectWhenAvailable(path);
+        StartPendingRename();
+    }
+
+    /// <summary>
+    /// Runs after every list update: a lookup in the path index (or, remotely, one pass over the listing) and nothing
+    /// at all while no new item is waiting, so ordinary updates pay no cost.
+    /// </summary>
+    private void StartPendingRename()
+    {
+        if (_renameWhenListed is not { } pending)
+            return;
+
+        FileItemViewModel? item;
+        if (IsRemote)
+        {
+            item = null;
+            foreach (var candidate in _sortedAll)
+            {
+                if (string.Equals(candidate.Name, pending.Name, StringComparison.Ordinal))
+                {
+                    item = candidate;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            item = _itemsByPath.GetValueOrDefault(pending.Path);
+        }
+
+        if (item is null)
+            return;
+
+        _renameWhenListed = null;
+        var shown = Selection.IndexOf(item) >= 0; // hidden by the name filter: no row to edit on
+        if (shown && IsRemote)
+        {
+            Selection.SelectOnly([item]);
+            ScrollIntoViewRequested?.Invoke(this, item);
+        }
+
+        if (shown && TryRenameInPlace(item))
+        {
+            if (!IsRemote)
+                _freshlyCreated = item.FullPath;
+            return;
+        }
+
+        _ = RenameWithDialogAsync(item);
+    }
+
     /// <summary>Starts editing <paramref name="item"/>'s name in the list; false when no view could (dialog instead).</summary>
     private bool TryRenameInPlace(FileItemViewModel item)
     {
+        _freshlyCreated = null;
         var handler = InlineRenameRequested;
         if (handler is null)
             return false;
@@ -110,9 +179,11 @@ public sealed partial class PaneViewModel
             return true;
         }
 
+        var fresh = string.Equals(_freshlyCreated, item.FullPath, StringComparison.Ordinal);
+        _freshlyCreated = null;
         try
         {
-            var renamed = _services.Operations.Rename(item.FullPath, name);
+            var renamed = fresh ? _services.Operations.RenameCreated(item.FullPath, name) : _services.Operations.Rename(item.FullPath, name);
             if (selectRenamed)
                 SelectWhenAvailable(renamed);
         }

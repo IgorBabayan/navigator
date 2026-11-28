@@ -208,6 +208,23 @@ public sealed partial class PaneViewModel
 
         var localizer = _services.Localizer;
         var suggested = PathUtil.GetUniqueName(directory, localizer[isDirectory ? "Item.NewFolderName" : "Item.NewFileName"], isDirectory, p => File.Exists(p) || Directory.Exists(p));
+        if (CanNameInPlace)
+        {
+            // As in Explorer: the item appears at once under its default name, with that name open for editing in the
+            // list. Escape keeps the default name; one Undo removes the item whatever it was named.
+            try
+            {
+                var path = isDirectory ? _services.Operations.CreateFolder(directory, suggested) : _services.Operations.CreateFile(directory, suggested);
+                RenameWhenListed(path, suggested);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                await ReportErrorAsync(ex).ConfigureAwait(true);
+            }
+
+            return;
+        }
+
         var name = await _services.Dialogs.PromptTextAsync(new TextInputRequest(
             localizer[isDirectory ? "Command.NewFolder" : "Command.NewFile"], localizer["Dialog.NameLabel"], suggested, localizer["Dialog.Create"],
             ValidateNewName(directory), isDirectory ? -1 : PathUtil.SplitName(suggested, false).Stem.Length)).ConfigureAwait(true);
@@ -259,6 +276,12 @@ public sealed partial class PaneViewModel
         if (TryRenameInPlace(item))
             return;
 
+        await RenameWithDialogAsync(item).ConfigureAwait(true);
+    }
+
+    /// <summary>The rename dialog for one item: where no list can edit its name in place.</summary>
+    private async Task RenameWithDialogAsync(FileItemViewModel item)
+    {
         if (IsRemote)
         {
             await RenameRemoteAsync(item).ConfigureAwait(true);

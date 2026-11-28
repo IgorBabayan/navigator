@@ -380,7 +380,11 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         // The folder being left: in the column layout its listing becomes the column next to the new one.
         var previousFolder = IsFolder ? _location.Path : null;
         var previousItems = _sortedAll;
+        var leaving = _location.Path;
         Location = History.Current;
+        // A new item still waiting to be named belongs to the folder being left (a refresh keeps it).
+        if (!string.Equals(leaving, _location.Path, StringComparison.Ordinal))
+            _renameWhenListed = null;
         IsEditingAddress = false;
         ErrorText = null;
         FilterText = string.Empty;

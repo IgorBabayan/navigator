@@ -887,6 +887,8 @@
   "Status.SelectedWithSize": "{0} selected, {1}",
   "Tags.NoneDefined": "No tags yet. Create them in Settings → Tags.",
   "Theme.Dark": "Dark",
+  "Theme.HighContrastDark": "High contrast dark",
+  "Theme.HighContrastLight": "High contrast light",
   "Theme.Light": "Light",
   "Theme.System": "Use system setting",
   "Toolbar.Customize": "Customize toolbar…",

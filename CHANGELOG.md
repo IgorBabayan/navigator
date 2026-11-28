@@ -8,6 +8,14 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
 
 ### Added
 
+- High-contrast themes: **High contrast dark** (white on black, cyan highlight) and **High contrast light** (black on
+  white, purple highlight) in Settings → Appearance → Theme. Text keeps at least 7:1 contrast (WCAG AAA), surfaces are
+  solid with visible borders, selection gets an opaque outline, and the window stays opaque (no backdrop, background
+  color or picture). "Use system setting" follows the operating system's high-contrast mode, also while running.
+- New folder, New file and New → document types are created at once under their default name, with the name open
+  for editing right in the list (as in Explorer and Files); Escape keeps the default name, and one Undo removes the
+  new item whatever it was named. Server folders (plugins) are named in place the same way. The dialog is used only
+  where no list shows the folder.
 - Item actions in the context menu. Pictures: **Rotate left / Rotate right** (JPEG photos losslessly through their EXIF
   orientation — usually two bytes changed in place — PNG images re-encoded pixel-exactly) and **Set as** desktop or
   lock screen background. Fonts: **Install font** for the current user. Disk images: **Mount** (ISO/IMG/VHD/VHDX on

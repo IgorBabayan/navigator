@@ -181,7 +181,9 @@ public sealed partial class MainWindow : Window
     private void ApplyBackdrop()
     {
         var appearance = _theme.Appearance;
-        TransparencyLevelHint = appearance.Backdrop switch
+        // High contrast: a solid window, no backdrop or background picture under the text.
+        var highContrast = _theme.IsHighContrast;
+        TransparencyLevelHint = (highContrast ? BackdropMaterial.None : appearance.Backdrop) switch
         {
             BackdropMaterial.Mica => [WindowTransparencyLevel.Mica, WindowTransparencyLevel.AcrylicBlur, WindowTransparencyLevel.None],
             BackdropMaterial.Acrylic => [WindowTransparencyLevel.AcrylicBlur, WindowTransparencyLevel.Blur, WindowTransparencyLevel.None],
@@ -189,10 +191,10 @@ public sealed partial class MainWindow : Window
         };
 
         // With no real backdrop the tint must be opaque, otherwise the desktop would show through.
-        var native = ActualTransparencyLevel != WindowTransparencyLevel.None && appearance.Backdrop != BackdropMaterial.None;
+        var native = !highContrast && ActualTransparencyLevel != WindowTransparencyLevel.None && appearance.Backdrop != BackdropMaterial.None;
         BackdropTint.Opacity = native ? 1.0 - (appearance.Transparency * 0.6) : 1.0;
 
-        if (appearance.BackgroundImagePath is { } image && File.Exists(image))
+        if (!highContrast && appearance.BackgroundImagePath is { } image && File.Exists(image))
         {
             try
             {

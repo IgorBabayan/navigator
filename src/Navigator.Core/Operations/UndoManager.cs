@@ -57,6 +57,26 @@ public sealed class UndoManager
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Swaps the newest undo step for <paramref name="replace"/>(step) when <paramref name="match"/> accepts it; the redo
+    /// stack is left alone (nothing was undone). False, with nothing changed, when the newest step is another one.
+    /// </summary>
+    public bool TryReplaceLatest(Func<UndoRecord, bool> match, Func<UndoRecord, UndoRecord> replace)
+    {
+        ArgumentNullException.ThrowIfNull(match);
+        ArgumentNullException.ThrowIfNull(replace);
+        lock (_gate)
+        {
+            if (!_undo.TryPeek(out var latest) || !match(latest))
+                return false;
+            _undo.TryPop(out _);
+            _undo.Push(replace(latest));
+        }
+
+        Changed?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
     internal bool TryTakeUndo(out UndoRecord record)
     {
         bool taken;
