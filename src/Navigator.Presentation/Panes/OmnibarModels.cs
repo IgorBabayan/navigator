@@ -34,13 +34,18 @@ public enum AddressSuggestionKind
     Folder,
     History,
     Location,
+
+    /// <summary>A setting found by name; choosing it opens the settings window on its page.</summary>
+    Setting,
 }
 
 /// <summary>
 /// A row of the omnibar drop-down. <see cref="Text"/> is what goes into the address box when the row is chosen;
-/// <see cref="Detail"/> is the secondary line (usually the full path).
+/// <see cref="Detail"/> is the secondary line (usually the full path). Setting rows also carry the settings page and
+/// the string key of the setting, which the settings window uses to scroll to it.
 /// </summary>
-public sealed record AddressSuggestion(string Text, string Name, string Detail, AddressSuggestionKind Kind, string IconKey);
+public sealed record AddressSuggestion(string Text, string Name, string Detail, AddressSuggestionKind Kind, string IconKey,
+    string? SettingsPage = null, string? SettingKey = null);
 
 /// <summary>
 /// Names that can be typed into the omnibar instead of a path, like the shell names of a desktop file manager:

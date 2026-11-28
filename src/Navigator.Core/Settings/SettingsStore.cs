@@ -152,6 +152,10 @@ public sealed class SettingsStore
         appearance.Transparency = Math.Clamp(appearance.Transparency, 0, 1);
         appearance.BackgroundImageOpacity = Math.Clamp(appearance.BackgroundImageOpacity, 0, 1);
         appearance.FontScale = Math.Clamp(appearance.FontScale, 0.75, 2.0);
+        appearance.ToolbarItems ??= [];
+        appearance.ToolbarItems.RemoveAll(item => item is null || string.IsNullOrWhiteSpace(item.Id));
+        if (appearance.ToolbarItems.Count > 64)
+            appearance.ToolbarItems.RemoveRange(64, appearance.ToolbarItems.Count - 64);
         settings.Sidebar.Width = Math.Clamp(settings.Sidebar.Width, 160, 480);
         settings.Operations.MaxConcurrentOperations = Math.Clamp(settings.Operations.MaxConcurrentOperations, 1, 8);
         settings.Search.MaxResults = Math.Clamp(settings.Search.MaxResults, 100, 100_000);
@@ -161,7 +165,15 @@ public sealed class SettingsStore
         settings.Performance.MaxBackgroundWorkers = Math.Clamp(settings.Performance.MaxBackgroundWorkers, 1, Environment.ProcessorCount);
         settings.Updates.CheckIntervalHours = Math.Clamp(settings.Updates.CheckIntervalHours, 0, 24 * 30);
         settings.FilesAndFolders.FolderViews ??= [];
+        if (!Enum.IsDefined(settings.FilesAndFolders.QuickLook))
+            settings.FilesAndFolders.QuickLook = Platform.QuickLookProvider.Automatic;
         settings.FilesAndFolders.Columns ??= new FilesAndFoldersSettings().Columns;
+        var pluginColumns = settings.FilesAndFolders.PluginColumns ??= [];
+        pluginColumns.RemoveAll(column => column is null || string.IsNullOrWhiteSpace(column.Id) || column.Id.Length > 128);
+        if (pluginColumns.Count > FilesAndFoldersSettings.MaxPluginColumns)
+            pluginColumns.RemoveRange(FilesAndFoldersSettings.MaxPluginColumns, pluginColumns.Count - FilesAndFoldersSettings.MaxPluginColumns);
+        foreach (var column in pluginColumns)
+            column.Width = double.IsFinite(column.Width) ? Math.Clamp(column.Width, 48, 1200) : 140;
         settings.Search.History ??= [];
         if (settings.Search.History.Count > 50)
             settings.Search.History.RemoveRange(50, settings.Search.History.Count - 50);

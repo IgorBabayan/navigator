@@ -2,12 +2,18 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Navigator.Presentation.SettingsPages;
 
 namespace Navigator.App.Views;
 
 public sealed partial class SettingsWindow : Window
 {
+    private static readonly TimeSpan RevealHighlight = TimeSpan.FromMilliseconds(1600);
+    private SettingsViewModel? _model;
+    private Border? _revealed;
+
     public SettingsWindow()
     {
         InitializeComponent();
@@ -23,6 +29,7 @@ public sealed partial class SettingsWindow : Window
         {
             if (DataContext is not SettingsViewModel vm)
                 return;
+            vm.RevealRequested -= OnRevealRequested;
             vm.CancelKeyBindingRecording();
             vm.Detach();
         };
@@ -31,11 +38,41 @@ public sealed partial class SettingsWindow : Window
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
+        if (_model is not null)
+            _model.RevealRequested -= OnRevealRequested;
+        _model = DataContext as SettingsViewModel;
         if (DataContext is not SettingsViewModel vm)
             return;
+        vm.RevealRequested += OnRevealRequested;
         vm.GestureValidator = IsParseableGesture;
         vm.FontFamilyProvider = static () => FontManager.Current.SystemFonts.Select(f => f.Name);
     }
+
+    /// <summary>
+    /// Scrolls to the setting whose label reads <paramref name="label"/> on the page now shown and outlines its card
+    /// for a moment. Runs after the page switch has been laid out; a label that is not on screen is simply ignored.
+    /// </summary>
+    private void OnRevealRequested(object? sender, string label)
+        => Dispatcher.UIThread.Post(() =>
+        {
+            var page = this.GetVisualDescendants().OfType<StackPanel>().FirstOrDefault(p => p.Classes.Contains("page") && p.IsVisible);
+            var text = page?.GetVisualDescendants().OfType<TextBlock>().FirstOrDefault(t => t.IsEffectivelyVisible && string.Equals(t.Text, label, StringComparison.Ordinal));
+            if (text is null)
+                return;
+            var card = text.GetVisualAncestors().OfType<Border>().FirstOrDefault(b => b.Classes.Contains("setting"));
+            ((Control?)card ?? text).BringIntoView();
+            if (card is null)
+                return;
+            _revealed?.Classes.Remove("revealed");
+            _revealed = card;
+            card.Classes.Add("revealed");
+            DispatcherTimer.RunOnce(() =>
+            {
+                card.Classes.Remove("revealed");
+                if (ReferenceEquals(_revealed, card))
+                    _revealed = null;
+            }, RevealHighlight);
+        }, DispatcherPriority.Background);
 
     private static bool IsParseableGesture(string gesture)
     {

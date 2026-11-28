@@ -10,7 +10,7 @@
 
   <PropertyGroup>
     <!-- Must equal Navigator.Plugins.PluginApi.Major.Minor (a unit test checks it). -->
-    <NavigatorPluginApiVersion>1.2</NavigatorPluginApiVersion>
+    <NavigatorPluginApiVersion>1.3</NavigatorPluginApiVersion>
     <NavigatorPluginOutput>$(MSBuildThisFileDirectory)..\artifacts\plugins\</NavigatorPluginOutput>
   </PropertyGroup>
 </Project>

@@ -270,15 +270,17 @@ public sealed class SettingsViewModel : ObservableObject
         Densities = [.. Enum.GetValues<InterfaceDensity>().Select(v => new Option<InterfaceDensity>(v, localizer["Density." + v]))];
         AnimationLevels = [.. Enum.GetValues<AnimationLevel>().Select(v => new Option<AnimationLevel>(v, localizer["Animations." + v]))];
         StartupOptions = [.. Enum.GetValues<StartupBehavior>().Select(v => new Option<StartupBehavior>(v, localizer["Startup." + v]))];
-        Layouts = [.. Enum.GetValues<FolderLayout>().Where(l => l != FolderLayout.Columns).Select(v => new Option<FolderLayout>(v, localizer["Layout." + v]))];
+        Layouts = [.. Enum.GetValues<FolderLayout>().Select(v => new Option<FolderLayout>(v, localizer["Layout." + v]))];
         SortColumns = [.. Enum.GetValues<SortColumn>().Select(v => new Option<SortColumn>(v, localizer["Sort." + v]))];
         GroupOptions = [.. Enum.GetValues<GroupBy>().Select(v => new Option<GroupBy>(v, localizer["GroupBy." + v]))];
+        QuickLookOptions = [.. QuickLookChoices().Select(v => new Option<Navigator.Core.Platform.QuickLookProvider>(v, localizer[QuickLookTextKey(v)]))];
         Channels = [.. Enum.GetValues<UpdateChannel>().Select(v => new Option<UpdateChannel>(v, localizer["Channel." + v]))];
         LogLevels = [.. Enum.GetValues<LogVerbosity>().Select(v => new Option<LogVerbosity>(v, localizer["LogLevel." + v]))];
         AccentPresets = ["#0078D4", "#0063B1", "#8764B8", "#E3008C", "#E81123", "#F7630C", "#CA5010", "#498205", "#00B7C3", "#2D7D9A", "#5D5A58"];
 
         ReloadTagRows();
         ReloadStartupLocations();
+        ReloadToolbarRows();
         foreach (var command in CommandRegistry.All)
             KeyBindings.Add(new KeyBindingRowViewModel(command, localizer[command.NameKey], localizer["CommandCategory." + command.Category], this));
         UpdateKeyBindingConflicts();
@@ -306,6 +308,13 @@ public sealed class SettingsViewModel : ObservableObject
         ClearSearchHistoryCommand = new RelayCommand(() => Set("search", new List<string>(), s => s.Search.History, (s, v) => s.Search.History = v));
         ClearThumbnailCacheCommand = new AsyncRelayCommand(() => _thumbnails.ClearDiskCacheAsync());
         PickAccentCommand = new RelayCommand<string>(color => AccentColor = color);
+        MoveToolbarItemUpCommand = new RelayCommand<ToolbarItemRowViewModel>(row => MoveToolbarItem(row, -1));
+        MoveToolbarItemDownCommand = new RelayCommand<ToolbarItemRowViewModel>(row => MoveToolbarItem(row, +1));
+        ResetToolbarCommand = new RelayCommand(() =>
+        {
+            _settings.Update("toolbar", s => s.Appearance.ToolbarItems = []);
+            ReloadToolbarRows();
+        });
         PickBackgroundImageCommand = new AsyncRelayCommand(PickBackgroundImageAsync);
         ChangeGlobalShortcutCommand = new RelayCommand(() =>
         {
@@ -368,6 +377,9 @@ public sealed class SettingsViewModel : ObservableObject
 
     public IReadOnlyList<Option<GroupBy>> GroupOptions { get; }
 
+    /// <summary>Previewers offered for the space bar on this platform.</summary>
+    public IReadOnlyList<Option<Navigator.Core.Platform.QuickLookProvider>> QuickLookOptions { get; }
+
     public IReadOnlyList<Option<UpdateChannel>> Channels { get; }
 
     public IReadOnlyList<Option<LogVerbosity>> LogLevels { get; }
@@ -379,6 +391,15 @@ public sealed class SettingsViewModel : ObservableObject
     public ObservableCollection<KeyBindingRowViewModel> KeyBindings { get; } = [];
 
     public ObservableCollection<string> StartupLocations { get; } = [];
+
+    /// <summary>Settings → Appearance → Toolbar: every customizable button in its current order.</summary>
+    public ObservableCollection<ToolbarItemRowViewModel> ToolbarRows { get; } = [];
+
+    /// <summary>
+    /// Raised with a setting's label (localized) when the window should scroll to it and draw attention to it
+    /// (a setting chosen from the address bar's suggestions).
+    /// </summary>
+    public event EventHandler<string>? RevealRequested;
 
     /// <summary>Search text for the shortcut list: matches command name, category, id and gestures ("ctrl+t", "tab close").</summary>
     public string KeyBindingFilter
@@ -641,6 +662,28 @@ public sealed class SettingsViewModel : ObservableObject
 
     public bool ShowThumbnails { get => S.FilesAndFolders.ShowThumbnails; set => Set("filesAndFolders", value, s => s.FilesAndFolders.ShowThumbnails, (s, v) => s.FilesAndFolders.ShowThumbnails = v); }
 
+    public bool ShowMediaThumbnails { get => S.FilesAndFolders.ShowMediaThumbnails; set => Set("filesAndFolders", value, s => s.FilesAndFolders.ShowMediaThumbnails, (s, v) => s.FilesAndFolders.ShowMediaThumbnails = v); }
+
+    public Option<Navigator.Core.Platform.QuickLookProvider> QuickLook
+    {
+        get => QuickLookOptions.FirstOrDefault(o => o.Value == S.FilesAndFolders.QuickLook) ?? QuickLookOptions[0];
+        set { if (value is not null) Set("filesAndFolders", value.Value, s => s.FilesAndFolders.QuickLook, (s, v) => s.FilesAndFolders.QuickLook = v); }
+    }
+
+    internal static IReadOnlyList<Navigator.Core.Platform.QuickLookProvider> QuickLookChoices()
+    {
+        if (OperatingSystem.IsWindows())
+            return [Navigator.Core.Platform.QuickLookProvider.Automatic, Navigator.Core.Platform.QuickLookProvider.BuiltIn, Navigator.Core.Platform.QuickLookProvider.PowerToysPeek, Navigator.Core.Platform.QuickLookProvider.QuickLook, Navigator.Core.Platform.QuickLookProvider.Seer];
+        if (OperatingSystem.IsMacOS() || OperatingSystem.IsLinux())
+            return [Navigator.Core.Platform.QuickLookProvider.Automatic, Navigator.Core.Platform.QuickLookProvider.BuiltIn, Navigator.Core.Platform.QuickLookProvider.System];
+        return [Navigator.Core.Platform.QuickLookProvider.Automatic, Navigator.Core.Platform.QuickLookProvider.BuiltIn];
+    }
+
+    internal static string QuickLookTextKey(Navigator.Core.Platform.QuickLookProvider provider)
+        => provider == Navigator.Core.Platform.QuickLookProvider.System
+            ? OperatingSystem.IsMacOS() ? "QuickLook.SystemMac" : "QuickLook.SystemLinux"
+            : "QuickLook." + provider;
+
     public bool ShowCheckBoxes { get => S.FilesAndFolders.ShowCheckBoxes; set => Set("filesAndFolders", value, s => s.FilesAndFolders.ShowCheckBoxes, (s, v) => s.FilesAndFolders.ShowCheckBoxes = v); }
 
     public bool OpenItemsWithSingleClick { get => S.FilesAndFolders.OpenItemsWithSingleClick; set => Set("filesAndFolders", value, s => s.FilesAndFolders.OpenItemsWithSingleClick, (s, v) => s.FilesAndFolders.OpenItemsWithSingleClick = v); }
@@ -783,6 +826,12 @@ public sealed class SettingsViewModel : ObservableObject
 
     public IRelayCommand<string> PickAccentCommand { get; }
 
+    public IRelayCommand<ToolbarItemRowViewModel> MoveToolbarItemUpCommand { get; }
+
+    public IRelayCommand<ToolbarItemRowViewModel> MoveToolbarItemDownCommand { get; }
+
+    public IRelayCommand ResetToolbarCommand { get; }
+
     public IAsyncRelayCommand PickBackgroundImageCommand { get; }
 
     /// <summary>Opens Keyboard shortcuts filtered to the global "open Navigator" command.</summary>
@@ -842,6 +891,7 @@ public sealed class SettingsViewModel : ObservableObject
         Register(nameof(DefaultLayout), "filesAndFolders", (s, d) => s.FilesAndFolders.DefaultLayout = d.FilesAndFolders.DefaultLayout);
         Register(nameof(DefaultSortColumn), "filesAndFolders", (s, d) => s.FilesAndFolders.DefaultSortColumn = d.FilesAndFolders.DefaultSortColumn);
         Register(nameof(DefaultGroupBy), "filesAndFolders", (s, d) => s.FilesAndFolders.DefaultGroupBy = d.FilesAndFolders.DefaultGroupBy);
+        Register(nameof(QuickLook), "filesAndFolders", (s, d) => s.FilesAndFolders.QuickLook = d.FilesAndFolders.QuickLook);
         Register(nameof(MaxConcurrentOperations), "operations", (s, d) => s.Operations.MaxConcurrentOperations = d.Operations.MaxConcurrentOperations);
         Register(nameof(SearchMaxResults), "search", (s, d) => s.Search.MaxResults = d.Search.MaxResults);
         Register(nameof(ThumbnailMemoryCacheMegabytes), "performance", (s, d) => s.Performance.ThumbnailMemoryCacheMegabytes = d.Performance.ThumbnailMemoryCacheMegabytes);
@@ -934,9 +984,63 @@ public sealed class SettingsViewModel : ObservableObject
     private void SaveTags() => _settings.Update("tags", _ => { });
 
     /// <summary>The settings object was replaced (reset all, import): row view models must re-bind to it.</summary>
+    /// <summary>Selects <paramref name="pageId"/> and asks the window to scroll to the setting labelled <paramref name="settingKey"/>.</summary>
+    public void Reveal(string? pageId, string? settingKey)
+    {
+        if (pageId is not null && Pages.FirstOrDefault(p => p.Id == pageId) is { } page)
+            SelectedPage = page;
+        if (settingKey is not null && _localizer.HasKey(settingKey))
+            RevealRequested?.Invoke(this, _localizer[settingKey]);
+    }
+
+    // ── Toolbar ─────────────────────────────────────────────
+
+    private void ReloadToolbarRows()
+    {
+        ToolbarRows.Clear();
+        foreach (var slot in Shell.ToolbarLayout.Resolve(S.Appearance.ToolbarItems))
+        {
+            var group = _localizer[slot.Item.Group == Shell.ToolbarGroup.Commands ? "Settings.ToolbarCommandBar" : "Settings.ToolbarViewButtons"];
+            ToolbarRows.Add(new ToolbarItemRowViewModel(slot.Item, _localizer[slot.Item.NameKey], group, slot.IsVisible, _ => PersistToolbarArrangement()));
+        }
+
+        UpdateToolbarMoveState();
+    }
+
+    /// <summary>Moves a row one step within its group (the command bar and the view buttons are separate strips).</summary>
+    private void MoveToolbarItem(ToolbarItemRowViewModel? row, int delta)
+    {
+        if (row is null)
+            return;
+        var from = ToolbarRows.IndexOf(row);
+        var to = from + delta;
+        if (from < 0 || to < 0 || to >= ToolbarRows.Count || ToolbarRows[to].Item.Group != row.Item.Group)
+            return;
+        ToolbarRows.Move(from, to);
+        UpdateToolbarMoveState();
+        PersistToolbarArrangement();
+    }
+
+    private void UpdateToolbarMoveState()
+    {
+        for (var i = 0; i < ToolbarRows.Count; i++)
+        {
+            var row = ToolbarRows[i];
+            row.CanMoveUp = i > 0 && ToolbarRows[i - 1].Item.Group == row.Item.Group;
+            row.CanMoveDown = i + 1 < ToolbarRows.Count && ToolbarRows[i + 1].Item.Group == row.Item.Group;
+        }
+    }
+
+    private void PersistToolbarArrangement()
+    {
+        var arrangement = Shell.ToolbarLayout.ToSettings(ToolbarRows.Select(r => new Shell.ToolbarSlot(r.Item, r.IsVisible)));
+        _settings.Update("toolbar", s => s.Appearance.ToolbarItems = arrangement);
+    }
+
     private void ReloadAfterReplace()
     {
         CancelKeyBindingRecording();
+        ReloadToolbarRows();
         ReloadTagRows();
         ReloadStartupLocations();
         foreach (var row in KeyBindings)

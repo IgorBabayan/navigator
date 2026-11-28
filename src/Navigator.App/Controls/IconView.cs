@@ -28,9 +28,23 @@ public sealed class IconView : Control
     /// <summary>A <see cref="Navigator.Core.Platform.SystemIconKey"/>; null (the default) costs nothing.</summary>
     public static readonly StyledProperty<string?> SystemIconProperty = AvaloniaProperty.Register<IconView, string?>(nameof(SystemIcon));
 
+    /// <summary>
+    /// A small catalog icon drawn over the bottom-left corner (plugin badges: sync state, Git state); null (the default)
+    /// costs nothing. Drawn in this control's own Render, so badges add no visuals to the rows.
+    /// </summary>
+    public static readonly StyledProperty<string?> BadgeProperty = AvaloniaProperty.Register<IconView, string?>(nameof(Badge));
+
+    /// <summary>Color of <see cref="Badge"/> as "#RRGGBB"; null draws it in <see cref="Foreground"/>.</summary>
+    public static readonly StyledProperty<string?> BadgeTintProperty = AvaloniaProperty.Register<IconView, string?>(nameof(BadgeTint));
+
+    /// <summary>The disc behind a badge, so it stays legible on any icon.</summary>
+    private static readonly IBrush BadgeBackdrop = new Avalonia.Media.Immutable.ImmutableSolidColorBrush(Color.FromArgb(0xF2, 0xFF, 0xFF, 0xFF));
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, IBrush> BadgeBrushes = new(StringComparer.OrdinalIgnoreCase);
+
     static IconView()
     {
-        AffectsRender<IconView>(KindProperty, ForegroundProperty, SystemIconProperty, OsGlyphProperty);
+        AffectsRender<IconView>(KindProperty, ForegroundProperty, SystemIconProperty, OsGlyphProperty, BadgeProperty, BadgeTintProperty);
         WidthProperty.OverrideDefaultValue<IconView>(16);
         HeightProperty.OverrideDefaultValue<IconView>(16);
     }
@@ -59,12 +73,55 @@ public sealed class IconView : Control
         set => SetValue(OsGlyphProperty, value);
     }
 
+    public string? Badge
+    {
+        get => GetValue(BadgeProperty);
+        set => SetValue(BadgeProperty, value);
+    }
+
+    public string? BadgeTint
+    {
+        get => GetValue(BadgeTintProperty);
+        set => SetValue(BadgeTintProperty, value);
+    }
+
     public override void Render(DrawingContext context)
     {
         var size = Math.Min(Bounds.Width, Bounds.Height);
         if (size <= 0)
             return;
+        RenderIcon(context, size);
+        if (Badge is { } badge)
+            RenderBadge(context, badge, size);
+    }
 
+    /// <summary>
+    /// The badge, on a light disc in the bottom-left corner: a little over half of a row icon (legible at 16–20 px), a
+    /// third of a tile icon (at most 32 px).
+    /// </summary>
+    private void RenderBadge(DrawingContext context, string key, double size)
+    {
+        if (IconCatalog.Get(key) is not { } icon)
+            return;
+        var badge = size <= 24 ? Math.Max(8, Math.Round(size * 0.56)) : Math.Round(Math.Min(size * 0.35, 32));
+        var left = (Bounds.Width - size) / 2;
+        var top = ((Bounds.Height - size) / 2) + size - badge;
+        var center = new Point(left + (badge / 2), top + (badge / 2));
+        context.DrawEllipse(BadgeBackdrop, null, center, (badge / 2) + 0.5, (badge / 2) + 0.5);
+
+        var tint = BadgeTint is { Length: > 0 } hex
+            ? BadgeBrushes.GetOrAdd(hex, static text => Color.TryParse(text, out var color) ? new Avalonia.Media.Immutable.ImmutableSolidColorBrush(color) : Brushes.Gray)
+            : Foreground ?? Brushes.Gray;
+        var scale = badge / 24.0;
+        using (context.PushTransform(Matrix.CreateScale(scale, scale) * Matrix.CreateTranslation(left, top)))
+        {
+            foreach (var (geometry, layerTint) in icon.Layers)
+                context.DrawGeometry(layerTint ?? tint, null, geometry);
+        }
+    }
+
+    private void RenderIcon(DrawingContext context, double size)
+    {
         if (OsGlyph is { } command)
         {
             if (OsGlyphs.Get(command) is { } shape)

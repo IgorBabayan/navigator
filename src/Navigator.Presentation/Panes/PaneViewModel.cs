@@ -364,6 +364,7 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
     {
         var keep = Selection.SelectedItems.Select(i => i.FullPath).ToList();
         _reselectAfterLoad = keep;
+        _nextDecorationReason = Navigator.Plugins.FolderDecorationReason.Refresh;
         ApplyLocation();
     }
 
@@ -377,7 +378,14 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         CancelLoad();
         StopMonitoring();
         RememberListing();
+        // The folder being left: in the column layout its listing becomes the column next to the new one.
+        var previousFolder = IsFolder ? _location.Path : null;
+        var previousItems = _sortedAll;
+        var leaving = _location.Path;
         Location = History.Current;
+        // A new item still waiting to be named belongs to the folder being left (a refresh keeps it).
+        if (!string.Equals(leaving, _location.Path, StringComparison.Ordinal))
+            _renameWhenListed = null;
         IsEditingAddress = false;
         ErrorText = null;
         FilterText = string.Empty;
@@ -390,7 +398,9 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         Selection.SetItems([]);
         Rows.ReplaceAll([]);
         UpdateBreadcrumbs();
+        ResetDecorations();
         LoadViewPreferences();
+        UpdateTrailColumns(previousFolder, previousItems);
         RaiseNavigationState();
         Navigated?.Invoke(this, EventArgs.Empty);
 
@@ -502,6 +512,7 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         _listingToCache = (path, filter);
         StartMonitoring(path);
         ScheduleFolderSizes(token);
+        StartDecorations(_nextDecorationReason);
     }
 
     /// <summary>
@@ -625,7 +636,7 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         };
 
         var lastPublish = 0L;
-        await foreach (var batch in FileSearchEngine.SearchAsync(query, token).ConfigureAwait(true))
+        await foreach (var batch in SearchAsync(query, token).ConfigureAwait(true))
         {
             foreach (var entry in batch)
                 _entries[entry.FullPath] = entry;
@@ -888,10 +899,13 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
             return;
         _disposed = true;
         _services.TrashStatus.PropertyChanged -= OnTrashStatusChanged;
+        CancelDecorations();
+        DetachDecorations();
         CancelLoad();
         CancelAddressSuggestions();
         StopMonitoring();
         RememberListing();
+        ClearTrailColumns();
         _remoteWork.Cancel();
         _remoteWork.Dispose();
         foreach (var item in _ordered)

@@ -15,6 +15,9 @@ public sealed class ShellMenuBridge(IShellMenu menu, Func<nint> ownerWindow, ILo
     public const string OpenWithVerb = "openas";
     public const string SendToVerb = "sendto";
 
+    /// <summary>Explorer's "Share" (the Windows share sheet). Navigator shows its own "Share" entry that runs it.</summary>
+    public const string ShareVerb = "Windows.ModernShare";
+
     /// <summary>Shell verbs that duplicate Navigator commands (open, run as, clipboard, rename, shortcut, terminal…).</summary>
     public static readonly IReadOnlySet<string> NavigatorVerbs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
@@ -36,6 +39,27 @@ public sealed class ShellMenuBridge(IShellMenu menu, Func<nint> ownerWindow, ILo
         return null;
     }
 
+    /// <summary>Runs the top-level shell entry with this verb; false when the shell offered none or it failed.</summary>
+    public async Task<bool> InvokeVerbAsync(string verb)
+    {
+        foreach (var item in menu.Items)
+        {
+            if (!item.HasChildren && string.Equals(item.Verb, verb, StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    return await menu.InvokeAsync(item, ownerWindow()).ConfigureAwait(true);
+                }
+                catch (OperationCanceledException)
+                {
+                    return false;
+                }
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>Entries of a shell sub-menu, filled by the shell on first request.</summary>
     public async Task<IReadOnlyList<MenuEntry>> ChildrenOfAsync(ShellMenuItem parent, CancellationToken cancellationToken)
     {
@@ -54,7 +78,8 @@ public sealed class ShellMenuBridge(IShellMenu menu, Func<nint> ownerWindow, ILo
         {
             var hasOwnMenu = item.HasChildren && (string.Equals(item.Verb, OpenWithVerb, StringComparison.OrdinalIgnoreCase)
                                                   || string.Equals(item.Verb, SendToVerb, StringComparison.OrdinalIgnoreCase));
-            if (!hasOwnMenu)
+            var hasOwnEntry = string.Equals(item.Verb, ShareVerb, StringComparison.OrdinalIgnoreCase);
+            if (!hasOwnMenu && !hasOwnEntry)
                 rest.Add(item);
         }
 
@@ -115,14 +140,21 @@ public sealed class PaneMenu : IDisposable
     private readonly CancellationTokenSource _lifetime;
     private readonly Task<IShellMenu?>? _shell;
 
-    public PaneMenu(IReadOnlyList<MenuEntry> entries, CancellationTokenSource lifetime, Task<IShellMenu?>? shell)
+    public PaneMenu(IReadOnlyList<MenuEntry> entries, CancellationTokenSource lifetime, Task<IShellMenu?>? shell, Task<IReadOnlyList<MenuEntry>>? lateEntries = null)
     {
         Entries = entries;
         _lifetime = lifetime;
         _shell = shell;
+        LateEntries = lateEntries;
     }
 
     public IReadOnlyList<MenuEntry> Entries { get; }
+
+    /// <summary>
+    /// Entries of plugins (Windows 11 app commands, Git…), added above "Show more options" when they arrive; null for none.
+    /// The task never faults: failing providers contribute nothing.
+    /// </summary>
+    public Task<IReadOnlyList<MenuEntry>>? LateEntries { get; }
 
     public CancellationToken Lifetime => _lifetime.Token;
 

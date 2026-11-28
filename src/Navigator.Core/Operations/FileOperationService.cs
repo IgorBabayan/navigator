@@ -158,7 +158,25 @@ public sealed class FileOperationService
     /// <summary>Renames a file or folder in place. Returns the new full path.</summary>
     public string Rename(string path, string newName) => Rename(path, newName, recordUndo: true);
 
-    private string Rename(string path, string newName, bool recordUndo)
+    /// <summary>
+    /// Renames an item that was just created and is being named in place (New folder / New file): the creation's undo
+    /// step is rewritten to the new path, so one Undo removes the item instead of first restoring its default name.
+    /// When something else was recorded in between, the rename gets its own step like <see cref="Rename(string, string)"/>.
+    /// </summary>
+    public string RenameCreated(string path, string newName)
+    {
+        var original = PathUtil.TrimTrailingSeparator(path);
+        var renamed = Rename(original, newName, recordUndo: false);
+        if (string.Equals(original, renamed, StringComparison.Ordinal))
+            return renamed;
+        if (!Undo.TryReplaceLatest(
+                step => step is CreateRecord create && string.Equals(PathUtil.TrimTrailingSeparator(create.Path), original, StringComparison.Ordinal),
+                step => ((CreateRecord)step) with { Path = renamed }))
+            Undo.Record(new RenameRecord(original, renamed));
+        return renamed;
+    }
+
+    private string Rename(string path, string newName, bool recordUndo, bool announce = true)
     {
         path = PathUtil.TrimTrailingSeparator(path);
         ValidateName(newName);
@@ -197,8 +215,47 @@ public sealed class FileOperationService
 
         if (recordUndo)
             Undo.Record(new RenameRecord(path, target));
-        ItemsRelocated?.Invoke(this, [(path, target)]);
+        if (announce)
+            ItemsRelocated?.Invoke(this, [(path, target)]);
         return target;
+    }
+
+    /// <summary>
+    /// Renames many items, in the given order (callers order the batch so no step lands on a name that is still taken).
+    /// Only the moves happen here, so it may run on a worker thread; it stops at the first failure and reports it.
+    /// Call <see cref="RecordRenames"/> afterwards (UI thread) with <see cref="BatchRenameOutcome.Done"/>.
+    /// </summary>
+    public BatchRenameOutcome RenameMany(IReadOnlyList<(string Path, string NewName)> renames, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(renames);
+        var done = new List<RenameRecord>(renames.Count);
+        foreach (var (path, newName) in renames)
+        {
+            if (cancellationToken.IsCancellationRequested)
+                break;
+            try
+            {
+                var target = Rename(path, newName, recordUndo: false, announce: false);
+                if (!string.Equals(path, target, StringComparison.Ordinal))
+                    done.Add(new RenameRecord(path, target));
+            }
+            catch (Exception failure) when (failure is IOException or UnauthorizedAccessException)
+            {
+                return new BatchRenameOutcome(done, failure);
+            }
+        }
+
+        return new BatchRenameOutcome(done, null);
+    }
+
+    /// <summary>Records a finished <see cref="RenameMany"/> as one undo step and announces the moves (tags follow them).</summary>
+    public void RecordRenames(IReadOnlyList<RenameRecord> done)
+    {
+        ArgumentNullException.ThrowIfNull(done);
+        if (done.Count == 0)
+            return;
+        Undo.Record(done.Count == 1 ? done[0] : new BatchRenameRecord(done));
+        ItemsRelocated?.Invoke(this, [.. done.Select(r => (r.OriginalPath, r.RenamedPath))]);
     }
 
     private static void MoveItem(string from, string to, bool isDirectory)
@@ -249,6 +306,32 @@ public sealed class FileOperationService
                     return (UndoOutcome.NotPossible, null);
                 var restored = Rename(rename.RenamedPath, Path.GetFileName(rename.OriginalPath), recordUndo: false);
                 return (UndoOutcome.Done, new RenameRecord(rename.RenamedPath, restored));
+            }
+
+            case BatchRenameRecord batch:
+            {
+                // Backwards: each original name was free right before its item was renamed, so it is free again here.
+                var reverted = new List<RenameRecord>(batch.Items.Count);
+                for (var i = batch.Items.Count - 1; i >= 0; i--)
+                {
+                    var item = batch.Items[i];
+                    if (!ItemInfo.AnyExists(item.RenamedPath))
+                        continue;
+                    try
+                    {
+                        var restored = Rename(item.RenamedPath, Path.GetFileName(item.OriginalPath), recordUndo: false);
+                        reverted.Add(new RenameRecord(item.RenamedPath, restored));
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        // Original name taken meanwhile: leave that item, keep reverting the others.
+                    }
+                }
+
+                if (reverted.Count == 0)
+                    return (UndoOutcome.NotPossible, null);
+                var outcome = reverted.Count == batch.Items.Count ? UndoOutcome.Done : UndoOutcome.PartiallyDone;
+                return (outcome, new BatchRenameRecord(reverted));
             }
 
             case TransferRecord { WasMove: true } move:

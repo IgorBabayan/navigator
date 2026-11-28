@@ -86,6 +86,9 @@ public sealed class PluginCatalogEntry
 
     public string? Homepage { get; set; }
 
+    /// <summary>Operating systems the plugin runs on; null for every one (see <see cref="PluginManifest.Platforms"/>).</summary>
+    public List<string>? Platforms { get; set; }
+
     /// <summary>Package file name, resolved against the catalog's location.</summary>
     public string Package { get; set; } = string.Empty;
 
@@ -99,6 +102,10 @@ public sealed class PluginCatalogEntry
     [JsonIgnore]
     public bool IsCompatible => PluginApi.IsCompatible(ApiVersion);
 
+    /// <summary>The plugin runs on this operating system.</summary>
+    [JsonIgnore]
+    public bool SupportsCurrentPlatform => PluginManifest.SupportsPlatform(Platforms, PluginManifest.CurrentPlatform);
+
     internal void Validate(bool requireEntryPoint) => ToManifest().Validate(requireEntryPoint);
 
     public PluginManifest ToManifest() => new()
@@ -111,6 +118,7 @@ public sealed class PluginCatalogEntry
         ApiVersion = ApiVersion,
         IconKey = IconKey,
         Homepage = Homepage,
+        Platforms = Platforms is null ? null : [.. Platforms],
     };
 
     public static PluginCatalogEntry FromManifest(PluginManifest manifest, string package, long size, string sha256)
@@ -126,6 +134,7 @@ public sealed class PluginCatalogEntry
             ApiVersion = manifest.ApiVersion,
             IconKey = manifest.IconKey,
             Homepage = manifest.Homepage,
+            Platforms = manifest.Platforms is { Count: > 0 } platforms ? [.. platforms] : null,
             Package = package,
             Size = size,
             Sha256 = sha256,

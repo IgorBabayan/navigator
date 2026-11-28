@@ -90,6 +90,35 @@ public sealed class PaneMenuTests
     }
 
     [TestMethod]
+    public void ItemActions_AppearWhenTheirCommandsCanRun()
+    {
+        var any = new Probe();
+        var commands = Commands() with
+        {
+            RotateLeft = any, RotateRight = any, SetAsWallpaper = any, SetAsLockScreen = Blocked, InstallFont = Blocked, MountImage = Blocked,
+        };
+        var menu = PaneMenuComposer.ForItems(Input([File("photo.jpg")], commands: commands) with
+        {
+            Share = new MenuEntry { Label = Text["Command.Share"], Command = any },
+        });
+        var rows = Rows(menu);
+        CollectionAssert.Contains(rows, Text["Command.RotateLeft"]);
+        CollectionAssert.Contains(rows, Text["Command.RotateRight"]);
+        CollectionAssert.Contains(rows, Text["Command.Share"]);
+        CollectionAssert.DoesNotContain(rows, Text["Command.InstallFont"]);
+        CollectionAssert.DoesNotContain(rows, Text["Command.Mount"]);
+
+        var setAs = menu.Find(e => e.Label == Text["Command.SetAs"]);
+        Assert.IsNotNull(setAs?.Children);
+        CollectionAssert.AreEqual(new[] { Text["Command.SetAsWallpaper"] }, Labels(setAs.Children));
+
+        // Hosts without the optional commands (and blocked ones) get none of these entries.
+        var plain = Rows(PaneMenuComposer.ForItems(Input([File("photo.jpg")], commands: Commands() with { SetAsWallpaper = Blocked })));
+        CollectionAssert.DoesNotContain(plain, Text["Command.RotateLeft"]);
+        CollectionAssert.DoesNotContain(plain, Text["Command.SetAs"]);
+    }
+
+    [TestMethod]
     public void Document_GetsOpenWith_AndNoElevation()
     {
         var menu = PaneMenuComposer.ForItems(Input([File("report.pdf")]));

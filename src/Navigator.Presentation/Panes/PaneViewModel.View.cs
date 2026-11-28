@@ -20,6 +20,7 @@ public sealed partial class PaneViewModel
         {
             if (SetProperty(ref _layout, value))
             {
+                OnColumnsLayoutChanged();
                 OnPropertyChanged(nameof(IsDetailsLayout));
                 OnPropertyChanged(nameof(IsListLayout));
                 OnPropertyChanged(nameof(IsTileLayout));
@@ -48,6 +49,7 @@ public sealed partial class PaneViewModel
                 OnPropertyChanged(nameof(SortColumn));
                 OnPropertyChanged(nameof(IsSortDescending));
                 _ = ResortAsync();
+                ResortTrailColumns();
                 SaveViewPreferences();
             }
         }
@@ -144,7 +146,7 @@ public sealed partial class PaneViewModel
             if (!_itemsByPath.TryGetValue(entry.FullPath, out var model) || !ReferenceEquals(model.Entry, entry))
             {
                 var trash = model?.TrashItem;
-                model = new FileItemViewModel(entry, _displayContext, trash);
+                model = new FileItemViewModel(entry, _displayContext, trash) { Decoration = DecorationFor(entry) };
                 _itemsByPath[entry.FullPath] = model;
             }
 
@@ -176,6 +178,7 @@ public sealed partial class PaneViewModel
         OnPropertyChanged(nameof(Items));
         RaiseItemCommandState();
         FlushPendingSelection();
+        StartPendingRename();
     }
 
     private void RebuildRows()
@@ -308,6 +311,9 @@ public sealed partial class PaneViewModel
                 _entries[entry.FullPath] = entry;
             _ = ResortAsync();
         }
+
+        // Git status, sync state… of the changed items: one run after the burst of changes settles.
+        ScheduleDecorations(Navigator.Plugins.FolderDecorationReason.Changed);
     }
 
     /// <summary>
@@ -340,7 +346,7 @@ public sealed partial class PaneViewModel
         foreach (var entry in added)
         {
             _entries[entry.FullPath] = entry;
-            var model = new FileItemViewModel(entry, _displayContext);
+            var model = new FileItemViewModel(entry, _displayContext) { Decoration = DecorationFor(entry) };
             _itemsByPath[entry.FullPath] = model;
             var index = _ordered.BinarySearch(model, comparer);
             if (index < 0)
@@ -355,7 +361,42 @@ public sealed partial class PaneViewModel
         UpdateStatus();
         OnPropertyChanged(nameof(IsEmpty));
         FlushPendingSelection();
+        StartPendingRename();
         return true;
+    }
+
+    /// <summary>
+    /// Drops deleted items from a view without a directory monitor (search, tag results), including results found
+    /// inside deleted folders. No reload and no re-sort: the remaining order is already correct.
+    /// </summary>
+    private void RemoveVanishedItems(Location location, List<string> paths, List<string> directories)
+    {
+        if (_disposed || !_location.Equals(location))
+            return;
+
+        var removed = new List<string>(paths.Count);
+        foreach (var path in paths)
+        {
+            if (_entries.ContainsKey(path))
+                removed.Add(path);
+        }
+
+        if (directories.Count > 0)
+        {
+            foreach (var key in _entries.Keys)
+            {
+                if (directories.Exists(d => !PathUtil.AreEqual(d, key) && PathUtil.IsSameOrDescendant(d, key)))
+                    removed.Add(key);
+            }
+        }
+
+        if (removed.Count == 0 || TryApplyIncrementally(removed, []))
+            return;
+
+        foreach (var path in removed)
+            RemoveEntry(path);
+        _sortedAll = [.. _sortedAll.Where(m => _entries.ContainsKey(m.FullPath))];
+        ApplyView();
     }
 
     private sealed class ItemComparer(FileEntryComparer inner) : IComparer<FileItemViewModel>
@@ -414,6 +455,10 @@ public sealed partial class PaneViewModel
 
     private void LoadViewPreferences()
     {
+        // Stepping through the column layout keeps it (and its sort): the per-folder views apply to folders opened anew.
+        if (ContinuesColumns())
+            return;
+
         var files = _services.Settings.Current.FilesAndFolders;
         if (files.RememberViewPerFolder && _location.Path is { } path && _location.IsFolder
             && files.FolderViews.TryGetValue(path, out var preference))
@@ -434,6 +479,7 @@ public sealed partial class PaneViewModel
         OnPropertyChanged(nameof(IsDetailsLayout));
         OnPropertyChanged(nameof(IsListLayout));
         OnPropertyChanged(nameof(IsTileLayout));
+        OnPropertyChanged(nameof(IsColumnsLayout));
         OnPropertyChanged(nameof(TileWidth));
         OnPropertyChanged(nameof(TileIconSize));
         OnPropertyChanged(nameof(Sort));

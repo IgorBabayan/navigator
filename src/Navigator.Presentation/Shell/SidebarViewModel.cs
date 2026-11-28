@@ -122,11 +122,13 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
     private int _generation;
     private bool _disposed;
     private SidebarItemViewModel? _trashItem;
+    private readonly DriveActions _drives;
 
     public SidebarViewModel(PaneServices services, PinnedFolders pins)
     {
         _services = services;
         _pins = pins;
+        _drives = new DriveActions(services);
         _width = services.Settings.Current.Sidebar.Width;
         _isVisible = services.Settings.Current.Sidebar.IsVisible;
         NavigateCommand = new RelayCommand<SidebarItemViewModel>(item => { if (item is not null) NavigateRequested?.Invoke(this, (item.Location, false)); });
@@ -279,7 +281,15 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
 
         if (settings.ShowDrives)
         {
-            Sections.Add(new SidebarSectionViewModel("drives", localizer["Sidebar.Drives"], "Drive", SystemIconKey.Stock(SystemIconKind.Computer)) { IsExpanded = !collapsed.Contains("drives") });
+            // Header button: "Map network drive" (Windows dialog) or "Connect to server" (smb://, afp://…).
+            IReadOnlyList<SidebarCommandViewModel> header = _drives.CanConnectNetworkDrive
+                ? [new SidebarCommandViewModel(_drives.ConnectTitle, "MapNetworkDrive", false, new AsyncRelayCommand(_drives.ConnectNetworkDriveAsync))]
+                : [];
+            Sections.Add(new SidebarSectionViewModel("drives", localizer["Sidebar.Drives"], "Drive", SystemIconKey.Stock(SystemIconKind.Computer))
+            {
+                IsExpanded = !collapsed.Contains("drives"),
+                Commands = header,
+            });
             _ = LoadVolumesAsync();
         }
 
@@ -312,7 +322,10 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
             if (volume.Kind == VolumeKind.Network)
                 continue;
             var model = HomeViewModel.CreateVolumeItem(volume, _services.Localizer);
-            drives.Items.Add(new SidebarItemViewModel(model.Name, model.IconKey, Location.Folder(volume.RootPath), model.Detail, systemIconKey: model.SystemIconKey));
+            drives.Items.Add(new SidebarItemViewModel(model.Name, model.IconKey, Location.Folder(volume.RootPath), model.Detail, systemIconKey: model.SystemIconKey)
+            {
+                Commands = _drives.CommandsFor(volume),
+            });
         }
     }
 
@@ -370,9 +383,18 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
     {
         var source = section.Source!;
         IReadOnlyList<PluginSidebarEntry> entries;
+        Dictionary<string, VolumeInfo>? volumes = null;
         try
         {
             entries = await Task.Run(() => source.GetEntriesAsync(CancellationToken.None).AsTask()).ConfigureAwait(true);
+
+            // Entries that are mounted volumes (the Network section's shares) get the host's drive actions too.
+            if (entries.Any(e => e.Location.Kind == LocationKind.Folder))
+            {
+                volumes = await Task.Run(() => _services.Volumes.GetVolumes()
+                    .GroupBy(v => v.RootPath, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase)).ConfigureAwait(true);
+            }
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -386,9 +408,12 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
         section.Items.Clear();
         foreach (var entry in entries)
         {
+            IEnumerable<SidebarCommandViewModel> commands = entry.Commands.Select(c => CreateCommand(source, c, entry));
+            if (volumes is not null && entry.Location.Path is { } root && volumes.TryGetValue(root, out var volume))
+                commands = commands.Concat(_drives.CommandsFor(volume));
             section.Items.Add(new SidebarItemViewModel(entry.Name, entry.IconKey, entry.Location, entry.Detail, systemIconKey: entry.SystemIconKey)
             {
-                Commands = [.. entry.Commands.Select(c => CreateCommand(source, c, entry))],
+                Commands = [.. commands],
             });
         }
 

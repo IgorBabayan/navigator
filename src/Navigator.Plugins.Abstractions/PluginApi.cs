@@ -13,8 +13,12 @@ public static class PluginApi
     /// 1.1: <see cref="IRemoteLocationMapper"/>.
     /// 1.2: sidebar groups (<see cref="IPluginSidebarGroupMember"/>), <see cref="IPluginContext.Secrets"/>,
     /// <see cref="IPluginContext.OpenInBrowser"/> and the cloud helpers in <c>Navigator.Plugins.Cloud</c>.
+    /// 1.3: folder decorators (<see cref="IFolderDecorator"/>: columns, icon badges, status bar segments), context-menu
+    /// providers (<see cref="IItemMenuProvider"/>), search providers (<see cref="ISearchProvider"/>), settings pages
+    /// (<see cref="IPluginSettingsPage"/>), <see cref="IPluginUi.Notify"/>, <see cref="IPluginUninstallHandler"/>,
+    /// the "platforms" manifest field and the helpers <see cref="PluginProcess"/> and <see cref="PluginPreferences"/>.
     /// </summary>
-    public const int Minor = 2;
+    public const int Minor = 3;
 
     public static string Version => $"{Major}.{Minor}";
 

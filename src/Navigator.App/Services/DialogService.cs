@@ -14,7 +14,7 @@ using Navigator.Presentation.Services;
 
 namespace Navigator.App.Services;
 
-internal sealed class DialogService(WindowService windows, Localizer localizer, IFileOwnershipProvider ownership) : IDialogService
+internal sealed class DialogService(WindowService windows, Localizer localizer, PropertiesServices properties) : IDialogService
 {
     private Window? Owner => windows.ActiveTopLevel;
 
@@ -69,6 +69,22 @@ internal sealed class DialogService(WindowService windows, Localizer localizer, 
 
         var result = await dialog.ShowFor(Owner).ConfigureAwait(true);
         return result == "ok" && ok.IsEnabled ? box.Text ?? string.Empty : null;
+    }
+
+    public async Task<bool> ShowMultiRenameAsync(Navigator.Presentation.Panes.MultiRenameViewModel model)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+        var window = new MultiRenameWindow { DataContext = model };
+        if (Owner is { } owner)
+        {
+            await window.ShowDialog(owner).ConfigureAwait(true);
+            return window.Confirmed;
+        }
+
+        var closed = new TaskCompletionSource<bool>();
+        window.Closed += (_, _) => closed.TrySetResult(window.Confirmed);
+        window.Show();
+        return await closed.Task.ConfigureAwait(true);
     }
 
     /// <summary>
@@ -429,7 +445,7 @@ internal sealed class DialogService(WindowService windows, Localizer localizer, 
 
     public void ShowProperties(IReadOnlyList<string> paths)
     {
-        var model = new PropertiesViewModel(paths, localizer, ownership);
+        var model = new PropertiesViewModel(paths, properties, (title, extensions) => PickFileAsync(title, extensions));
         var window = new PropertiesWindow { DataContext = model };
         window.Closed += (_, _) => model.Dispose();
         if (Owner is { } owner)

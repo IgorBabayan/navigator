@@ -19,6 +19,12 @@
     <ProjectReference Include="..\..\plugins\Navigator.Plugin.Network\Navigator.Plugin.Network.csproj" />
     <ProjectReference Include="..\..\plugins\Navigator.Plugin.GoogleDrive\Navigator.Plugin.GoogleDrive.csproj" />
     <ProjectReference Include="..\..\plugins\Navigator.Plugin.OneDrive\Navigator.Plugin.OneDrive.csproj" />
+    <ProjectReference Include="..\..\plugins\Navigator.Plugin.Git\Navigator.Plugin.Git.csproj" />
+    <ProjectReference Include="..\..\plugins\Navigator.Plugin.CloudSync\Navigator.Plugin.CloudSync.csproj" />
+    <ProjectReference Include="..\..\plugins\Navigator.Plugin.Wsl\Navigator.Plugin.Wsl.csproj" />
+    <ProjectReference Include="..\..\plugins\Navigator.Plugin.WindowsSearch\Navigator.Plugin.WindowsSearch.csproj" />
+    <ProjectReference Include="..\..\plugins\Navigator.Plugin.ModernMenu\Navigator.Plugin.ModernMenu.csproj" />
+    <ProjectReference Include="..\..\plugins\Navigator.Plugin.DefaultFileManager\Navigator.Plugin.DefaultFileManager.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Shared\*.cs" Link="Shared\%(Filename)%(Extension)" />

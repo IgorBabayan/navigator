@@ -27,6 +27,8 @@ internal sealed class WindowService(IServiceProvider services, SettingsService s
 
     public int WindowCount => _windows.Count;
 
+    public nint ActiveWindowHandle => ActiveTopLevel?.TryGetPlatformHandle()?.Handle ?? 0;
+
     /// <summary>Raised after the last main window has closed (the app keeps running only in background mode).</summary>
     public event EventHandler? LastWindowClosed;
 
@@ -147,7 +149,7 @@ internal sealed class WindowService(IServiceProvider services, SettingsService s
         window.Show();
     }
 
-    public void OpenSettings(string? page = null)
+    public void OpenSettings(string? page = null, string? settingKey = null)
     {
         if (_settingsWindow is null)
         {
@@ -164,8 +166,54 @@ internal sealed class WindowService(IServiceProvider services, SettingsService s
             _settingsWindow.Activate();
         }
 
-        if (page is not null && _settingsWindow.DataContext is SettingsViewModel vm)
-            vm.SelectedPage = vm.Pages.FirstOrDefault(p => p.Id == page) ?? vm.SelectedPage;
+        if ((page is not null || settingKey is not null) && _settingsWindow.DataContext is SettingsViewModel vm)
+            vm.Reveal(page, settingKey);
+    }
+
+    public void MoveTabToWindow(ShellViewModel source, TabViewModel tab, double? screenX = null, double? screenY = null)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        if (tab is null || !source.Tabs.Contains(tab) || _windows.FirstOrDefault(w => ReferenceEquals(w.Shell, source)) is not { } origin)
+            return;
+
+        PixelPoint? point = screenX is { } x && screenY is { } y ? new PixelPoint((int)x, (int)y) : null;
+
+        // Over another window's tab strip: the tab joins that window where it was dropped.
+        if (point is { } over)
+        {
+            foreach (var target in _windows)
+            {
+                if (!ReferenceEquals(target, origin) && target.TryGetTabInsertIndex(over) is { } index)
+                {
+                    source.DetachTab(tab);
+                    target.Shell.AdoptTab(tab, index);
+                    target.BringToFront();
+                    return;
+                }
+            }
+        }
+
+        // A window's only tab stays where it is: a new window would just replace this one.
+        if (source.Tabs.Count < 2)
+            return;
+
+        var window = CreateWindow(null);
+        window.Width = origin.Bounds.Width;
+        window.Height = origin.Bounds.Height;
+        var scaling = origin.RenderScaling;
+        var at = point is { } dropped
+            ? new PixelPoint(dropped.X - (int)(80 * scaling), dropped.Y - (int)(16 * scaling))
+            : origin.Position + new PixelPoint((int)(32 * scaling), (int)(32 * scaling));
+        if (window.Screens.All.Any(s => s.WorkingArea.Contains(at + new PixelPoint(40, 40))))
+        {
+            window.WindowStartupLocation = WindowStartupLocation.Manual;
+            window.Position = at;
+        }
+
+        source.DetachTab(tab);
+        window.Shell.AdoptTab(tab);
+        window.Show();
+        window.BringToFront();
     }
 
     public void CloseCurrentWindow() => ActiveWindow?.Close();

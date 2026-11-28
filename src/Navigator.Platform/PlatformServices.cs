@@ -1,7 +1,10 @@
 using Navigator.Core.Platform;
 using Navigator.Platform.Hotkeys;
 using Navigator.Platform.Icons;
+using Navigator.Platform.ItemActions;
 using Navigator.Platform.Launch;
+using Navigator.Platform.Preview;
+using Navigator.Platform.ItemProperties;
 using Navigator.Platform.Secrets;
 using Navigator.Platform.Startup;
 using Navigator.Platform.Trash;
@@ -23,6 +26,53 @@ public static class PlatformServices
         if (OperatingSystem.IsLinux() || OperatingSystem.IsFreeBSD())
             return new FreedesktopTrash();
         return new UnsupportedTrash();
+    }
+
+    /// <summary>Desktop and lock screen pictures ("Set as").</summary>
+    public static IDesktopBackgroundService CreateDesktopBackground(IPlatformInfo platform)
+    {
+        ArgumentNullException.ThrowIfNull(platform);
+        if (OperatingSystem.IsWindows())
+            return new WindowsDesktopBackground();
+        if (OperatingSystem.IsMacOS())
+            return new MacDesktopBackground();
+        if (OperatingSystem.IsLinux())
+            return new LinuxDesktopBackground(platform);
+        return UnsupportedItemActions.Instance;
+    }
+
+    /// <summary>Per-user font installation.</summary>
+    public static IFontInstaller CreateFontInstaller()
+    {
+        if (OperatingSystem.IsWindows())
+            return new WindowsFontInstaller();
+        if (OperatingSystem.IsMacOS())
+            return new MacFontInstaller();
+        if (OperatingSystem.IsLinux())
+            return new LinuxFontInstaller();
+        return UnsupportedItemActions.Instance;
+    }
+
+    /// <summary>Mounting disk images, ejecting drives, mapping and disconnecting network drives.</summary>
+    public static IDriveService CreateDriveService()
+    {
+        if (OperatingSystem.IsWindows())
+            return new WindowsDriveService();
+        if (OperatingSystem.IsMacOS())
+            return new MacDriveService();
+        if (OperatingSystem.IsLinux())
+            return new LinuxDriveService();
+        return UnsupportedItemActions.Instance;
+    }
+
+    /// <summary>"Share" targets on macOS and Linux; Windows shares through the shell's own verb (see the pane menus).</summary>
+    public static IShareService CreateShareService()
+    {
+        if (OperatingSystem.IsMacOS())
+            return new MacShareService();
+        if (OperatingSystem.IsLinux())
+            return new LinuxShareService();
+        return UnsupportedItemActions.Instance;
     }
 
     public static IFileLauncher CreateLauncher()
@@ -130,5 +180,64 @@ public static class PlatformServices
         if (OperatingSystem.IsLinux() && !platform.IsWaylandSession && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY")))
             return new X11GlobalHotkey();
         return new UnsupportedGlobalHotkey();
+    }
+
+    /// <summary>External previewers for the space bar (QuickLook, Seer, PowerToys Peek; Quick Look on macOS; Sushi on Linux).</summary>
+    public static IQuickLookService CreateQuickLook() => new QuickLookService();
+
+    /// <summary>Thumbnails of videos, PDFs and documents: Windows shell handlers, macOS Quick Look, freedesktop cache + poppler/ffmpeg.</summary>
+    public static IPlatformThumbnailer CreateThumbnailer()
+    {
+        if (OperatingSystem.IsWindows())
+            return new WindowsShellThumbnailer();
+        if (OperatingSystem.IsMacOS())
+            return new MacQuickLookThumbnailer();
+        if (OperatingSystem.IsLinux() || OperatingSystem.IsFreeBSD())
+            return new FreedesktopThumbnailer();
+        return new UnsupportedThumbnailer();
+    }
+
+    /// <summary>Audio playback for the preview pane: MCI on Windows, afplay on macOS, ffplay/mpv/gst-play/paplay on Linux.</summary>
+    public static IAudioPreviewPlayer CreateAudioPlayer()
+    {
+        if (OperatingSystem.IsWindows())
+            return new WindowsMciAudioPlayer();
+        var player = new ProcessAudioPlayer();
+        return player.IsSupported ? player : new UnsupportedAudioPlayer();
+    }
+
+    /// <summary>Digital signatures: WinVerifyTrust (Windows), codesign/pkgutil (macOS), Authenticode decoding elsewhere.</summary>
+    public static ISignatureVerifier CreateSignatureVerifier()
+    {
+        if (OperatingSystem.IsWindows())
+            return new WindowsSignatureVerifier();
+        if (OperatingSystem.IsMacOS())
+            return new MacSignatureVerifier();
+        return new DecodingSignatureVerifier();
+    }
+
+    /// <summary>Owner, ACL and permissions for the Properties window's Security tab.</summary>
+    public static ISecurityInfoProvider CreateSecurityInfo(IFileOwnershipProvider ownership)
+        => OperatingSystem.IsWindows() ? new WindowsSecurityInfoProvider() : new UnixSecurityInfoProvider(ownership);
+
+    /// <summary>Per-program compatibility layers (Windows only).</summary>
+    public static IAppCompatibilityStore CreateAppCompatibility()
+        => OperatingSystem.IsWindows() ? new WindowsAppCompatibilityStore() : new UnsupportedAppCompatibilityStore();
+
+    /// <summary>Custom folder icons as the platform's file manager shows them.</summary>
+    public static IFolderIconService CreateFolderIcons()
+    {
+        if (OperatingSystem.IsWindows())
+            return new WindowsFolderIconService();
+        if (OperatingSystem.IsMacOS())
+            return new MacFolderIconService();
+        if (OperatingSystem.IsLinux())
+        {
+            var linux = new LinuxFolderIconService();
+            if (linux.IsSupported)
+                return linux;
+        }
+
+        return new UnsupportedFolderIconService();
     }
 }

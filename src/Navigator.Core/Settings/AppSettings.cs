@@ -4,9 +4,14 @@ namespace Navigator.Core.Settings;
 
 public enum ThemeMode
 {
+    /// <summary>Light or dark as the OS is set, high contrast too when the OS asks for it.</summary>
     System,
     Light,
     Dark,
+    /// <summary>White on black, solid surfaces and strong borders (WCAG AAA text contrast).</summary>
+    HighContrastDark,
+    /// <summary>Black on white, solid surfaces and strong borders (WCAG AAA text contrast).</summary>
+    HighContrastLight,
 }
 
 public enum BackdropMaterial
@@ -135,6 +140,19 @@ public sealed class AppearanceSettings
     public double FontScale { get; set; } = 1.0;
 
     public bool ShowToolbarLabels { get; set; } = true;
+
+    /// <summary>
+    /// Toolbar buttons as arranged by the user (Settings → Appearance → Toolbar), in display order. Empty means the
+    /// default arrangement; ids the current version does not know are ignored, new buttons appear in their default slot.
+    /// </summary>
+    public List<ToolbarItemSetting> ToolbarItems { get; set; } = [];
+}
+
+public sealed class ToolbarItemSetting
+{
+    public string Id { get; set; } = string.Empty;
+
+    public bool IsVisible { get; set; } = true;
 }
 
 public sealed class GeneralSettings
@@ -239,6 +257,15 @@ public sealed class FilesAndFoldersSettings
 
     public bool ShowThumbnails { get; set; } = true;
 
+    /// <summary>
+    /// Thumbnails of videos, PDFs, Office documents and album art (made by the platform's thumbnailers, kept in the disk
+    /// cache). Shown in icon and tile layouts only; the details and list layouts keep the type icon.
+    /// </summary>
+    public bool ShowMediaThumbnails { get; set; } = true;
+
+    /// <summary>What the space bar opens for the selected item.</summary>
+    public Platform.QuickLookProvider QuickLook { get; set; } = Platform.QuickLookProvider.Automatic;
+
     public bool ShowCheckBoxes { get; set; }
 
     public bool OpenItemsWithSingleClick { get; set; }
@@ -276,6 +303,14 @@ public sealed class FilesAndFoldersSettings
         new() { Id = "created", Width = 170, IsVisible = false },
         new() { Id = "tags", Width = 120, IsVisible = true },
     ];
+
+    /// <summary>
+    /// Widths and visibility of columns that plugins fill ("git.status"), by "{decorator id}.{column id}"; a column the
+    /// user never touched is absent and uses the plugin's defaults. Bounded by <see cref="MaxPluginColumns"/>.
+    /// </summary>
+    public List<ColumnSetting> PluginColumns { get; set; } = [];
+
+    public const int MaxPluginColumns = 64;
 }
 
 public sealed class FolderViewPreference

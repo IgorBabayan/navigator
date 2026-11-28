@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Git plugin: the branch in the status bar (with Pull, Push and Fetch), Git columns in the details view (status, last
+    commit, author, commit date) and status badges on item icons inside repositories. Uses the installed git command
+    line (no library), only for folders inside a repository and never on the UI thread.
+    Installed from the plugin shop; NOT part of the app build.
+    `dotnet publish -c Release` produces artifacts/plugins/navigator-plugin-git-{version}.navplugin.
+  -->
+  <PropertyGroup>
+    <RootNamespace>Navigator.Plugin.Git</RootNamespace>
+    <NavigatorPluginId>git</NavigatorPluginId>
+    <NavigatorPluginVersion>1.0.0</NavigatorPluginVersion>
+    <NavigatorPluginName>Git</NavigatorPluginName>
+    <NavigatorPluginDescription>Branch in the status bar with pull, push and fetch; Git status and last commit columns; status badges on icons. Needs Git installed.</NavigatorPluginDescription>
+    <NavigatorPluginAuthor>Navigator</NavigatorPluginAuthor>
+    <NavigatorPluginEntryType>Navigator.Plugin.Git.GitPlugin</NavigatorPluginEntryType>
+    <NavigatorPluginIconKey>Git</NavigatorPluginIconKey>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The host provides the contract (and Navigator.Core) at run time: never copied into the package. -->
+    <ProjectReference Include="..\..\src\Navigator.Plugins.Abstractions\Navigator.Plugins.Abstractions.csproj" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Strings\*.json" LogicalName="Strings.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Navigator.UnitTests" />
+  </ItemGroup>
+</Project>

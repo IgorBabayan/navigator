@@ -19,6 +19,7 @@ public sealed partial class PaneViewModel
 
     private const int MaxFolderSuggestions = 200;
     private const int MaxHistorySuggestions = 6;
+    private const int MaxSettingSuggestions = 5;
     private const int MaxChevronEntries = 500;
     private const int SuggestionDelayMilliseconds = 120;
 
@@ -121,6 +122,14 @@ public sealed partial class PaneViewModel
             return;
         }
 
+        // Not a place: a setting with that name opens instead ("dark theme" + Enter goes to Appearance).
+        if (!LooksLikePath(input) && SettingsPages.SettingsSearch.Find(input, _services.Localizer, 1) is [var setting])
+        {
+            _services.Windows.OpenSettings(setting.PageId, setting.TitleKey);
+            IsEditingAddress = false;
+            return;
+        }
+
         await _services.Dialogs.ShowMessageAsync(_services.Localizer["Error.PathNotFoundTitle"], _services.Localizer.Format("Error.PathNotFound", input)).ConfigureAwait(true);
     }
 
@@ -195,6 +204,12 @@ public sealed partial class PaneViewModel
     {
         if (suggestion is null)
             return;
+        if (suggestion.Kind == AddressSuggestionKind.Setting)
+        {
+            OpenSettingFromAddress(suggestion);
+            return;
+        }
+
         SetAddressTextSilently(suggestion.Text);
         NavigateToAddressCommand.Execute(null);
     }
@@ -268,6 +283,8 @@ public sealed partial class PaneViewModel
                 }
             }
 
+            AppendSettingSuggestions(suggestions, text);
+
             if (!IsEditingAddress)
                 return;
             AddressSuggestions.ReplaceAll(suggestions);
@@ -282,6 +299,32 @@ public sealed partial class PaneViewModel
         {
             _logger.LogDebug(ex, "Address completion failed");
         }
+    }
+
+    /// <summary>
+    /// Typed words that are not a path also look up settings by name ("hidden", "accent colour"), listed after the
+    /// locations and folders so typing a path is never slowed or reordered by them.
+    /// </summary>
+    private void AppendSettingSuggestions(List<AddressSuggestion> suggestions, string text)
+    {
+        if (LooksLikePath(text))
+            return;
+        var settingsTitle = _services.Localizer["Command.Settings"];
+        foreach (var match in SettingsPages.SettingsSearch.Find(text, _services.Localizer, MaxSettingSuggestions))
+        {
+            suggestions.Add(new AddressSuggestion(match.Title, match.Title, settingsTitle + " › " + match.PageTitle,
+                AddressSuggestionKind.Setting, "Settings", match.PageId, match.TitleKey));
+        }
+    }
+
+    /// <summary>Separators, drive letters, "~", "%VAR%", "$VAR", URIs and relative dots mean a path is being typed.</summary>
+    private static bool LooksLikePath(string text)
+        => text.Length == 0 || text[0] is '.' or '~' or '%' or '$' or '"' || text.AsSpan().IndexOfAny('/', '\\', ':') >= 0;
+
+    private void OpenSettingFromAddress(AddressSuggestion suggestion)
+    {
+        IsEditingAddress = false;
+        _services.Windows.OpenSettings(suggestion.SettingsPage, suggestion.SettingKey);
     }
 
     private static (string? Parent, IReadOnlyList<string> Names) FindCompletions(AddressInput input, string home, string? current, bool includeHidden, CancellationToken token)

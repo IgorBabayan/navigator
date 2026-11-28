@@ -38,6 +38,21 @@ public sealed partial class PluginManifest
 
     public string? Homepage { get; set; }
 
+    /// <summary>
+    /// Operating systems the plugin runs on ("windows", "linux", "macos"); null or empty for every one (plugin API 1.3).
+    /// The host refuses to install or load a plugin elsewhere, and the shop does not offer it.
+    /// </summary>
+    public List<string>? Platforms { get; set; }
+
+    [JsonIgnore]
+    public bool SupportsCurrentPlatform => SupportsPlatform(Platforms, CurrentPlatform);
+
+    /// <summary>"windows", "linux" or "macos" (the values of <see cref="Platforms"/>).</summary>
+    public static string CurrentPlatform => OperatingSystem.IsWindows() ? "windows" : OperatingSystem.IsMacOS() ? "macos" : "linux";
+
+    public static bool SupportsPlatform(IReadOnlyCollection<string>? platforms, string platform)
+        => platforms is null || platforms.Count == 0 || platforms.Contains(platform, StringComparer.OrdinalIgnoreCase);
+
     [JsonIgnore]
     public SemVersion ParsedVersion => SemVersion.TryParse(Version, out var version) ? version : SemVersion.Create(0, 0, 0);
 
@@ -78,6 +93,8 @@ public sealed partial class PluginManifest
             throw new InvalidDataException($"Plugin '{Id}' has an invalid version '{Version}'.");
         if (string.IsNullOrWhiteSpace(ApiVersion))
             throw new InvalidDataException($"Plugin '{Id}' does not declare apiVersion.");
+        if (Platforms is { } platforms && platforms.Exists(p => p is not ("windows" or "linux" or "macos")))
+            throw new InvalidDataException($"Plugin '{Id}' declares an unknown platform.");
         if (!requireEntryPoint)
             return;
         if (string.IsNullOrWhiteSpace(Assembly) || Assembly.IndexOfAny(['/', '\\', ':']) >= 0 || !Assembly.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))

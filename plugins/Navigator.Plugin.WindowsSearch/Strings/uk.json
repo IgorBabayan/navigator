@@ -1,0 +1,7 @@
+{
+  "WindowsSearch.Settings.Enabled": "Шукати в індексованих папках через Пошук Windows",
+  "WindowsSearch.Settings.EnabledHint": "Результати беруться з індексу, яким користується Провідник: швидко у великих папках, а пошук за вмістом заглядає всередину документів. Неіндексовані папки Navigator переглядає сам.",
+  "WindowsSearch.Settings.Options": "Індексовані розташування",
+  "WindowsSearch.Settings.OptionsHint": "Виберіть, які папки індексує Windows.",
+  "WindowsSearch.Settings.OptionsButton": "Параметри індексування"
+}

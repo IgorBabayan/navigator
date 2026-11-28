@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Windows Search plugin: pane searches in indexed folders are answered by the Windows Search index (the same index
+    File Explorer uses) instead of walking the folders; content searches use its full-text index. Folders the index
+    does not cover fall back to Navigator's own search. Queries run through the system's OLE DB provider
+    (Search.CollatorDSO) on a worker thread, called through vtables (no built-in COM interop, trimming safe).
+    Base class library only. Installed from the plugin shop; NOT part of the app build.
+  -->
+  <PropertyGroup>
+    <RootNamespace>Navigator.Plugin.WindowsSearch</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NavigatorPluginId>windows-search</NavigatorPluginId>
+    <NavigatorPluginVersion>1.0.0</NavigatorPluginVersion>
+    <NavigatorPluginName>Windows Search index</NavigatorPluginName>
+    <NavigatorPluginDescription>Searches indexed folders with the Windows Search index, by name and inside documents, in milliseconds.</NavigatorPluginDescription>
+    <NavigatorPluginAuthor>Navigator</NavigatorPluginAuthor>
+    <NavigatorPluginEntryType>Navigator.Plugin.WindowsSearch.WindowsSearchPlugin</NavigatorPluginEntryType>
+    <NavigatorPluginIconKey>DatabaseSearch</NavigatorPluginIconKey>
+    <NavigatorPluginPlatforms>windows</NavigatorPluginPlatforms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The host provides the contract (and Navigator.Core) at run time: never copied into the package. -->
+    <ProjectReference Include="..\..\src\Navigator.Plugins.Abstractions\Navigator.Plugins.Abstractions.csproj" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Strings\*.json" LogicalName="Strings.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Navigator.UnitTests" />
+  </ItemGroup>
+</Project>

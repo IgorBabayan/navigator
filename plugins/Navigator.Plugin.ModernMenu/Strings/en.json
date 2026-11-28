@@ -1,0 +1,5 @@
+{
+  "ModernMenu.Settings.Enabled": "Show the commands of Windows 11 apps in context menus",
+  "ModernMenu.Settings.EnabledHint": "Commands that apps add to File Explorer's new context menu, such as Open with Code.",
+  "ModernMenu.Settings.Found": "Apps with commands: {0}."
+}

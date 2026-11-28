@@ -56,7 +56,20 @@ public sealed class HashRowViewModel(HashKind kind, string path) : ObservableObj
     }
 }
 
-/// <summary>Properties window: general information, folder statistics, permissions, ownership and checksums.</summary>
+/// <summary>Platform services behind the Properties window's tabs.</summary>
+public sealed record PropertiesServices(
+    Localizer Localizer,
+    IFileOwnershipProvider Ownership,
+    ISecurityInfoProvider Security,
+    ISignatureVerifier Signatures,
+    IAppCompatibilityStore Compatibility,
+    IFolderIconService FolderIcons);
+
+/// <summary>
+/// Properties window: General (information, folder statistics, permissions, ownership, checksums) and, where they
+/// apply to the item, Security, Digital signatures, Compatibility and Customize (folder icon). Every extra tab loads
+/// the first time it is selected, so opening Properties costs no more than before.
+/// </summary>
 public sealed class PropertiesViewModel : ObservableObject, IDisposable
 {
     private readonly CancellationTokenSource _lifetime = new();
@@ -66,10 +79,18 @@ public sealed class PropertiesViewModel : ObservableObject, IDisposable
     private bool _isCalculating;
 
     public PropertiesViewModel(IReadOnlyList<string> paths, Localizer localizer, IFileOwnershipProvider ownership)
+        : this(paths, new PropertiesServices(localizer, ownership, NoSecurity.Instance, NoSignatures.Instance, NoCompatibility.Instance, NoFolderIcons.Instance), static (_, _) => Task.FromResult<string?>(null))
     {
+    }
+
+    /// <param name="pickFile">Shows a file picker (title, accepted extensions); used by the folder icon tab.</param>
+    public PropertiesViewModel(IReadOnlyList<string> paths, PropertiesServices services, Func<string, IReadOnlyList<string>, Task<string?>> pickFile)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        var localizer = services.Localizer;
         Paths = paths;
         _localizer = localizer;
-        _ownership = ownership;
+        _ownership = services.Ownership;
         Title = paths.Count == 1 ? Path.GetFileName(PathUtil.TrimTrailingSeparator(paths[0])) : localizer.Format("Status.Selected", paths.Count);
         IsSingleFile = paths.Count == 1 && File.Exists(paths[0]);
         if (IsSingleFile)
@@ -79,7 +100,49 @@ public sealed class PropertiesViewModel : ObservableObject, IDisposable
         }
 
         ComputeHashCommand = new AsyncRelayCommand<HashRowViewModel>(row => row?.ComputeAsync(_lifetime.Token) ?? Task.CompletedTask);
-        IconKey = paths.Count > 1 ? "Multiple" : Directory.Exists(paths[0]) ? "Folder" : ItemCategories.FromExtension(Path.GetExtension(paths[0]).ToLowerInvariant()).ToString();
+        var isFolder = paths.Count == 1 && Directory.Exists(paths[0]);
+        IconKey = paths.Count > 1 ? "Multiple" : isFolder ? "Folder" : ItemCategories.FromExtension(Path.GetExtension(paths[0]).ToLowerInvariant()).ToString();
+
+        if (paths.Count == 1 && (IsSingleFile || isFolder))
+        {
+            var path = paths[0];
+            Security = new SecurityTabViewModel(path, isFolder, services.Security, localizer, _lifetime.Token);
+            if (services.Signatures.CanVerify(path))
+                Signatures = new SignaturesTabViewModel(path, services.Signatures, localizer, _lifetime.Token);
+            if (IsSingleFile && services.Compatibility.IsSupported(path))
+                Compatibility = new CompatibilityTabViewModel(path, services.Compatibility, localizer);
+            if (isFolder && services.FolderIcons.IsSupported)
+                FolderIcon = new FolderIconTabViewModel(path, services.FolderIcons, localizer, pickFile, _lifetime.Token);
+        }
+    }
+
+    public SecurityTabViewModel? Security { get; }
+
+    public SignaturesTabViewModel? Signatures { get; }
+
+    public CompatibilityTabViewModel? Compatibility { get; }
+
+    public FolderIconTabViewModel? FolderIcon { get; }
+
+    public bool HasSecurity => Security is not null;
+
+    public bool HasSignatures => Signatures is not null;
+
+    public bool HasCompatibility => Compatibility is not null;
+
+    public bool HasFolderIcon => FolderIcon is not null;
+
+    /// <summary>A tab became visible ("security", "signatures", "compatibility", "customize"): its data is loaded once.</summary>
+    public void OnTabSelected(string id)
+    {
+        _ = id switch
+        {
+            "security" => Security?.EnsureLoadedAsync() ?? Task.CompletedTask,
+            "signatures" => Signatures?.EnsureLoadedAsync() ?? Task.CompletedTask,
+            "compatibility" => Compatibility?.EnsureLoadedAsync() ?? Task.CompletedTask,
+            "customize" => FolderIcon?.EnsureLoadedAsync() ?? Task.CompletedTask,
+            _ => Task.CompletedTask,
+        };
     }
 
     public IReadOnlyList<string> Paths { get; }

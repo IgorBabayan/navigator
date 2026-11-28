@@ -41,6 +41,7 @@ public sealed partial class PaneViewModel
         if (Interlocked.Exchange(ref _creationWarmed, 1) == 0)
         {
             SevenZipTool.Warm();
+            ArchiveReaderTool.Warm();
             _ = _services.NewItems.GetAsync();
         }
     }
@@ -107,6 +108,20 @@ public sealed partial class PaneViewModel
 
         var localizer = _services.Localizer;
         var suggested = PathUtil.GetUniqueName(directory, template.SuggestedName(localizer["Item.NewPrefix"]), isDirectory: false, ItemExists);
+        if (CanNameInPlace)
+        {
+            try
+            {
+                RenameWhenListed(_services.Operations.CreateFileFromTemplate(directory, suggested, template), suggested);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                await ReportErrorAsync(ex).ConfigureAwait(true);
+            }
+
+            return;
+        }
+
         var name = await _services.Dialogs.PromptTextAsync(new TextInputRequest(
             template.DisplayName, localizer["Dialog.NameLabel"], suggested, localizer["Dialog.Create"],
             ValidateNewName(directory), PathUtil.SplitName(suggested, false).Stem.Length)).ConfigureAwait(true);

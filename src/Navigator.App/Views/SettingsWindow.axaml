@@ -27,6 +27,19 @@
     <Style Selector="ComboBox">
       <Setter Property="MinWidth" Value="200" />
     </Style>
+    <!-- A setting chosen from the address bar's suggestions is outlined for a moment (colors only: no relayout). -->
+    <Style Selector="Border.setting.revealed">
+      <Setter Property="BorderBrush" Value="{DynamicResource Accent.Brush}" />
+      <Setter Property="Background" Value="{DynamicResource Accent.SubtleBrush}" />
+    </Style>
+    <!-- Toolbar arrangement: compact rows, separators shown in a muted style. -->
+    <Style Selector="Border.toolbarRow">
+      <Setter Property="Padding" Value="8,4" />
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+    <Style Selector="Border.toolbarRow:pointerover">
+      <Setter Property="Background" Value="{DynamicResource Brush.Hover}" />
+    </Style>
     <Style Selector="TextBlock.modified">
       <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
@@ -160,6 +173,33 @@
               <Slider Grid.Column="1" Width="220" Minimum="0.75" Maximum="2" TickFrequency="0.05" IsSnapToTickEnabled="True" Value="{Binding FontScale}" /></Grid></Border>
             <Border Classes="setting"><Grid ColumnDefinitions="*,Auto"><TextBlock Text="{c:Tr Settings.ToolbarLabels}" VerticalAlignment="Center" />
               <ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowToolbarLabels}" OnContent="" OffContent="" /></Grid></Border>
+            <!-- Toolbar customization: show, hide and reorder the buttons of the command bar and the view buttons. -->
+            <Border Classes="setting"><StackPanel Spacing="8">
+              <Grid ColumnDefinitions="*,Auto"><StackPanel VerticalAlignment="Center"><TextBlock Text="{c:Tr Settings.Toolbar}" /><TextBlock Classes="description" Text="{c:Tr Settings.ToolbarDescription}" /></StackPanel>
+                <Button Grid.Column="1" Content="{c:Tr Settings.ResetToolbar}" Command="{Binding ResetToolbarCommand}" /></Grid>
+              <ItemsControl ItemsSource="{Binding ToolbarRows}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="p:ToolbarItemRowViewModel">
+                    <Border Classes="toolbarRow">
+                      <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto">
+                        <c:IconView Kind="{Binding IconKey}" Width="16" Height="16" Margin="0,0,10,0" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" Classes.secondary="{Binding IsSeparator}" />
+                        <TextBlock Grid.Column="2" Classes="caption" Text="{Binding GroupName}" VerticalAlignment="Center" Margin="12,0" />
+                        <Button Grid.Column="3" Classes="subtle icon" ToolTip.Tip="{c:Tr Settings.MoveUp}" IsEnabled="{Binding CanMoveUp}"
+                                Command="{Binding $parent[Window].((p:SettingsViewModel)DataContext).MoveToolbarItemUpCommand}" CommandParameter="{Binding}">
+                          <c:IconView Kind="ChevronUp" Width="12" Height="12" />
+                        </Button>
+                        <Button Grid.Column="4" Classes="subtle icon" ToolTip.Tip="{c:Tr Settings.MoveDown}" IsEnabled="{Binding CanMoveDown}"
+                                Command="{Binding $parent[Window].((p:SettingsViewModel)DataContext).MoveToolbarItemDownCommand}" CommandParameter="{Binding}">
+                          <c:IconView Kind="ChevronDown" Width="12" Height="12" />
+                        </Button>
+                        <ToggleSwitch Grid.Column="5" Margin="8,0,0,0" IsChecked="{Binding IsVisible}" OnContent="" OffContent="" />
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel></Border>
           </StackPanel>
 
           <!-- Files and folders -->
@@ -172,6 +212,7 @@
               <CheckBox Content="{c:Tr Settings.ShowFileExtensions}" IsChecked="{Binding ShowFileExtensions}" />
               <CheckBox Content="{c:Tr Settings.UseSystemIcons}" IsChecked="{Binding UseSystemIcons}" />
               <CheckBox Content="{c:Tr Settings.ShowThumbnails}" IsChecked="{Binding ShowThumbnails}" />
+              <CheckBox IsChecked="{Binding ShowMediaThumbnails}" IsEnabled="{Binding ShowThumbnails}" Margin="24,0,0,0" ToolTip.Tip="{c:Tr Settings.ShowMediaThumbnailsDescription}" Content="{c:Tr Settings.ShowMediaThumbnails}" />
               <CheckBox Content="{c:Tr Settings.ShowCheckBoxes}" IsChecked="{Binding ShowCheckBoxes}" />
               <CheckBox Content="{c:Tr Settings.ShowTagsColumn}" IsChecked="{Binding ShowFileTagsColumn}" /></StackPanel></Border>
             <Border Classes="setting"><StackPanel Spacing="4">
@@ -179,6 +220,8 @@
               <CheckBox Content="{c:Tr Settings.DoubleClickUp}" IsChecked="{Binding DoubleClickEmptyAreaGoesUp}" />
               <CheckBox Content="{c:Tr Settings.FolderSizes}" IsChecked="{Binding CalculateFolderSizes}" />
               <CheckBox Content="{c:Tr Settings.ConfirmDelete}" IsChecked="{Binding ConfirmDelete}" /></StackPanel></Border>
+            <Border Classes="setting"><Grid ColumnDefinitions="*,Auto"><StackPanel VerticalAlignment="Center"><TextBlock Text="{c:Tr Settings.QuickLook}" /><TextBlock Classes="description" Text="{c:Tr Settings.QuickLookDescription}" TextWrapping="Wrap" /></StackPanel>
+              <ComboBox Grid.Column="1" ItemsSource="{Binding QuickLookOptions}" SelectedItem="{Binding QuickLook}" VerticalAlignment="Center" /></Grid></Border>
             <TextBlock Classes="section" Text="{c:Tr Settings.DefaultView}" />
             <Border Classes="setting"><Grid ColumnDefinitions="*,Auto"><TextBlock Text="{c:Tr Command.Layout}" VerticalAlignment="Center" />
               <ComboBox Grid.Column="1" ItemsSource="{Binding Layouts}" SelectedItem="{Binding DefaultLayout}" /></Grid></Border>
@@ -366,6 +409,22 @@
                         </StackPanel>
                         <TextBlock Classes="description" Text="{Binding Description}" />
                         <TextBlock Classes="description" Text="{Binding StatusText}" IsVisible="{Binding HasStatus}" />
+                        <!-- The plugin's own settings (plugin API 1.3): switches, buttons and notes. -->
+                        <ItemsControl ItemsSource="{Binding Settings}" IsVisible="{Binding HasSettings}" Margin="0,8,0,0">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="pl:PluginSettingViewModel">
+                              <Grid ColumnDefinitions="*,Auto" Margin="0,4">
+                                <StackPanel VerticalAlignment="Center" Spacing="2" Margin="0,0,16,0">
+                                  <TextBlock Text="{Binding Title}" TextWrapping="Wrap" />
+                                  <TextBlock Classes="description" Text="{Binding Description}" IsVisible="{Binding HasDescription}" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" VerticalAlignment="Center" IsVisible="{Binding IsToggle}" IsEnabled="{Binding IsEnabled}"
+                                              IsChecked="{Binding IsOn}" OnContent="" OffContent="" />
+                                <Button Grid.Column="1" VerticalAlignment="Center" IsVisible="{Binding IsAction}" Content="{Binding ActionText}" Command="{Binding RunCommand}" />
+                              </Grid>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                       </StackPanel>
                       <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                         <Button Classes="accent" IsVisible="{Binding HasUpdate}"

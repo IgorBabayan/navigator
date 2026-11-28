@@ -51,6 +51,18 @@
               <Button Classes="subtle" Width="272" Margin="0,0,8,8" Padding="12" HorizontalContentAlignment="Stretch"
                       Command="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).OpenCommand}" CommandParameter="{Binding Volume.RootPath}"
                       c:Motion.Enter="True">
+                <Button.ContextMenu>
+                  <ContextMenu>
+                    <MenuItem c:MenuIcon.Kind="TabPlus" Header="{c:Tr Command.OpenInNewTab}" Command="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).OpenInNewTabCommand}" CommandParameter="{Binding Volume.RootPath}" />
+                    <Separator IsVisible="{Binding HasDriveActions}" />
+                    <MenuItem c:MenuIcon.Kind="Eject" Header="{c:Tr Command.Eject}" IsVisible="{Binding CanEject}" Command="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).EjectCommand}" CommandParameter="{Binding}" />
+                    <MenuItem c:MenuIcon.Kind="LanDisconnect" Header="{c:Tr Command.DisconnectNetworkDrive}" IsVisible="{Binding CanDisconnect}" Command="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).DisconnectCommand}" CommandParameter="{Binding}" />
+                    <Separator IsVisible="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).CanConnectNetworkDrive}" />
+                    <MenuItem c:MenuIcon.Kind="MapNetworkDrive" Header="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).ConnectNetworkDriveTitle}"
+                              IsVisible="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).CanConnectNetworkDrive}"
+                              Command="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).ConnectNetworkDriveCommand}" />
+                  </ContextMenu>
+                </Button.ContextMenu>
                 <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto">
                   <c:IconView Grid.RowSpan="3" Kind="{Binding IconKey}" SystemIcon="{Binding SystemIconKey}" Width="40" Height="40" Margin="0,0,12,0" />
                   <TextBlock Grid.Column="1" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />

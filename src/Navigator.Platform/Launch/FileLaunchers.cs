@@ -11,12 +11,18 @@ public sealed class WindowsFileLauncher : IFileLauncher
     public Task<bool> OpenAsync(string path, CancellationToken cancellationToken = default)
         => Task.FromResult(ProcessRunner.Start(path, useShellExecute: true));
 
-    // Enumerating handlers needs SHAssocEnumHandlers (COM); the shell's own "Open with" dialog is used instead.
+    /// <summary>The applications Explorer recommends under "Open with" (SHAssocEnumHandlers), the default one first.</summary>
     public Task<IReadOnlyList<AppHandler>> GetHandlersAsync(string path, CancellationToken cancellationToken = default)
-        => Task.FromResult<IReadOnlyList<AppHandler>>([]);
+        => WindowsAssocHandlers.ListAsync(path, cancellationToken);
 
-    public Task<bool> OpenWithAsync(string path, AppHandler handler, CancellationToken cancellationToken = default)
-        => Task.FromResult(ProcessRunner.Start(handler.Id, [path]));
+    /// <summary>Through the handler's own IAssocHandler (packaged apps, DDE); a program picked by hand is started directly.</summary>
+    public async Task<bool> OpenWithAsync(string path, AppHandler handler, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(handler);
+        if (await WindowsAssocHandlers.InvokeAsync(path, handler).ConfigureAwait(false) is { } invoked)
+            return invoked;
+        return File.Exists(handler.Id) && ProcessRunner.Start(handler.Id, [path]);
+    }
 
     public Task<bool> ShowOpenWithDialogAsync(string path, CancellationToken cancellationToken = default)
         => Task.FromResult(ProcessRunner.Start("rundll32.exe", ["shell32.dll,OpenAs_RunDLL", path]));

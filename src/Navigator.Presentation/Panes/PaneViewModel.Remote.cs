@@ -85,6 +85,14 @@ public sealed partial class PaneViewModel
         var localizer = _services.Localizer;
         var existing = _ordered.Select(i => i.Name).ToHashSet(StringComparer.Ordinal);
         var suggested = PathUtil.GetUniqueName(folder, localizer["Item.NewFolderName"], isDirectory: true, p => existing.Contains(Path.GetFileName(p)));
+        if (CanNameInPlace)
+        {
+            // Created under the default name, then named in the list once the refreshed listing shows it.
+            _renameWhenListed = (string.Empty, suggested);
+            await RunRemoteAsync(token => _services.Remote.CreateFolderAsync(folder, suggested, token)).ConfigureAwait(true);
+            return;
+        }
+
         var name = await _services.Dialogs.PromptTextAsync(new TextInputRequest(localizer["Command.NewFolder"], localizer["Dialog.NameLabel"], suggested, localizer["Dialog.Create"],
             ValidateRemoteName(existing))).ConfigureAwait(true);
         if (string.IsNullOrWhiteSpace(name))

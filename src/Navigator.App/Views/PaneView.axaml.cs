@@ -43,6 +43,12 @@ public sealed partial class PaneView : UserControl
     private bool _dragging;
     private string _typeAhead = string.Empty;
     private long _typeAheadAt;
+    private FileItemViewModel? _renaming;
+    private bool _renameEnding;
+    private long _columnsNavigatedAt;
+
+    /// <summary>A second click this soon after a column opened belongs to the click that opened it, not to the new column.</summary>
+    private const long ColumnDoubleClickGuardMilliseconds = 500;
 
     public PaneView()
     {
@@ -52,14 +58,22 @@ public sealed partial class PaneView : UserControl
         Columns.Load(_services.Settings.Current.FilesAndFolders.Columns, _services.Settings.Current.FilesAndFolders.ShowFileTagsColumn);
         Columns.PropertyChanged += (_, _) => SaveColumns();
 
-        foreach (var header in new[] { NameHeader, ModifiedHeader, TypeHeader, SizeHeader, CreatedHeader, TagsHeader })
+        foreach (var header in Headers)
         {
             header.SortRequested += (_, column) => _pane?.SortByCommand.Execute(column);
             header.Resized += (sender, delta) => ResizeColumn((ColumnHeader)sender!, delta);
+            header.ReorderDropped += (sender, x) => DropHeader((ColumnHeader)sender!, x);
+            if (header != NameHeader)
+                header.ContextMenu = CreateHeaderMenu(header);
         }
 
         DataContextChanged += (_, _) => Attach(DataContext as PaneViewModel);
         Scroller.SizeChanged += (_, e) => _pane?.SetViewportWidth(e.NewSize.Width);
+
+        // Column layout: columns left of the current folder take at most two thirds of the pane.
+        SizeChanged += (_, e) => TrailScroller.MaxWidth = Math.Max(240, e.NewSize.Width * 0.66);
+        TrailHost.Tapped += OnTrailTapped;
+        TrailHost.DoubleTapped += OnTrailDoubleTapped;
 
         AddHandler(PointerPressedEvent, OnPointerPressedTunnel, RoutingStrategies.Tunnel);
         ItemsHost.PointerPressed += OnItemsPointerPressed;
@@ -76,6 +90,14 @@ public sealed partial class PaneView : UserControl
         Scroller.AddHandler(DragDrop.DropEvent, OnDrop);
         KeyDown += OnKeyDown;
         TextInput += OnTextInput;
+
+        // In-place rename: Enter/Escape/Tab are taken before the text box sees them; leaving the box commits.
+        RenameBox.AddHandler(KeyDownEvent, OnRenameKeyDown, RoutingStrategies.Tunnel);
+        RenameBox.LostFocus += (_, _) => _ = CommitRenameAsync(move: 0, fromFocusLoss: true);
+        RenameBox.TextChanged += (_, _) => ShowRenameValidation(explicitly: false);
+        Scroller.ScrollChanged += (_, _) => FollowRenamedItem();
+        Scroller.SizeChanged += (_, _) => FollowRenamedItem();
+        Columns.PropertyChanged += (_, _) => FollowRenamedItem();
     }
 
     public PaneViewModel? Pane => _pane;
@@ -106,11 +128,18 @@ public sealed partial class PaneView : UserControl
         base.OnAttachedToVisualTree(e);
         _services.Settings.Changed += OnSettingsChanged;
         ApplyCheckBoxes();
+        if (_pane is null && DataContext is PaneViewModel pane)
+            Attach(pane);
     }
 
+    /// <summary>
+    /// A view leaving the tree lets go of its pane: a tab moved to another window keeps its panes alive there, and
+    /// they must not keep raising events into this (closed) window's view.
+    /// </summary>
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         _services.Settings.Changed -= OnSettingsChanged;
+        Attach(null);
         base.OnDetachedFromVisualTree(e);
     }
 
@@ -147,15 +176,24 @@ public sealed partial class PaneView : UserControl
             _pane.PropertyChanged -= OnPaneChanged;
             _pane.ScrollIntoViewRequested -= OnScrollIntoView;
             _pane.OpenWithRequested -= OnOpenWithRequested;
+            _pane.InlineRenameRequested -= OnInlineRenameRequested;
+            _pane.TrailColumns.CollectionChanged -= OnTrailChanged;
+            _pane.PluginColumns.PropertyChanged -= OnPluginColumnsChanged;
         }
 
+        CancelRename();
         _pane = pane;
+        RebuildPluginHeaders();
         if (pane is null)
             return;
+        pane.TrailColumns.CollectionChanged += OnTrailChanged;
+        pane.PluginColumns.PropertyChanged += OnPluginColumnsChanged;
+        ApplyColumnsClass();
 
         pane.PropertyChanged += OnPaneChanged;
         pane.ScrollIntoViewRequested += OnScrollIntoView;
         pane.OpenWithRequested += OnOpenWithRequested;
+        pane.InlineRenameRequested += OnInlineRenameRequested;
         pane.SetViewportWidth(Scroller.Bounds.Width > 0 ? Scroller.Bounds.Width : 800);
         UpdateSortGlyphs();
         UpdateActiveIndicator();
@@ -174,19 +212,147 @@ public sealed partial class PaneView : UserControl
                 UpdateActiveIndicator();
                 break;
             case nameof(PaneViewModel.Location):
+                CancelRename();
                 FilterBar.IsVisible = false;
                 Scroller.Offset = default;
                 break;
+            case nameof(PaneViewModel.Layout):
+                _ = CommitRenameAsync(move: 0, fromFocusLoss: true);
+                ApplyColumnsClass();
+                break;
         }
     }
+
+    private ColumnHeader[] Headers => [NameHeader, ModifiedHeader, TypeHeader, SizeHeader, CreatedHeader, TagsHeader];
 
     private void UpdateSortGlyphs()
     {
         if (_pane is null)
             return;
-        foreach (var header in new[] { NameHeader, ModifiedHeader, TypeHeader, SizeHeader, CreatedHeader, TagsHeader })
+        foreach (var header in Headers)
             header.ShowSort(_pane.Sort);
     }
+
+    // ── Column order ─────────────────────────────────────────
+
+    /// <summary>
+    /// A header dragged sideways was released at <paramref name="x"/> (header-row coordinates): the column moves in
+    /// front of the first shown column whose middle lies right of the pointer. Hidden columns keep their slots.
+    /// </summary>
+    private void DropHeader(ColumnHeader dragged, double x)
+    {
+        var others = Columns.Order.Where(id => id != dragged.ColumnId).ToList();
+        var target = others.Count;
+        for (var i = 0; i < others.Count; i++)
+        {
+            if (HeaderFor(others[i]) is { IsVisible: true } header && x < header.Bounds.X + (header.Bounds.Width / 2))
+            {
+                target = i;
+                break;
+            }
+        }
+
+        Columns.Move(dragged.ColumnId, target);
+    }
+
+    /// <summary>Header context menu: move the column one shown column to the left or right (keyboard-free alternative to dragging).</summary>
+    private ContextMenu CreateHeaderMenu(ColumnHeader header)
+    {
+        var left = new MenuItem { Icon = new Controls.IconView { Kind = "ChevronLeft", Width = 16, Height = 16 } };
+        var right = new MenuItem { Icon = new Controls.IconView { Kind = "ChevronRight", Width = 16, Height = 16 } };
+        var reset = new MenuItem { Icon = new Controls.IconView { Kind = "Undo", Width = 16, Height = 16 } };
+        left.Click += (_, _) => StepColumn(header.ColumnId, -1);
+        right.Click += (_, _) => StepColumn(header.ColumnId, +1);
+        reset.Click += (_, _) =>
+        {
+            foreach (var (id, index) in Navigator.Core.Settings.ColumnOrder.Known.Select((id, index) => (id, index)))
+                Columns.Move(id, index);
+        };
+        var menu = new ContextMenu { Items = { left, right, new Separator(), reset } };
+        var pluginToggles = new List<Control>();
+        menu.Opening += (_, _) =>
+        {
+            // Texts are read when the menu opens, so a language switch shows up without rebuilding the header.
+            left.Header = Text["Column.MoveLeft"];
+            right.Header = Text["Column.MoveRight"];
+            reset.Header = Text["Column.ResetOrder"];
+            var visible = Columns.Order.Where(id => HeaderFor(id) is { IsVisible: true }).ToList();
+            var at = visible.IndexOf(header.ColumnId);
+            left.IsEnabled = at > 1; // the name column stays first
+            right.IsEnabled = at >= 0 && at < visible.Count - 1;
+            ReplacePluginToggles(menu, pluginToggles);
+        };
+        return menu;
+    }
+
+    // ── Plugin columns ───────────────────────────────────────
+
+    private void OnPluginColumnsChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(Navigator.Presentation.Plugins.PluginColumnStrip.Visible))
+            RebuildPluginHeaders();
+    }
+
+    /// <summary>
+    /// One header per visible plugin column, after the built-in ones. Rebuilt only when the set of columns changes
+    /// (entering or leaving a Git repository…); resizing changes the width of the existing header.
+    /// </summary>
+    private void RebuildPluginHeaders()
+    {
+        PluginHeaders.Children.Clear();
+        if (_pane is not { } pane)
+            return;
+        var strip = pane.PluginColumns;
+        foreach (var column in strip.Visible)
+        {
+            var header = new ColumnHeader { Text = column.Title, ColumnId = column.Key, IsSortable = false, CanMove = false, Width = column.Width };
+            header.Resized += (_, delta) =>
+            {
+                strip.Resize(column, delta);
+                header.Width = column.Width;
+            };
+            var menu = new ContextMenu();
+            var toggles = new List<Control>();
+            ReplacePluginToggles(menu, toggles); // filled now as well: an empty context menu would not open
+            menu.Opening += (_, _) => ReplacePluginToggles(menu, toggles);
+            header.ContextMenu = menu;
+            PluginHeaders.Children.Add(header);
+        }
+    }
+
+    /// <summary>Header context menus end with a switch per plugin column of the folder shown ("Git status", "Author"…).</summary>
+    private void ReplacePluginToggles(ContextMenu menu, List<Control> added)
+    {
+        foreach (var item in added)
+            menu.Items.Remove(item);
+        added.Clear();
+        if (_pane is not { } pane || pane.PluginColumns.Available.Count == 0)
+            return;
+        if (menu.Items.Count > 0)
+            added.Add(new Separator());
+        foreach (var column in pane.PluginColumns.Available)
+        {
+            var toggle = new MenuItem { Header = column.Title, ToggleType = MenuItemToggleType.CheckBox, IsChecked = column.IsVisible };
+            toggle.Click += (_, _) => pane.SetPluginColumnVisible(column, !column.IsVisible);
+            added.Add(toggle);
+        }
+
+        foreach (var item in added)
+            menu.Items.Add(item);
+    }
+
+    private void StepColumn(string id, int direction)
+    {
+        var visible = Columns.Order.Where(c => HeaderFor(c) is { IsVisible: true }).ToList();
+        var at = visible.IndexOf(id);
+        var neighbour = at + direction;
+        if (at < 0 || neighbour < 1 || neighbour >= visible.Count)
+            return;
+        var target = Columns.Order.ToList().IndexOf(visible[neighbour]);
+        Columns.Move(id, target);
+    }
+
+    private ColumnHeader? HeaderFor(string id) => Headers.FirstOrDefault(h => h.ColumnId == id);
 
     private void UpdateActiveIndicator() => PaneHeader.Classes.Set("active", _pane?.IsActive == true);
 
@@ -285,7 +451,16 @@ public sealed partial class PaneView : UserControl
             return;
         }
 
-        var openOnSingleClick = _services.Settings.Current.FilesAndFolders.OpenItemsWithSingleClick && !control && !shift;
+        // Column layout: a folder opens on release (so it can still be dragged); the second click of a double-click
+        // that opened a column lands in the new column and must not open what happens to be under the pointer there.
+        if (_pane.IsColumnsLayout && e.ClickCount == 2 && Environment.TickCount64 - _columnsNavigatedAt < ColumnDoubleClickGuardMilliseconds)
+        {
+            _pane.Selection.Click(item, control, shift);
+            e.Handled = true;
+            return;
+        }
+
+        var openOnSingleClick = _services.Settings.Current.FilesAndFolders.OpenItemsWithSingleClick && !control && !shift && !_pane.IsColumnsLayout;
         if (e.ClickCount == 2 || openOnSingleClick && item.IsDirectory)
         {
             _ = _pane.OpenItemAsync(item);
@@ -400,6 +575,17 @@ public sealed partial class PaneView : UserControl
         // A drag in progress ends in its own drop handling (the OS owns the pointer until then).
         if (_dragging)
             return;
+
+        if (_pressedItem is { IsDirectory: true } folder && _pane is { IsColumnsLayout: true } columns && e.InitialPressMouseButton == MouseButton.Left
+            && !e.KeyModifiers.HasFlag(PrimaryModifier) && !e.KeyModifiers.HasFlag(KeyModifiers.Shift))
+        {
+            // Column layout: clicking a folder opens it as the next column.
+            _pressedItem = null;
+            _pressEvent = null;
+            _columnsNavigatedAt = Environment.TickCount64;
+            columns.OpenInColumns(folder);
+            return;
+        }
 
         if (_pressedItem is { } pressed && _pane is not null && e.InitialPressMouseButton == MouseButton.Left
             && !e.KeyModifiers.HasFlag(PrimaryModifier) && !e.KeyModifiers.HasFlag(KeyModifiers.Shift) && _pane.Selection.Count > 1)
@@ -559,6 +745,18 @@ public sealed partial class PaneView : UserControl
 
         var shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
         var control = e.KeyModifiers.HasFlag(PrimaryModifier);
+
+        // Column layout: Right opens the focused folder as the next column, Left returns to the previous one.
+        if (_pane.IsColumnsLayout && e.KeyModifiers == KeyModifiers.None && e.Key is Key.Right or Key.Left)
+        {
+            if (e.Key == Key.Left)
+                _pane.ColumnsGoBack();
+            else if (_pane.Selection.FocusedItem is { IsDirectory: true } focusedFolder)
+                _pane.OpenInColumns(focusedFolder);
+            e.Handled = true;
+            return;
+        }
+
         var columns = _pane.IsTileLayout ? Math.Max(1, _pane.TileColumns) : 1;
         var page = Math.Max(1, (int)(Scroller.Viewport.Height / 32)) * columns;
         int? delta = e.Key switch
@@ -601,11 +799,24 @@ public sealed partial class PaneView : UserControl
         }
     }
 
+    /// <summary>
+    /// A type-to-select prefix is being typed (a key within the last second): the space bar then belongs to the prefix
+    /// ("my file") instead of opening Quick Look.
+    /// </summary>
+    internal bool IsTypingAhead => _typeAhead.Length > 0 && Environment.TickCount64 - _typeAheadAt <= 1000;
+
     /// <summary>Type-to-select: typed characters within one second build a prefix.</summary>
     private void OnTextInput(object? sender, TextInputEventArgs e)
     {
         if (_pane is null || string.IsNullOrEmpty(e.Text) || e.Source is TextBox)
             return;
+        // A space never starts a prefix: on its own the space bar is Quick Look (handled as a key gesture).
+        if (string.IsNullOrWhiteSpace(e.Text) && !IsTypingAhead)
+        {
+            e.Handled = true;
+            return;
+        }
+
         var now = Environment.TickCount64;
         _typeAhead = now - _typeAheadAt > 1000 ? e.Text : _typeAhead + e.Text;
         _typeAheadAt = now;
@@ -627,6 +838,297 @@ public sealed partial class PaneView : UserControl
                 return;
             }
         }
+    }
+
+    // ── Column layout ────────────────────────────────────────────
+
+    /// <summary>Styles key off this class: folder chevrons in the current column (PaneView.axaml).</summary>
+    private void ApplyColumnsClass() => Classes.Set("columns", _pane?.IsColumnsLayout == true);
+
+    /// <summary>The entry and its column under a pointer event in the trail, if any.</summary>
+    private static (MillerColumnViewModel? Column, ColumnEntryViewModel? Entry) TrailEntryFrom(object? source)
+    {
+        ColumnEntryViewModel? entry = null;
+        for (var visual = source as Visual; visual is not null; visual = visual.GetVisualParent())
+        {
+            if (visual is not StyledElement { DataContext: { } context })
+                continue;
+            if (entry is null && context is ColumnEntryViewModel found)
+                entry = found;
+            else if (context is MillerColumnViewModel column)
+                return (column, entry);
+        }
+
+        return (null, entry);
+    }
+
+    private void OnTrailTapped(object? sender, TappedEventArgs e)
+    {
+        if (_pane is null || TrailEntryFrom(e.Source) is not ({ } column, { } entry))
+            return;
+        Focus();
+        if (entry.Item.IsDirectory)
+            _columnsNavigatedAt = Environment.TickCount64;
+        _pane.ActivateTrailEntry(column, entry);
+        e.Handled = true;
+    }
+
+    private void OnTrailDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (_pane is not null && TrailEntryFrom(e.Source) is (_, { Item.IsDirectory: false } entry))
+        {
+            _ = _pane.OpenTrailEntryAsync(entry);
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>
+    /// After the trail changes, the newest column is scrolled into view and every column shows its highlighted entry
+    /// (a column filled in the background is scrolled once its listing arrives).
+    /// </summary>
+    private void OnTrailChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        if (e.NewItems is { } added)
+        {
+            foreach (MillerColumnViewModel column in added)
+            {
+                column.PropertyChanged += (_, change) =>
+                {
+                    if (change.PropertyName == nameof(MillerColumnViewModel.OpenIndex))
+                        Dispatcher.UIThread.Post(ScrollTrail, DispatcherPriority.Background);
+                };
+            }
+        }
+
+        Dispatcher.UIThread.Post(ScrollTrail, DispatcherPriority.Background);
+    }
+
+    private void ScrollTrail()
+    {
+        if (_pane is not { HasTrailColumns: true })
+            return;
+        TrailScroller.Offset = new Vector(Math.Max(0, TrailScroller.Extent.Width - TrailScroller.Viewport.Width), 0);
+        foreach (var container in TrailHost.GetRealizedContainers())
+        {
+            if (container.DataContext is MillerColumnViewModel { OpenIndex: >= 0 } column
+                && container.GetVisualDescendants().OfType<ItemsControl>().FirstOrDefault() is { } list)
+                list.ScrollIntoView(column.OpenIndex);
+        }
+    }
+
+    // ── In-place rename ──────────────────────────────────────────
+
+    /// <summary>
+    /// F2 on one item: the pane's single editor is laid over the item's name (scrolled into view first), with the stem
+    /// selected. Enter commits, Escape cancels, Tab / Shift+Tab commit and move to the next / previous item, and
+    /// clicking elsewhere commits. Rows themselves never host an editor, so the list stays as cheap as before.
+    /// </summary>
+    private void OnInlineRenameRequested(object? sender, InlineRenameEventArgs request)
+    {
+        if (_pane is not { IsBrowsingList: true } || !IsEffectivelyVisible)
+            return; // not shown: the view model falls back to the dialog
+
+        request.Handled = true;
+        if (_renaming is not null)
+            CancelRename();
+
+        _renaming = request.Item;
+        RenameBox.Text = request.Text;
+        RenameBox.Classes.Remove("invalid");
+        RenameError.IsVisible = false;
+        OnScrollIntoView(this, request.Item);
+
+        // The row may only exist after the scroll has been laid out.
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!ReferenceEquals(_renaming, request.Item))
+                return;
+            if (!PlaceRenameBox())
+            {
+                CancelRename();
+                return;
+            }
+
+            RenameBox.IsVisible = true;
+            RenameBox.Focus();
+            RenameBox.SelectionStart = 0;
+            RenameBox.SelectionEnd = Math.Clamp(request.SelectionLength, 0, request.Text.Length);
+        }, DispatcherPriority.Background);
+    }
+
+    private void OnRenameKeyDown(object? sender, KeyEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case Key.Enter:
+                _ = CommitRenameAsync(move: 0, fromFocusLoss: false);
+                e.Handled = true;
+                break;
+            case Key.Escape:
+                CancelRename();
+                Focus();
+                e.Handled = true;
+                break;
+            case Key.Tab:
+                _ = CommitRenameAsync(move: e.KeyModifiers.HasFlag(KeyModifiers.Shift) ? -1 : 1, fromFocusLoss: false);
+                e.Handled = true;
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Ends the edit with the typed name. An unusable name keeps the editor open with the reason shown, except when
+    /// focus left the box: then the edit is dropped, like Explorer does.
+    /// </summary>
+    private async Task CommitRenameAsync(int move, bool fromFocusLoss)
+    {
+        if (_renameEnding || _renaming is not { } item || _pane is not { } pane || !RenameBox.IsVisible)
+            return;
+
+        var text = RenameBox.Text ?? string.Empty;
+        if (pane.ValidateInlineName(item, text) is not null)
+        {
+            if (fromFocusLoss)
+                CancelRename();
+            else
+                ShowRenameValidation(explicitly: true);
+            return;
+        }
+
+        var next = move == 0 ? null : pane.NeighbourOf(item, move);
+        var keepFocus = !fromFocusLoss;
+        _renameEnding = true;
+        try
+        {
+            HideRenameBox();
+            if (keepFocus)
+                Focus();
+            await pane.CommitInlineRenameAsync(item, text, selectRenamed: next is null).ConfigureAwait(true);
+        }
+        finally
+        {
+            _renameEnding = false;
+        }
+
+        if (next is not null && ReferenceEquals(_pane, pane))
+            pane.BeginRename(next);
+    }
+
+    private void CancelRename()
+    {
+        if (_renaming is null)
+            return;
+        _renameEnding = true;
+        try
+        {
+            HideRenameBox();
+        }
+        finally
+        {
+            _renameEnding = false;
+        }
+    }
+
+    private void HideRenameBox()
+    {
+        _renaming = null;
+        RenameError.IsVisible = false;
+        var hadFocus = RenameBox.IsFocused;
+        RenameBox.IsVisible = false;
+        if (hadFocus)
+            Focus();
+    }
+
+    /// <summary>While typing, only the border turns red; the reason is shown once Enter or Tab is pressed.</summary>
+    private void ShowRenameValidation(bool explicitly)
+    {
+        if (_renaming is not { } item || _pane is null || !RenameBox.IsVisible)
+            return;
+        var error = _pane.ValidateInlineName(item, RenameBox.Text ?? string.Empty);
+        RenameBox.Classes.Set("invalid", error is not null);
+        if (error is null)
+        {
+            RenameError.IsVisible = false;
+            return;
+        }
+
+        if (!explicitly && !RenameError.IsVisible)
+            return;
+        RenameErrorText.Text = error;
+        Canvas.SetLeft(RenameError, Canvas.GetLeft(RenameBox));
+        Canvas.SetTop(RenameError, Canvas.GetTop(RenameBox) + RenameBox.Bounds.Height + 4);
+        RenameError.IsVisible = true;
+    }
+
+    /// <summary>Keeps the editor on its item while the list scrolls or resizes; commits once the item leaves the view.</summary>
+    private void FollowRenamedItem()
+    {
+        if (_renaming is null || !RenameBox.IsVisible || _renameEnding)
+            return;
+        if (!PlaceRenameBox())
+            _ = CommitRenameAsync(move: 0, fromFocusLoss: true);
+        else if (RenameError.IsVisible)
+            ShowRenameValidation(explicitly: true);
+    }
+
+    /// <summary>Lays the editor over the name of the realized row/tile of the item; false when it is not on screen.</summary>
+    private bool PlaceRenameBox()
+    {
+        if (_renaming is not { } item || _pane is not { } pane || FindItemSurface(item.FullPath) is not { } surface)
+            return false;
+
+        var name = surface.GetVisualDescendants().OfType<TextBlock>().FirstOrDefault(t => t.Classes.Contains("itemName"));
+        var origin = (name ?? (Visual)surface).TranslatePoint(default, RenameCanvas);
+        var rowOrigin = surface.TranslatePoint(default, RenameCanvas);
+        if (origin is not { } at || rowOrigin is not { } row)
+            return false;
+
+        var viewport = RenameCanvas.Bounds;
+        if (row.Y + surface.Bounds.Height <= 0 || row.Y >= viewport.Height)
+            return false;
+
+        double left, top, width;
+        if (pane.IsTileLayout)
+        {
+            left = row.X + 2;
+            width = Math.Max(80, surface.Bounds.Width - 4);
+            top = at.Y - 3;
+            RenameBox.TextWrapping = Avalonia.Media.TextWrapping.Wrap;
+            RenameBox.TextAlignment = Avalonia.Media.TextAlignment.Center;
+            RenameBox.Height = double.NaN;
+        }
+        else
+        {
+            left = at.X - 7; // text box padding + border, so the text does not jump
+            width = Math.Max(160, (name?.Bounds.Width ?? surface.Bounds.Width) + 14);
+            var height = Math.Max(24, surface.Bounds.Height - 4);
+            top = row.Y + ((surface.Bounds.Height - height) / 2);
+            RenameBox.TextWrapping = Avalonia.Media.TextWrapping.NoWrap;
+            RenameBox.TextAlignment = Avalonia.Media.TextAlignment.Left;
+            RenameBox.Height = height;
+        }
+
+        width = Math.Min(width, Math.Max(80, viewport.Width - left - 8));
+        RenameBox.Width = width;
+        Canvas.SetLeft(RenameBox, Math.Max(0, left));
+        Canvas.SetTop(RenameBox, top);
+        return true;
+    }
+
+    /// <summary>The realized row/tile surface showing the item at <paramref name="path"/> (items are matched by path: a
+    /// reload may replace the view model while the editor is open).</summary>
+    private Border? FindItemSurface(string path)
+    {
+        foreach (var container in ItemsHost.GetRealizedContainers())
+        {
+            foreach (var border in container.GetSelfAndVisualDescendants().OfType<Border>())
+            {
+                if (border.DataContext is FileItemViewModel model && border.Classes.Contains("item") && PathUtil.AreEqual(model.FullPath, path))
+                    return border;
+            }
+        }
+
+        return null;
     }
 
     // ── Context menus (built on demand; cheap and always in sync with the selection) ──

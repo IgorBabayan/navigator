@@ -12,14 +12,17 @@ public enum ArchiveFormat
     Tar,
     TarGz,
 
-    /// <summary>Written through an installed 7-Zip / libarchive program (<see cref="SevenZipTool"/>); not extracted.</summary>
+    /// <summary>Written through an installed 7-Zip / libarchive program (<see cref="SevenZipTool"/>), read through <see cref="ArchiveReaderTool"/>.</summary>
     SevenZip,
+
+    /// <summary>Read (never written) through an installed program (<see cref="ArchiveReaderTool"/>).</summary>
+    Rar,
 }
 
 /// <summary>
 /// ZIP and TAR(.GZ) creation and extraction with the .NET base class library.
 /// Extraction refuses absolute paths, "..", and links that point outside the destination (path traversal, "zip slip").
-/// 7z/RAR are not supported (no BCL implementation; see docs/FEATURE_PARITY.md).
+/// 7z and RAR have no BCL implementation: they are opened through an installed program (<see cref="ArchiveReaderTool"/>).
 /// </summary>
 public static class ArchiveService
 {
@@ -32,10 +35,23 @@ public static class ArchiveService
             return ArchiveFormat.TarGz;
         if (name.EndsWith(".tar", StringComparison.Ordinal))
             return ArchiveFormat.Tar;
+        if (name.EndsWith(".7z", StringComparison.Ordinal))
+            return ArchiveFormat.SevenZip;
+        if (name.EndsWith(".rar", StringComparison.Ordinal))
+            return ArchiveFormat.Rar;
         return ArchiveFormat.Unknown;
     }
 
-    public static bool IsSupportedArchive(string path) => DetectFormat(path) != ArchiveFormat.Unknown;
+    /// <summary>
+    /// Archives Navigator can extract here: ZIP and TAR always, 7z and RAR when an installed program reads them.
+    /// Decided from the name (plus a cached program search), so menus can ask for every right-click.
+    /// </summary>
+    public static bool IsSupportedArchive(string path) => DetectFormat(path) switch
+    {
+        ArchiveFormat.Unknown => false,
+        (ArchiveFormat.SevenZip or ArchiveFormat.Rar) and var format => ArchiveReaderTool.CanRead(format),
+        _ => true,
+    };
 
     /// <summary>
     /// "Smart extract": a single top-level item is extracted into <paramref name="parentDirectory"/>;
@@ -67,7 +83,7 @@ public static class ArchiveService
         return name;
     }
 
-    private static readonly string[] ArchiveSuffixes = [".tar.gz", ".tgz", ".tar", ".zip"];
+    private static readonly string[] ArchiveSuffixes = [".tar.gz", ".tgz", ".tar", ".zip", ".7z", ".rar"];
 
     internal static IReadOnlyCollection<string> GetTopLevelNames(string archivePath)
     {
@@ -88,7 +104,15 @@ public static class ArchiveService
 
     private static IEnumerable<string> ListEntryNames(string archivePath)
     {
-        switch (DetectFormat(archivePath))
+        var format = DetectFormat(archivePath);
+        if (format is ArchiveFormat.SevenZip or ArchiveFormat.Rar)
+        {
+            foreach (var name in ArchiveReaderTool.List(archivePath, format))
+                yield return name;
+            yield break;
+        }
+
+        switch (format)
         {
             case ArchiveFormat.Zip:
             {
@@ -126,6 +150,10 @@ public static class ArchiveService
             case ArchiveFormat.Tar:
             case ArchiveFormat.TarGz:
                 await ExtractTarAsync(archivePath, root, context).ConfigureAwait(false);
+                break;
+            case ArchiveFormat.SevenZip:
+            case ArchiveFormat.Rar:
+                await ArchiveReaderTool.ExtractAsync(archivePath, DetectFormat(archivePath), root, context).ConfigureAwait(false);
                 break;
             default:
                 throw new OperationStepException(FileOperationErrorKind.NotSupported, $"'{Path.GetFileName(archivePath)}' is not a supported archive.");
@@ -254,7 +282,7 @@ public static class ArchiveService
         }
     }
 
-    private static async ValueTask<string?> ResolveExtractConflictAsync(string target, long length, DateTime lastWriteUtc, OperationContext context)
+    internal static async ValueTask<string?> ResolveExtractConflictAsync(string target, long length, DateTime lastWriteUtc, OperationContext context)
     {
         if (!File.Exists(target) && !Directory.Exists(target))
             return target;

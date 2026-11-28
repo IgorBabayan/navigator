@@ -36,7 +36,14 @@ public sealed class ItemDisplayContext(Localizer localizer, bool showExtensions,
         if (_systemIcons is null)
             return null;
         if (entry.IsDirectory)
-            return FolderIcon;
+        {
+            // Windows reads a folder's desktop.ini (custom icon) only when the folder is marked read-only or system;
+            // those few folders get their own icon, every other folder shares one. Costs no I/O: the flags come with the listing.
+            return OperatingSystem.IsWindows() && !entry.IsRemote && (entry.Attributes & (FileAttributes.ReadOnly | FileAttributes.System)) != 0
+                ? SystemIconKey.ForPath(entry.FullPath)
+                : FolderIcon;
+        }
+
         var extension = entry.Extension;
         if (!entry.IsRemote && _systemIcons.HasOwnIcon(extension))
             return SystemIconKey.ForPath(entry.FullPath);
@@ -62,6 +69,7 @@ public sealed class FileItemViewModel : ObservableObject
     private IReadOnlyList<TagChip> _tags = [];
     private long? _folderSize;
     private CancellationTokenSource? _thumbnailRequest;
+    private PluginItemDecoration? _decoration;
 
     public FileItemViewModel(FileEntry entry, ItemDisplayContext context, TrashItem? trashItem = null)
     {
@@ -164,6 +172,31 @@ public sealed class FileItemViewModel : ObservableObject
 
     public bool HasTags => _tags.Count > 0;
 
+    /// <summary>Plugin columns and icon badge (folder decorators); null when no plugin says anything about the item.</summary>
+    public PluginItemDecoration? Decoration
+    {
+        get => _decoration;
+        set
+        {
+            if (Equals(_decoration, value))
+                return;
+            var badgeChanged = !Equals(_decoration?.Badge, value?.Badge);
+            _decoration = value;
+            OnPropertyChanged(nameof(Decoration));
+            if (badgeChanged)
+            {
+                OnPropertyChanged(nameof(BadgeIcon));
+                OnPropertyChanged(nameof(BadgeTint));
+            }
+        }
+    }
+
+    /// <summary>Icon catalog key of the badge drawn on the item's icon; null for none.</summary>
+    public string? BadgeIcon => _decoration?.Badge?.IconKey;
+
+    /// <summary>Color of the badge as "#RRGGBB"; null for the text color.</summary>
+    public string? BadgeTint => _decoration?.Badge?.Tint;
+
     public void SetFolderSize(long bytes)
     {
         _folderSize = bytes;
@@ -222,6 +255,47 @@ public sealed class FileItemViewModel : ObservableObject
         => utc <= DateTime.MinValue.AddDays(1) || utc.Year < 1980 ? string.Empty : utc.ToLocalTime().ToString("g", _context.Culture);
 
     public override string ToString() => Name;
+}
+
+/// <summary>
+/// What the folder decorators of plugins say about one item: the badge on its icon and the texts of the plugin columns,
+/// keyed "{decorator id}.{column id}". Immutable; equal decorations compare equal, so re-applying unchanged results
+/// raises no property changes and redraws nothing.
+/// </summary>
+public sealed class PluginItemDecoration : IEquatable<PluginItemDecoration>
+{
+    public static readonly IReadOnlyDictionary<string, string> NoCells = new Dictionary<string, string>(0);
+
+    public PluginItemDecoration(Navigator.Plugins.PluginBadge? badge, IReadOnlyDictionary<string, string>? cells)
+    {
+        Badge = badge;
+        Cells = cells is { Count: > 0 } ? cells : NoCells;
+    }
+
+    public Navigator.Plugins.PluginBadge? Badge { get; }
+
+    public IReadOnlyDictionary<string, string> Cells { get; }
+
+    public string CellText(string columnKey) => Cells.TryGetValue(columnKey, out var text) ? text : string.Empty;
+
+    public bool Equals(PluginItemDecoration? other)
+    {
+        if (ReferenceEquals(this, other))
+            return true;
+        if (other is null || !Equals(Badge, other.Badge) || Cells.Count != other.Cells.Count)
+            return false;
+        foreach (var (key, text) in Cells)
+        {
+            if (!other.Cells.TryGetValue(key, out var theirs) || !string.Equals(text, theirs, StringComparison.Ordinal))
+                return false;
+        }
+
+        return true;
+    }
+
+    public override bool Equals(object? obj) => Equals(obj as PluginItemDecoration);
+
+    public override int GetHashCode() => HashCode.Combine(Badge, Cells.Count);
 }
 
 /// <summary>Header row inserted in front of each group when grouping is on.</summary>

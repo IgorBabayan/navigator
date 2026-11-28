@@ -35,7 +35,10 @@ public sealed class PaneServices(
     DirectoryListingCache directoryCache,
     RemoteFileService remote,
     Navigator.Plugins.PluginHost plugins,
-    ILoggerFactory loggerFactory)
+    IQuickLookService quickLook,
+    IAudioPreviewPlayer audioPlayer,
+    ILoggerFactory loggerFactory,
+    ItemActionServices? itemActions = null)
 {
     public SettingsService Settings { get; } = settings;
 
@@ -89,10 +92,22 @@ public sealed class PaneServices(
     /// <summary>Folders served by plugins (SFTP, FTP…).</summary>
     public RemoteFileService Remote { get; } = remote;
 
-    /// <summary>Plugin contributions (sidebar sections, file systems).</summary>
+    /// <summary>Plugin contributions (sidebar sections, file systems, decorators, menus, search providers).</summary>
     public Navigator.Plugins.PluginHost Plugins { get; } = plugins;
 
+    /// <summary>Folder decorators of plugins (columns, icon badges, status bar segments) and their change notices.</summary>
+    public global::Navigator.Presentation.Plugins.FolderDecorationHub Decorations { get; } = new(plugins);
+
+    /// <summary>External previewers the space bar can hand the selection to (QuickLook, Seer, Peek, macOS Quick Look…).</summary>
+    public IQuickLookService QuickLook { get; } = quickLook;
+
+    /// <summary>Plays audio files in the preview pane and the Quick Look window.</summary>
+    public IAudioPreviewPlayer AudioPlayer { get; } = audioPlayer;
+
     public ILoggerFactory LoggerFactory { get; } = loggerFactory;
+
+    /// <summary>Image, font, disk image, drive and share actions of the item menus (unsupported everywhere when absent).</summary>
+    public ItemActionServices ItemActions { get; } = itemActions ?? ItemActionServices.Unsupported;
 
     private static DirectoryListingCache FollowSettings(DirectoryListingCache cache, SettingsService settings)
     {
@@ -107,6 +122,21 @@ public sealed class PaneServices(
 
     /// <summary>Operation callbacks routed to dialogs on the UI thread.</summary>
     public IFileOperationInteraction CreateInteraction() => new DialogInteraction(Dispatcher, Dialogs);
+}
+
+/// <summary>The platform services behind the item actions: desktop pictures, fonts, drives and sharing.</summary>
+public sealed class ItemActionServices(IDesktopBackgroundService backgrounds, IFontInstaller fonts, IDriveService drives, IShareService share)
+{
+    /// <summary>No item actions (tests, unsupported platforms).</summary>
+    public static ItemActionServices Unsupported { get; } = new(UnsupportedItemActions.Instance, UnsupportedItemActions.Instance, UnsupportedItemActions.Instance, UnsupportedItemActions.Instance);
+
+    public IDesktopBackgroundService Backgrounds { get; } = backgrounds;
+
+    public IFontInstaller Fonts { get; } = fonts;
+
+    public IDriveService Drives { get; } = drives;
+
+    public IShareService Share { get; } = share;
 }
 
 /// <summary>Bridges background operation questions (conflicts, errors) to modal dialogs on the UI thread.</summary>

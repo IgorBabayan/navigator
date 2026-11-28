@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using Navigator.Core.Collections;
 using Navigator.Core.Navigation;
 using Navigator.Core.Operations;
+using Navigator.Core.Platform;
 using Navigator.Core.Settings;
 using Navigator.Core.Sorting;
 using Navigator.Presentation.Commands;
@@ -24,7 +25,13 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
     private readonly BoundedStack<TabSession> _recentlyClosed = new(RecentlyClosedCapacity);
     private TabViewModel? _selectedTab;
     private bool _isPreviewVisible;
+    private PreviewViewModel? _quickLook;
+    private bool _isQuickLookOpen;
+    private QuickLookProvider? _externalQuickLook;
+    private PaneViewModel? _selectionSource;
     private bool _isCommandPaletteOpen;
+    private bool _isAlwaysOnTop;
+    private bool _isCompactOverlay;
     private string _paletteFilter = string.Empty;
     private bool _disposed;
 
@@ -58,10 +65,21 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
         ToggleSplitViewCommand = new RelayCommand(() => SelectedTab?.ToggleSplit());
         ToggleSidebarCommand = new RelayCommand(() => Sidebar.IsVisible = !Sidebar.IsVisible);
         TogglePreviewCommand = new RelayCommand(() => IsPreviewVisible = !IsPreviewVisible);
+        QuickLookCommand = new AsyncRelayCommand(ToggleQuickLookAsync);
         ToggleHiddenItemsCommand = new RelayCommand(ToggleHiddenItems);
         OpenSettingsCommand = new RelayCommand(() => _services.Windows.OpenSettings());
         OpenPluginShopCommand = new RelayCommand(() => _services.Windows.OpenSettings("plugins"));
         NewWindowCommand = new RelayCommand(() => _services.Windows.OpenNewWindow());
+        MoveTabToNewWindowCommand = new RelayCommand<TabViewModel>(
+            tab =>
+            {
+                if ((tab ?? SelectedTab) is { } moving)
+                    _services.Windows.MoveTabToWindow(this, moving);
+            },
+            _ => Tabs.Count > 1);
+        ToggleAlwaysOnTopCommand = new RelayCommand(() => IsAlwaysOnTop = !IsAlwaysOnTop);
+        ToggleCompactOverlayCommand = new RelayCommand(() => IsCompactOverlay = !IsCompactOverlay);
+        CustomizeToolbarCommand = new RelayCommand(() => _services.Windows.OpenSettings("appearance", "Settings.Toolbar"));
         GoHomeCommand = new RelayCommand(() => ActivePane?.Navigate(Location.Home));
         UndoCommand = new AsyncRelayCommand(UndoAsync, () => _services.Operations.Undo.CanUndo);
         RedoCommand = new AsyncRelayCommand(RedoAsync, () => _services.Operations.Undo.CanRedo);
@@ -73,6 +91,7 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
                 Execute(entry.Id);
         });
 
+        Tabs.CollectionChanged += (_, _) => MoveTabToNewWindowCommand.NotifyCanExecuteChanged();
         _services.Operations.Undo.Changed += OnUndoChanged;
         _services.Operations.ItemsRelocated += OnItemsRelocated;
     }
@@ -123,6 +142,23 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
             if (SetProperty(ref _isPreviewVisible, value))
                 Preview.IsEnabled = value;
         }
+    }
+
+    /// <summary>The window stays above other windows (also while in compact overlay).</summary>
+    public bool IsAlwaysOnTop
+    {
+        get => _isAlwaysOnTop;
+        set => SetProperty(ref _isAlwaysOnTop, value);
+    }
+
+    /// <summary>
+    /// Compact overlay: a small window that floats above other applications, for keeping a folder at hand while
+    /// working elsewhere. The window shrinks and hides the sidebar; leaving restores its previous size and state.
+    /// </summary>
+    public bool IsCompactOverlay
+    {
+        get => _isCompactOverlay;
+        set => SetProperty(ref _isCompactOverlay, value);
     }
 
     public string WindowTitle => ActivePane is { } pane ? $"{pane.Title} — Navigator" : "Navigator";
@@ -176,6 +212,27 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
 
     public IRelayCommand TogglePreviewCommand { get; }
 
+    /// <summary>Space bar: previews the selection in the chosen previewer (Settings → Files and folders → Quick Look).</summary>
+    public IAsyncRelayCommand QuickLookCommand { get; }
+
+    /// <summary>The built-in Quick Look window's content; created the first time the window opens.</summary>
+    public PreviewViewModel QuickLook => _quickLook ??= CreateQuickLook();
+
+    /// <summary>The built-in Quick Look window is shown (the window follows this flag; closing it clears it).</summary>
+    public bool IsQuickLookOpen
+    {
+        get => _isQuickLookOpen;
+        set
+        {
+            if (!SetProperty(ref _isQuickLookOpen, value))
+                return;
+            if (value && ActivePane is { } pane)
+                QuickLook.Attach(pane);
+            if (_quickLook is not null)
+                _quickLook.IsEnabled = value;
+        }
+    }
+
     public IRelayCommand ToggleHiddenItemsCommand { get; }
 
     public IRelayCommand OpenSettingsCommand { get; }
@@ -186,6 +243,16 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
     public IRelayCommand NewWindowCommand { get; }
 
     public IRelayCommand GoHomeCommand { get; }
+
+    /// <summary>Tab context menu "Move to new window" (dragging a tab out of the strip does the same).</summary>
+    public IRelayCommand<TabViewModel> MoveTabToNewWindowCommand { get; }
+
+    public IRelayCommand ToggleAlwaysOnTopCommand { get; }
+
+    public IRelayCommand ToggleCompactOverlayCommand { get; }
+
+    /// <summary>Opens Settings → Appearance at the toolbar section (toolbar context menu).</summary>
+    public IRelayCommand CustomizeToolbarCommand { get; }
 
     public IAsyncRelayCommand UndoCommand { get; }
 
@@ -204,13 +271,59 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
     public TabViewModel AddTab(Location location, Location? secondary = null, bool select = true, bool pinned = false, int? index = null)
     {
         var tab = new TabViewModel(_services, _pins, location, secondary) { IsPinned = pinned };
-        tab.OpenInNewTabRequested += (_, target) => AddTab(target, select: false, index: Tabs.IndexOf(tab) + 1);
+        tab.OpenInNewTabRequested += OnTabOpenInNewTab;
         var insertAt = index ?? (pinned ? Tabs.Count(t => t.IsPinned) : Tabs.Count);
         Tabs.Insert(Math.Clamp(insertAt, 0, Tabs.Count), tab);
         tab.Start();
         if (select || SelectedTab is null)
             SelectedTab = tab;
         return tab;
+    }
+
+    /// <summary>"Open in new tab" from a pane: the new tab goes right after the tab that asked.</summary>
+    private void OnTabOpenInNewTab(object? sender, Location target)
+    {
+        if (sender is TabViewModel origin && Tabs.Contains(origin))
+            AddTab(target, select: false, index: Tabs.IndexOf(origin) + 1);
+    }
+
+    /// <summary>
+    /// Takes a live tab out of this window without disposing it (it is moving to another window). The neighbour is
+    /// selected as on close; the window closes when it was the last tab. Not recorded as a closed tab.
+    /// </summary>
+    public bool DetachTab(TabViewModel tab)
+    {
+        ArgumentNullException.ThrowIfNull(tab);
+        var index = Tabs.IndexOf(tab);
+        if (index < 0)
+            return false;
+
+        tab.OpenInNewTabRequested -= OnTabOpenInNewTab;
+        tab.Primary.Navigated -= OnPaneNavigated;
+        if (tab.Secondary is { } secondary)
+            secondary.Navigated -= OnPaneNavigated;
+        Tabs.RemoveAt(index);
+        if (SelectedTab == tab)
+            SelectedTab = Tabs.Count == 0 ? null : Tabs[Math.Min(index, Tabs.Count - 1)];
+        if (Tabs.Count == 0)
+            CloseRequested?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
+    /// <summary>Receives a tab detached from another window, at <paramref name="index"/> within its pinned/unpinned group.</summary>
+    public void AdoptTab(TabViewModel tab, int? index = null)
+    {
+        ArgumentNullException.ThrowIfNull(tab);
+        if (Tabs.Contains(tab))
+            return;
+        tab.OpenInNewTabRequested += OnTabOpenInNewTab;
+        var pinnedCount = Tabs.Count(t => t.IsPinned);
+        var at = tab.IsPinned
+            ? Math.Clamp(index ?? pinnedCount, 0, pinnedCount)
+            : Math.Clamp(index ?? Tabs.Count, pinnedCount, Tabs.Count);
+        tab.IsSelected = false;
+        Tabs.Insert(at, tab);
+        SelectedTab = tab;
     }
 
     public void CloseTab(TabViewModel? tab)
@@ -338,9 +451,14 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
             case "tab.next": CycleTab(+1); break;
             case "tab.previous": CycleTab(-1); break;
             case "window.new": NewWindowCommand.Execute(null); break;
+            case "tab.moveToNewWindow": MoveTabToNewWindowCommand.Execute(null); break;
+            case "view.alwaysOnTop": ToggleAlwaysOnTopCommand.Execute(null); break;
+            case "view.compactOverlay": ToggleCompactOverlayCommand.Execute(null); break;
+            case "view.columns": pane?.SetLayoutCommand.Execute(FolderLayout.Columns); break;
             case "view.splitPane": ToggleSplitViewCommand.Execute(null); break;
             case "view.sidebar": ToggleSidebarCommand.Execute(null); break;
             case "view.previewPane": TogglePreviewCommand.Execute(null); break;
+            case "item.quickLook": QuickLookCommand.Execute(null); break;
             case "view.hiddenItems": ToggleHiddenItems(); break;
             case "view.details": pane?.SetLayoutCommand.Execute(FolderLayout.Details); break;
             case "view.list": pane?.SetLayoutCommand.Execute(FolderLayout.List); break;
@@ -357,6 +475,7 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
             case "item.newFolder": pane?.NewFolderCommand.Execute(null); break;
             case "item.newFile": pane?.NewFileCommand.Execute(null); break;
             case "item.rename": pane?.RenameCommand.Execute(null); break;
+            case "item.multiRename": pane?.MultiRenameCommand.Execute(null); break;
             case "item.delete": pane?.DeleteCommand.Execute(null); break;
             case "item.deletePermanently": pane?.DeletePermanentlyCommand.Execute(null); break;
             case "item.copy": pane?.CopyCommand.Execute(null); break;
@@ -439,9 +558,67 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
         {
             Sidebar.SyncSelection(pane.Location);
             Preview.Attach(pane);
+            if (_isQuickLookOpen)
+                QuickLook.Attach(pane);
+            if (!ReferenceEquals(_selectionSource, pane))
+            {
+                if (_selectionSource is not null)
+                    _selectionSource.SelectionChanged -= OnActiveSelectionChanged;
+                _selectionSource = pane;
+                pane.SelectionChanged += OnActiveSelectionChanged;
+            }
             pane.Navigated -= OnPaneNavigated;
             pane.Navigated += OnPaneNavigated;
         }
+    }
+
+    private PreviewViewModel CreateQuickLook()
+        => new(_services, PreviewViewModel.QuickLookImageSize, TimeSpan.FromMilliseconds(40));
+
+    /// <summary>
+    /// Opens or closes the preview of the focused item. External previewers (QuickLook, Seer, PowerToys Peek, macOS
+    /// Quick Look, Sushi) get the file when chosen — or, with "Automatic", when one is running; Navigator's own window is
+    /// used otherwise and whenever the external one cannot be reached.
+    /// </summary>
+    public async Task ToggleQuickLookAsync()
+    {
+        if (_isQuickLookOpen)
+        {
+            IsQuickLookOpen = false;
+            return;
+        }
+
+        if (ActivePane is not { } pane || ((pane.Selection.SelectedItems is { Count: > 0 } selected ? selected[0] : null) ?? pane.Selection.FocusedItem) is not { } item)
+            return;
+
+        var setting = _services.Settings.Current.FilesAndFolders.QuickLook;
+        var external = setting switch
+        {
+            QuickLookProvider.BuiltIn => null,
+            QuickLookProvider.Automatic => _services.QuickLook.ResolveAutomatic(),
+            _ => setting,
+        };
+
+        if (external is { } provider && !item.Entry.IsRemote)
+        {
+            if (await _services.QuickLook.ToggleAsync(provider, item.FullPath).ConfigureAwait(true))
+            {
+                _externalQuickLook = provider;
+                return;
+            }
+
+            _externalQuickLook = null;
+        }
+
+        IsQuickLookOpen = true;
+    }
+
+    /// <summary>Selection moved while an external previewer shows a file: it follows, like it does in Explorer/Finder.</summary>
+    private void OnActiveSelectionChanged(object? sender, EventArgs e)
+    {
+        if (_externalQuickLook is not { } provider || sender is not PaneViewModel pane || pane.Selection.SelectedItems is not [{ Entry.IsRemote: false } item])
+            return;
+        _ = _services.QuickLook.SwitchAsync(provider, item.FullPath);
     }
 
     private void OnPaneNavigated(object? sender, EventArgs e)
@@ -500,6 +677,10 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
         Sidebar.Dispose();
         Operations.Dispose();
         Preview.Dispose();
+        _quickLook?.Dispose();
+        if (_selectionSource is not null)
+            _selectionSource.SelectionChanged -= OnActiveSelectionChanged;
+        _selectionSource = null;
     }
 }
 

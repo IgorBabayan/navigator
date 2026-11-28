@@ -315,8 +315,8 @@ internal sealed unsafe partial class NativeShellMenu : IShellMenu
         return null;
     }
 
-    /// <summary>IDataObject of one file (BHID_DataObject on its shell item); 0 when the shell does not know the path.</summary>
-    private static nint DataObjectFor(string path)
+    /// <summary>IDataObject of one file (BHID_DataObject on its shell item); 0 when the shell does not know the path. Apartment thread only.</summary>
+    internal static nint DataObjectFor(string path)
     {
         nint list;
         if (SHParseDisplayName(path, 0, &list, 0, null) < 0 || list == 0)
