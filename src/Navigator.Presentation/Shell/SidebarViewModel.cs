@@ -283,7 +283,7 @@ public sealed class SidebarViewModel : ObservableObject, IDisposable
         {
             // Header button: "Map network drive" (Windows dialog) or "Connect to server" (smb://, afp://…).
             IReadOnlyList<SidebarCommandViewModel> header = _drives.CanConnectNetworkDrive
-                ? [new SidebarCommandViewModel(_drives.ConnectTitle, "FolderNetwork", false, new AsyncRelayCommand(_drives.ConnectNetworkDriveAsync))]
+                ? [new SidebarCommandViewModel(_drives.ConnectTitle, "MapNetworkDrive", false, new AsyncRelayCommand(_drives.ConnectNetworkDriveAsync))]
                 : [];
             Sections.Add(new SidebarSectionViewModel("drives", localizer["Sidebar.Drives"], "Drive", SystemIconKey.Stock(SystemIconKind.Computer))
             {

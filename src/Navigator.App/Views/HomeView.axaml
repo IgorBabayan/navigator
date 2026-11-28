@@ -58,7 +58,7 @@
                     <MenuItem c:MenuIcon.Kind="Eject" Header="{c:Tr Command.Eject}" IsVisible="{Binding CanEject}" Command="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).EjectCommand}" CommandParameter="{Binding}" />
                     <MenuItem c:MenuIcon.Kind="LanDisconnect" Header="{c:Tr Command.DisconnectNetworkDrive}" IsVisible="{Binding CanDisconnect}" Command="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).DisconnectCommand}" CommandParameter="{Binding}" />
                     <Separator IsVisible="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).CanConnectNetworkDrive}" />
-                    <MenuItem c:MenuIcon.Kind="FolderNetwork" Header="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).ConnectNetworkDriveTitle}"
+                    <MenuItem c:MenuIcon.Kind="MapNetworkDrive" Header="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).ConnectNetworkDriveTitle}"
                               IsVisible="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).CanConnectNetworkDrive}"
                               Command="{Binding $parent[UserControl].((panes:HomeViewModel)DataContext).ConnectNetworkDriveCommand}" />
                   </ContextMenu>

@@ -104,6 +104,9 @@ internal static class IconCatalog
         Glyph("Redo", MaterialIconKind.Redo);
         Glyph("Settings", MaterialIconKind.Cog);
         Glyph("Keyboard", MaterialIconKind.Keyboard);
+        // Map network drive / Connect to server: the counterpart of LanDisconnect, and a clean outline at 12 px (the
+        // filled folder-with-network glyph blurred into a blob at the sidebar header's size).
+        Glyph("MapNetworkDrive", MaterialIconKind.LanConnect);
         Glyph("Speed", MaterialIconKind.Speedometer);
         Glyph("Update", MaterialIconKind.Update);
         Glyph("Plugin", MaterialIconKind.Puzzle);
