@@ -59,12 +59,13 @@
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:TabViewModel">
                 <Border Classes="tab" Classes.selected="{Binding IsSelected}" c:Motion.Enter="True"
-                        ToolTip.Tip="{Binding ToolTip}" PointerPressed="OnTabPointerPressed" PointerReleased="OnTabPointerReleased">
+                        ToolTip.Tip="{Binding ToolTip}" PointerPressed="OnTabPointerPressed" PointerMoved="OnTabPointerMoved" PointerReleased="OnTabPointerReleased">
                   <Border.ContextMenu>
                     <ContextMenu>
                       <MenuItem c:MenuIcon.Kind="TabPlus" Header="{c:Tr Command.NewTab}" Command="{Binding $parent[v:MainWindow].Shell.NewTabCommand}" />
                       <MenuItem c:MenuIcon.Kind="Multiple" Header="{c:Tr Command.DuplicateTab}" Command="{Binding $parent[v:MainWindow].Shell.DuplicateTabCommand}" CommandParameter="{Binding}" />
                       <MenuItem c:MenuIcon.Kind="Pin" Header="{c:Tr Command.PinTab}" Command="{Binding $parent[v:MainWindow].Shell.TogglePinTabCommand}" CommandParameter="{Binding}" />
+                      <MenuItem c:MenuIcon.Kind="OpenInNew" Header="{c:Tr Command.MoveTabToNewWindow}" Command="{Binding $parent[v:MainWindow].Shell.MoveTabToNewWindowCommand}" CommandParameter="{Binding}" />
                       <Separator />
                       <MenuItem c:MenuIcon.Kind="Close" Header="{c:Tr Command.CloseTab}" Command="{Binding $parent[v:MainWindow].Shell.CloseTabCommand}" CommandParameter="{Binding}" />
                       <MenuItem c:MenuIcon.Kind="TabRemove" Header="{c:Tr Command.CloseOtherTabs}" Command="{Binding $parent[v:MainWindow].Shell.CloseOtherTabsCommand}" CommandParameter="{Binding}" />
@@ -198,7 +199,13 @@
       </Border>
 
       <!-- ── Command bar ────────────────────────────────────── -->
-      <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="8,2,8,4">
+      <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="8,2,8,4" Background="Transparent">
+        <!-- Right-click anywhere on the toolbar: arrange its buttons (Settings → Appearance → Toolbar). -->
+        <Grid.ContextMenu>
+          <ContextMenu>
+            <MenuItem c:MenuIcon.Kind="Tune" Header="{c:Tr Toolbar.Customize}" Command="{Binding CustomizeToolbarCommand}" />
+          </ContextMenu>
+        </Grid.ContextMenu>
         <StackPanel x:Name="CommandBar" Orientation="Horizontal" Spacing="2">
           <!-- Icons: OsGlyph draws the operating system's own picture (Explorer's icon font on Windows, the icon theme on
                Linux, SF Symbols on macOS); Kind is the Material fallback. -->
@@ -210,17 +217,17 @@
               <c:IconView Kind="ChevronDown" Width="10" Height="10" VerticalAlignment="Center" />
             </StackPanel>
           </Button>
-          <Border Width="1" Margin="4,6" Background="{DynamicResource Brush.Stroke}" />
-          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Cut}" Command="{Binding ActivePane.CutCommand}"><c:IconView Kind="Cut" OsGlyph="Cut" /></Button>
-          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Copy}" Command="{Binding ActivePane.CopyCommand}"><c:IconView Kind="Copy" OsGlyph="Copy" /></Button>
-          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Paste}" Command="{Binding ActivePane.PasteCommand}"><c:IconView Kind="Paste" OsGlyph="Paste" /></Button>
-          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Rename}" Command="{Binding ActivePane.RenameCommand}"><c:IconView Kind="Rename" OsGlyph="Rename" /></Button>
-          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Delete}" Command="{Binding ActivePane.DeleteCommand}"><c:IconView Kind="Delete" OsGlyph="Delete" /></Button>
-          <!-- Server folders (SSH, FTP plugins): copy to and from this computer. -->
-          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Remote.Download}" Command="{Binding ActivePane.DownloadCommand}" IsVisible="{Binding ActivePane.IsRemote}"><c:IconView Kind="Download" OsGlyph="Download" /></Button>
-          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Remote.Upload}" Command="{Binding ActivePane.UploadCommand}" IsVisible="{Binding ActivePane.IsRemote}"><c:IconView Kind="Upload" OsGlyph="Upload" /></Button>
-          <Border Width="1" Margin="4,6" Background="{DynamicResource Brush.Stroke}" />
-          <Button Classes="subtle" ToolTip.Tip="{c:Tr Command.Sort}">
+          <Border x:Name="SeparatorEdit" Width="1" Margin="4,6" Background="{DynamicResource Brush.Stroke}" />
+          <Button x:Name="CutButton" Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Cut}" Command="{Binding ActivePane.CutCommand}"><c:IconView Kind="Cut" OsGlyph="Cut" /></Button>
+          <Button x:Name="CopyButton" Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Copy}" Command="{Binding ActivePane.CopyCommand}"><c:IconView Kind="Copy" OsGlyph="Copy" /></Button>
+          <Button x:Name="PasteButton" Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Paste}" Command="{Binding ActivePane.PasteCommand}"><c:IconView Kind="Paste" OsGlyph="Paste" /></Button>
+          <Button x:Name="RenameButton" Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Rename}" Command="{Binding ActivePane.RenameCommand}"><c:IconView Kind="Rename" OsGlyph="Rename" /></Button>
+          <Button x:Name="DeleteButton" Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Delete}" Command="{Binding ActivePane.DeleteCommand}"><c:IconView Kind="Delete" OsGlyph="Delete" /></Button>
+          <!-- Server folders (SSH, FTP plugins): copy to and from this computer. Not customizable: they follow Delete. -->
+          <Button x:Name="DownloadButton" Classes="subtle icon" ToolTip.Tip="{c:Tr Remote.Download}" Command="{Binding ActivePane.DownloadCommand}" IsVisible="{Binding ActivePane.IsRemote}"><c:IconView Kind="Download" OsGlyph="Download" /></Button>
+          <Button x:Name="UploadButton" Classes="subtle icon" ToolTip.Tip="{c:Tr Remote.Upload}" Command="{Binding ActivePane.UploadCommand}" IsVisible="{Binding ActivePane.IsRemote}"><c:IconView Kind="Upload" OsGlyph="Upload" /></Button>
+          <Border x:Name="SeparatorView" Width="1" Margin="4,6" Background="{DynamicResource Brush.Stroke}" />
+          <Button x:Name="SortButton" Classes="subtle" ToolTip.Tip="{c:Tr Command.Sort}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <c:IconView Kind="Sort" OsGlyph="Sort" />
               <TextBlock Classes="toolbarLabel" Text="{c:Tr Command.Sort}" VerticalAlignment="Center" />
@@ -238,7 +245,7 @@
               </MenuFlyout>
             </Button.Flyout>
           </Button>
-          <Button Classes="subtle" ToolTip.Tip="{c:Tr Command.Group}">
+          <Button x:Name="GroupButton" Classes="subtle" ToolTip.Tip="{c:Tr Command.Group}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <c:IconView Kind="Group" OsGlyph="Group" />
               <TextBlock Classes="toolbarLabel" Text="{c:Tr Command.Group}" VerticalAlignment="Center" />
@@ -254,7 +261,7 @@
               </MenuFlyout>
             </Button.Flyout>
           </Button>
-          <Button Classes="subtle" ToolTip.Tip="{c:Tr Command.Layout}">
+          <Button x:Name="LayoutButton" Classes="subtle" ToolTip.Tip="{c:Tr Command.Layout}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <c:IconView Kind="LayoutDetails" OsGlyph="Layout" />
               <TextBlock Classes="toolbarLabel" Text="{c:Tr Command.Layout}" VerticalAlignment="Center" />
@@ -268,10 +275,11 @@
                 <MenuItem c:MenuIcon.Kind="LayoutGrid" Header="{c:Tr Layout.MediumIcons}" ToggleType="Radio" IsChecked="{Binding ActivePane.Layout, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=MediumIcons, Mode=OneWay}" Command="{Binding ActivePane.SetLayoutCommand}" CommandParameter="{x:Static s:FolderLayout.MediumIcons}" />
                 <MenuItem c:MenuIcon.Kind="ViewGridOutline" Header="{c:Tr Layout.LargeIcons}" ToggleType="Radio" IsChecked="{Binding ActivePane.Layout, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=LargeIcons, Mode=OneWay}" Command="{Binding ActivePane.SetLayoutCommand}" CommandParameter="{x:Static s:FolderLayout.LargeIcons}" />
                 <MenuItem c:MenuIcon.Kind="ImageSizeSelectLarge" Header="{c:Tr Layout.ExtraLargeIcons}" ToggleType="Radio" IsChecked="{Binding ActivePane.Layout, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=ExtraLargeIcons, Mode=OneWay}" Command="{Binding ActivePane.SetLayoutCommand}" CommandParameter="{x:Static s:FolderLayout.ExtraLargeIcons}" />
+                <MenuItem c:MenuIcon.Kind="ViewColumn" Header="{c:Tr Layout.Columns}" ToggleType="Radio" IsChecked="{Binding ActivePane.Layout, Converter={x:Static c:EqualsConverter.Instance}, ConverterParameter=Columns, Mode=OneWay}" Command="{Binding ActivePane.SetLayoutCommand}" CommandParameter="{x:Static s:FolderLayout.Columns}" />
               </MenuFlyout>
             </Button.Flyout>
           </Button>
-          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Command.More}">
+          <Button x:Name="MoreButton" Classes="subtle icon" ToolTip.Tip="{c:Tr Command.More}">
             <c:IconView Kind="More" OsGlyph="More" />
             <Button.Flyout>
               <MenuFlyout Placement="BottomEdgeAlignedLeft">
@@ -287,15 +295,17 @@
                 <MenuItem c:MenuIcon.Kind="CodeEditor" Header="{c:Tr Command.OpenInCodeEditor}" Command="{Binding ActivePane.OpenInCodeEditorCommand}" />
                 <MenuItem c:MenuIcon.Kind="Search" Header="{c:Tr Command.CommandPalette}" Command="{Binding ToggleCommandPaletteCommand}" />
                 <MenuItem c:MenuIcon.Kind="Window" Header="{c:Tr Command.NewWindow}" Command="{Binding NewWindowCommand}" />
+                <MenuItem c:MenuIcon.Kind="PictureInPictureBottomRight" Header="{c:Tr Command.CompactOverlay}" ToggleType="CheckBox" IsChecked="{Binding IsCompactOverlay, Mode=OneWay}" Command="{Binding ToggleCompactOverlayCommand}" />
+                <MenuItem c:MenuIcon.Kind="Pin" Header="{c:Tr Command.AlwaysOnTop}" ToggleType="CheckBox" IsChecked="{Binding IsAlwaysOnTop, Mode=OneWay}" Command="{Binding ToggleAlwaysOnTopCommand}" />
                 <MenuItem c:MenuIcon.Kind="Delete" Header="{c:Tr Command.EmptyTrash}" Command="{Binding ActivePane.EmptyTrashCommand}" IsVisible="{Binding ActivePane.IsTrash}" />
               </MenuFlyout>
             </Button.Flyout>
           </Button>
         </StackPanel>
 
-        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2">
+        <StackPanel x:Name="ViewBar" Grid.Column="1" Orientation="Horizontal" Spacing="2">
           <!-- Status center: shown while there are file operations; the ring tracks overall progress, the badge the outcome -->
-          <Button Classes="subtle icon" IsVisible="{Binding Operations.HasItems}" ToolTip.Tip="{Binding Operations.SummaryText}">
+          <Button x:Name="OperationsButton" Classes="subtle icon" IsVisible="{Binding Operations.HasItems}" ToolTip.Tip="{Binding Operations.SummaryText}">
             <Panel Width="18" Height="18">
               <c:ProgressRing Width="18" Height="18" Thickness="2" IsVisible="{Binding Operations.HasActive}"
                               Value="{Binding Operations.OverallProgress}" IsIndeterminate="{Binding Operations.IsOverallIndeterminate}" />
@@ -310,22 +320,29 @@
               </Flyout>
             </Button.Flyout>
           </Button>
-          <Button Classes="subtle" IsVisible="{Binding Update.IsUpdateAvailable}" Command="{Binding OpenSettingsCommand}" ToolTip.Tip="{Binding Update.StatusText}">
+          <Button x:Name="UpdateButton" Classes="subtle" IsVisible="{Binding Update.IsUpdateAvailable}" Command="{Binding OpenSettingsCommand}" ToolTip.Tip="{Binding Update.StatusText}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <c:IconView Kind="Update" Foreground="{DynamicResource Accent.Brush}" />
               <TextBlock Classes="toolbarLabel" Text="{c:Tr Update.Badge}" VerticalAlignment="Center" />
             </StackPanel>
           </Button>
-          <ToggleButton Classes="subtle icon" ToolTip.Tip="{c:Tr Command.ToggleSplitView}" IsChecked="{Binding SelectedTab.IsSplit, Mode=OneWay}" Command="{Binding ToggleSplitViewCommand}">
+          <ToggleButton x:Name="SplitViewButton" Classes="subtle icon" ToolTip.Tip="{c:Tr Command.ToggleSplitView}" IsChecked="{Binding SelectedTab.IsSplit, Mode=OneWay}" Command="{Binding ToggleSplitViewCommand}">
             <c:IconView Kind="SplitView" />
           </ToggleButton>
-          <ToggleButton Classes="subtle icon" ToolTip.Tip="{c:Tr Command.TogglePreviewPane}" IsChecked="{Binding IsPreviewVisible}">
+          <ToggleButton x:Name="PreviewPaneButton" Classes="subtle icon" ToolTip.Tip="{c:Tr Command.TogglePreviewPane}" IsChecked="{Binding IsPreviewVisible}">
             <c:IconView Kind="PreviewPane" />
           </ToggleButton>
-          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Command.PluginShop}" Command="{Binding OpenPluginShopCommand}">
+          <!-- Compact overlay: a small window kept above other applications; again to return to the normal window. -->
+          <ToggleButton x:Name="CompactOverlayButton" Classes="subtle icon" ToolTip.Tip="{c:Tr Command.CompactOverlay}" IsChecked="{Binding IsCompactOverlay, Mode=OneWay}" Command="{Binding ToggleCompactOverlayCommand}">
+            <c:IconView Kind="PictureInPictureBottomRight" />
+          </ToggleButton>
+          <ToggleButton x:Name="AlwaysOnTopButton" Classes="subtle icon" ToolTip.Tip="{c:Tr Command.AlwaysOnTop}" IsChecked="{Binding IsAlwaysOnTop, Mode=OneWay}" Command="{Binding ToggleAlwaysOnTopCommand}">
+            <c:IconView Kind="Pin" />
+          </ToggleButton>
+          <Button x:Name="PluginShopButton" Classes="subtle icon" ToolTip.Tip="{c:Tr Command.PluginShop}" Command="{Binding OpenPluginShopCommand}">
             <c:IconView Kind="Plugin" />
           </Button>
-          <Button Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Settings}" Command="{Binding OpenSettingsCommand}">
+          <Button x:Name="SettingsButton" Classes="subtle icon" ToolTip.Tip="{c:Tr Command.Settings}" Command="{Binding OpenSettingsCommand}">
             <c:IconView Kind="Settings" />
           </Button>
         </StackPanel>

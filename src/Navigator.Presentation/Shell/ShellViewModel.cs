@@ -25,6 +25,8 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
     private TabViewModel? _selectedTab;
     private bool _isPreviewVisible;
     private bool _isCommandPaletteOpen;
+    private bool _isAlwaysOnTop;
+    private bool _isCompactOverlay;
     private string _paletteFilter = string.Empty;
     private bool _disposed;
 
@@ -62,6 +64,16 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
         OpenSettingsCommand = new RelayCommand(() => _services.Windows.OpenSettings());
         OpenPluginShopCommand = new RelayCommand(() => _services.Windows.OpenSettings("plugins"));
         NewWindowCommand = new RelayCommand(() => _services.Windows.OpenNewWindow());
+        MoveTabToNewWindowCommand = new RelayCommand<TabViewModel>(
+            tab =>
+            {
+                if ((tab ?? SelectedTab) is { } moving)
+                    _services.Windows.MoveTabToWindow(this, moving);
+            },
+            _ => Tabs.Count > 1);
+        ToggleAlwaysOnTopCommand = new RelayCommand(() => IsAlwaysOnTop = !IsAlwaysOnTop);
+        ToggleCompactOverlayCommand = new RelayCommand(() => IsCompactOverlay = !IsCompactOverlay);
+        CustomizeToolbarCommand = new RelayCommand(() => _services.Windows.OpenSettings("appearance", "Settings.Toolbar"));
         GoHomeCommand = new RelayCommand(() => ActivePane?.Navigate(Location.Home));
         UndoCommand = new AsyncRelayCommand(UndoAsync, () => _services.Operations.Undo.CanUndo);
         RedoCommand = new AsyncRelayCommand(RedoAsync, () => _services.Operations.Undo.CanRedo);
@@ -73,6 +85,7 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
                 Execute(entry.Id);
         });
 
+        Tabs.CollectionChanged += (_, _) => MoveTabToNewWindowCommand.NotifyCanExecuteChanged();
         _services.Operations.Undo.Changed += OnUndoChanged;
         _services.Operations.ItemsRelocated += OnItemsRelocated;
     }
@@ -123,6 +136,23 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
             if (SetProperty(ref _isPreviewVisible, value))
                 Preview.IsEnabled = value;
         }
+    }
+
+    /// <summary>The window stays above other windows (also while in compact overlay).</summary>
+    public bool IsAlwaysOnTop
+    {
+        get => _isAlwaysOnTop;
+        set => SetProperty(ref _isAlwaysOnTop, value);
+    }
+
+    /// <summary>
+    /// Compact overlay: a small window that floats above other applications, for keeping a folder at hand while
+    /// working elsewhere. The window shrinks and hides the sidebar; leaving restores its previous size and state.
+    /// </summary>
+    public bool IsCompactOverlay
+    {
+        get => _isCompactOverlay;
+        set => SetProperty(ref _isCompactOverlay, value);
     }
 
     public string WindowTitle => ActivePane is { } pane ? $"{pane.Title} — Navigator" : "Navigator";
@@ -187,6 +217,16 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
 
     public IRelayCommand GoHomeCommand { get; }
 
+    /// <summary>Tab context menu "Move to new window" (dragging a tab out of the strip does the same).</summary>
+    public IRelayCommand<TabViewModel> MoveTabToNewWindowCommand { get; }
+
+    public IRelayCommand ToggleAlwaysOnTopCommand { get; }
+
+    public IRelayCommand ToggleCompactOverlayCommand { get; }
+
+    /// <summary>Opens Settings → Appearance at the toolbar section (toolbar context menu).</summary>
+    public IRelayCommand CustomizeToolbarCommand { get; }
+
     public IAsyncRelayCommand UndoCommand { get; }
 
     public IAsyncRelayCommand RedoCommand { get; }
@@ -204,13 +244,59 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
     public TabViewModel AddTab(Location location, Location? secondary = null, bool select = true, bool pinned = false, int? index = null)
     {
         var tab = new TabViewModel(_services, _pins, location, secondary) { IsPinned = pinned };
-        tab.OpenInNewTabRequested += (_, target) => AddTab(target, select: false, index: Tabs.IndexOf(tab) + 1);
+        tab.OpenInNewTabRequested += OnTabOpenInNewTab;
         var insertAt = index ?? (pinned ? Tabs.Count(t => t.IsPinned) : Tabs.Count);
         Tabs.Insert(Math.Clamp(insertAt, 0, Tabs.Count), tab);
         tab.Start();
         if (select || SelectedTab is null)
             SelectedTab = tab;
         return tab;
+    }
+
+    /// <summary>"Open in new tab" from a pane: the new tab goes right after the tab that asked.</summary>
+    private void OnTabOpenInNewTab(object? sender, Location target)
+    {
+        if (sender is TabViewModel origin && Tabs.Contains(origin))
+            AddTab(target, select: false, index: Tabs.IndexOf(origin) + 1);
+    }
+
+    /// <summary>
+    /// Takes a live tab out of this window without disposing it (it is moving to another window). The neighbour is
+    /// selected as on close; the window closes when it was the last tab. Not recorded as a closed tab.
+    /// </summary>
+    public bool DetachTab(TabViewModel tab)
+    {
+        ArgumentNullException.ThrowIfNull(tab);
+        var index = Tabs.IndexOf(tab);
+        if (index < 0)
+            return false;
+
+        tab.OpenInNewTabRequested -= OnTabOpenInNewTab;
+        tab.Primary.Navigated -= OnPaneNavigated;
+        if (tab.Secondary is { } secondary)
+            secondary.Navigated -= OnPaneNavigated;
+        Tabs.RemoveAt(index);
+        if (SelectedTab == tab)
+            SelectedTab = Tabs.Count == 0 ? null : Tabs[Math.Min(index, Tabs.Count - 1)];
+        if (Tabs.Count == 0)
+            CloseRequested?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
+    /// <summary>Receives a tab detached from another window, at <paramref name="index"/> within its pinned/unpinned group.</summary>
+    public void AdoptTab(TabViewModel tab, int? index = null)
+    {
+        ArgumentNullException.ThrowIfNull(tab);
+        if (Tabs.Contains(tab))
+            return;
+        tab.OpenInNewTabRequested += OnTabOpenInNewTab;
+        var pinnedCount = Tabs.Count(t => t.IsPinned);
+        var at = tab.IsPinned
+            ? Math.Clamp(index ?? pinnedCount, 0, pinnedCount)
+            : Math.Clamp(index ?? Tabs.Count, pinnedCount, Tabs.Count);
+        tab.IsSelected = false;
+        Tabs.Insert(at, tab);
+        SelectedTab = tab;
     }
 
     public void CloseTab(TabViewModel? tab)
@@ -338,6 +424,10 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
             case "tab.next": CycleTab(+1); break;
             case "tab.previous": CycleTab(-1); break;
             case "window.new": NewWindowCommand.Execute(null); break;
+            case "tab.moveToNewWindow": MoveTabToNewWindowCommand.Execute(null); break;
+            case "view.alwaysOnTop": ToggleAlwaysOnTopCommand.Execute(null); break;
+            case "view.compactOverlay": ToggleCompactOverlayCommand.Execute(null); break;
+            case "view.columns": pane?.SetLayoutCommand.Execute(FolderLayout.Columns); break;
             case "view.splitPane": ToggleSplitViewCommand.Execute(null); break;
             case "view.sidebar": ToggleSidebarCommand.Execute(null); break;
             case "view.previewPane": TogglePreviewCommand.Execute(null); break;

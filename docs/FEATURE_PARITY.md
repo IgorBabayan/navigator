@@ -21,7 +21,7 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Reopen closed tabs (25) | 🟦 | 🟦 | ✓ | ✓ | ✓ | |
 | Multiple windows | 🟦 | 🟦 | ✓ | ✓ | ✓ | `WindowService` |
 | Tab/window session restore | ✅ | 🟦 | ✓ | ✓ | ✓ | `SessionState` persistence + corruption tests; restore flow in `WindowService` unverified |
-| Drag a tab out into a new window | ⬜ | ⬜ | | | | context-menu alternative not present either |
+| Drag a tab out into a new window | 🟦 | 🟦 | ✓ | ✓ | ✓ | `ShellViewModel.DetachTab`/`AdoptTab`, `WindowService.MoveTabToWindow`; dropped on another window's strip it joins that window; tab menu "Move to new window"; the tab keeps its panes and history |
 | Back / forward / up / refresh, history (128) | ✅ | 🟦 | ✓ | ✓ | ✓ | `NavigationHistory` |
 | Mouse back/forward side buttons, browser keys | ➖ | 🟦 | ✓ | ✓ | ✓ | XButton1/XButton2 act on release on the pane under the pointer; BrowserBack/BrowserForward keys |
 | Breadcrumb bar | ✅ | 🟦 | ✓ | ✓ | ✓ | |
@@ -32,8 +32,8 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Command palette | 🟦 | 🟦 | ✓ | ✓ | ✓ | Ctrl+Shift+P |
 | Home page (quick access, drives, recent files, tags) | 🟦 | 🟦 | ✓ | ✓ | ✓ | |
 | Split view (dual pane) | 🟦 | 🟦 | ✓ | ✓ | ✓ | |
-| Column view (Miller columns) | ⬜ | ⬜ | | | | |
-| Compact overlay / always on top | ⬜ | ⬜ | | | | |
+| Column view (Miller columns) | 🟦 | 🟦 | ✓ | ✓ | ✓ | `PaneViewModel.Columns`, `ColumnTrail` (tested), `MillerColumnViewModel`; Layout → Columns, Ctrl+Shift+6; current folder is the full pane list, ancestors are read-only columns |
+| Compact overlay / always on top | 🟦 | 🟦 | ✓ | ✓ | 🟦 | toolbar toggle and More menu; `Window.Topmost`; compact overlay shrinks the window, hides the sidebar and restores everything when left |
 | Full screen | 🟦 | 🟦 | ✓ | ✓ | ✓ | |
 
 ## Sidebar
@@ -58,7 +58,7 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Feature | Logic | UI | W | L | M | Notes |
 |---|---|---|---|---|---|---|
 | Details layout with resizable columns, column visibility | 🟦 | 🟦 | ✓ | ✓ | ✓ | |
-| Column reordering | ⬜ | ⬜ | | | | |
+| Column reordering | ✅ | 🟦 | ✓ | ✓ | ✓ | drag a header sideways or use its menu (move left/right, reset); `ColumnOrder` (tested), `DetailsCellsPanel`; name column stays first; order stored in `FilesAndFolders.Columns` |
 | List, Tiles, Small/Medium/Large/Extra-large icon layouts | 🟦 | 🟦 | ✓ | ✓ | ✓ | row-chunked virtualization |
 | Sort (name/date modified/created/type/size), natural order, folders first | ✅ | 🟦 | ✓ | ✓ | ✓ | `NaturalStringComparer` |
 | Group by (name, type, date, size …) | ✅ | 🟦 | ✓ | ✓ | ✓ | `EntryGrouper` |
@@ -147,6 +147,8 @@ engine/view-model code; "UI" is the status of the Avalonia surface.
 | Mica / Acrylic backdrop | 🟦 | 🟦 | 🟦 | 🟨 | 🟨 | effect depends on platform/compositor |
 | Animations full / reduced / off | 🟦 | 🟦 | ✓ | ✓ | ✓ | |
 | Customizable keyboard shortcuts | ✅ | 🟦 | ✓ | ✓ | ✓ | `CommandRegistry` |
+| Toolbar customization (show, hide, reorder buttons) | ✅ | 🟦 | ✓ | ✓ | ✓ | Settings → Appearance → Toolbar, or right-click the toolbar; `ToolbarLayout` (tested) |
+| Search settings from the address bar | ✅ | 🟦 | ✓ | ✓ | ✓ | `SettingsSearch` (tested); setting rows in the omnibar drop-down open the settings window on the page and outline the setting; Enter on a non-path word opens the best match |
 | Global shortcut to open Navigator; background mode with tray icon | 🟦 | 🟦 | 🟦 | 🟨 | 🟦 | `GlobalHotkeyController`; X11, and GNOME on Wayland (desktop shortcut); other Wayland desktops: bind `Navigator --activate` |
 | Global shortcut works while Navigator is not running | 🟦 | 🟦 | 🟦 | 🟨 | 🟦 | `ShortcutAgentHost` started at sign-in; agent verified end-to-end on X11 (Xvfb + xdotool) |
 | English + Ukrainian | ✅ | 🟦 | ✓ | ✓ | ✓ | key parity test |

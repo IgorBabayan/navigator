@@ -38,6 +38,16 @@ public sealed partial class MainWindow : Window
     private Button? _lastClosedCrumbMenuOwner;
     private long _lastCrumbMenuClosedAt;
     private WindowState _stateBeforeMinimize = WindowState.Normal;
+    private CompactRestore? _compactRestore;
+    private bool _tabTearing;
+
+    /// <summary>Pointer distance outside the tab strip (DIPs) at which a dragged tab is torn off into its own window.</summary>
+    private const double TabTearOffDistance = 36;
+
+    private static readonly Size CompactOverlaySize = new(420, 520);
+
+    /// <summary>Window geometry before compact overlay, restored when it ends.</summary>
+    private sealed record CompactRestore(WindowState State, PixelPoint Position, double Width, double Height, double MinWidth, double MinHeight);
 
     public MainWindow()
         : this(ActivatorUtilities.CreateInstance<ShellViewModel>(App.Services), App.Services.GetRequiredService<PaneServices>())
@@ -68,6 +78,7 @@ public sealed partial class MainWindow : Window
         ApplyBackdrop();
         RebuildKeyGestures();
         ApplyToolbarLabels();
+        ApplyToolbarLayout();
         UpdateSidebarColumn();
 
         _theme.BackdropChanged += OnBackdropChanged;
@@ -87,6 +98,10 @@ public sealed partial class MainWindow : Window
         {
             if (e.PropertyName == nameof(ShellViewModel.IsCommandPaletteOpen) && shell.IsCommandPaletteOpen)
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => PaletteBox.Focus());
+            else if (e.PropertyName == nameof(ShellViewModel.IsCompactOverlay))
+                ApplyCompactOverlay();
+            else if (e.PropertyName == nameof(ShellViewModel.IsAlwaysOnTop))
+                Topmost = shell.IsAlwaysOnTop || shell.IsCompactOverlay;
         };
 
         // The address box can also be opened by the view model (clicking the Home/Trash/Tag crumb): focus it whenever it appears.
@@ -114,8 +129,11 @@ public sealed partial class MainWindow : Window
 
     public ShellViewModel Shell { get; }
 
+    /// <summary>The window's placement for the session file; in compact overlay, the size it returns to.</summary>
     public WindowSession CaptureSession()
-        => Shell.ToSession(Position.X, Position.Y, Bounds.Width, Bounds.Height, WindowState == WindowState.Maximized);
+        => _compactRestore is { } normal
+            ? Shell.ToSession(normal.Position.X, normal.Position.Y, normal.Width, normal.Height, normal.State == WindowState.Maximized)
+            : Shell.ToSession(Position.X, Position.Y, Bounds.Width, Bounds.Height, WindowState == WindowState.Maximized);
 
     /// <summary>Global shortcut / tray: un-minimizes to the state the window had before (e.g. maximized) and focuses it.</summary>
     public void BringToFront()
@@ -220,18 +238,86 @@ public sealed partial class MainWindow : Window
             Shell.SelectedTab = tab;
             _draggedTab = tab;
             _dragStart = point.Position;
+            _tabTearing = false;
+            // Captured so the release arrives here even when it happens outside the window (tearing the tab off).
+            e.Pointer.Capture(sender as IInputElement);
             e.Handled = true; // the title bar must not start a window drag from a tab
         }
     }
 
-    /// <summary>Drag-to-reorder: dropping a tab over another tab moves it to that position.</summary>
+    /// <summary>
+    /// While a tab is dragged, leaving the strip far enough dims it: releasing there moves it into a window of its
+    /// own (or into the window whose tab strip is under the pointer). Only an opacity change, no relayout.
+    /// </summary>
+    private void OnTabPointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (_draggedTab is null || sender is not Control tabSurface || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            return;
+        var tearing = IsTearOffPosition(e.GetPosition(this));
+        if (tearing == _tabTearing)
+            return;
+        _tabTearing = tearing;
+        tabSurface.Opacity = tearing ? 0.55 : 1;
+        tabSurface.Cursor = tearing ? new Cursor(StandardCursorType.DragMove) : Cursor.Default;
+    }
+
+    /// <summary>True when <paramref name="position"/> (window coordinates) is clearly away from the tab strip.</summary>
+    private bool IsTearOffPosition(Point position)
+    {
+        var strip = TitleBar.Bounds;
+        return position.Y < strip.Y - TabTearOffDistance || position.Y > strip.Bottom + TabTearOffDistance
+            || position.X < -TabTearOffDistance || position.X > Bounds.Width + TabTearOffDistance;
+    }
+
+    /// <summary>
+    /// For a tab dragged over this window from another one: the index the tab takes when dropped at
+    /// <paramref name="screen"/>, or null when the point is not over this window's tab strip.
+    /// </summary>
+    public int? TryGetTabInsertIndex(PixelPoint screen)
+    {
+        if (!IsVisible || WindowState == WindowState.Minimized)
+            return null;
+        var point = this.PointToClient(screen);
+        var strip = TitleBar.Bounds;
+        if (point.Y < strip.Y || point.Y > strip.Bottom || point.X < 0 || point.X > Bounds.Width)
+            return null;
+
+        var index = 0;
+        foreach (var container in TabStrip.GetRealizedContainers())
+        {
+            if (container.TranslatePoint(new Point(container.Bounds.Width / 2, 0), this) is { } middle && point.X > middle.X)
+                index++;
+        }
+
+        return index;
+    }
+
+    /// <summary>
+    /// Drag-to-reorder: dropping a tab over another tab moves it to that position. Released away from the strip, the
+    /// tab is torn off: it joins the window whose strip is under the pointer, or opens in a new window there.
+    /// </summary>
     private void OnTabPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
         var dragged = _draggedTab;
         _draggedTab = null;
+        if (sender is Control tabSurface && _tabTearing)
+        {
+            tabSurface.Opacity = 1;
+            tabSurface.Cursor = Cursor.Default;
+        }
+
+        _tabTearing = false;
         if (dragged is null)
             return;
+        e.Pointer.Capture(null);
         var position = e.GetPosition(this);
+        if (IsTearOffPosition(position))
+        {
+            var screen = this.PointToScreen(position);
+            _services.Windows.MoveTabToWindow(Shell, dragged, screen.X, screen.Y);
+            return;
+        }
+
         if (Math.Abs(position.X - _dragStart.X) < 8)
             return;
 
@@ -366,7 +452,10 @@ public sealed partial class MainWindow : Window
         switch (e.Key)
         {
             case Key.Enter:
-                pane.NavigateToAddressCommand.Execute(null);
+                if (pane.IsAddressDropDownOpen && SuggestionList.SelectedItem is AddressSuggestion { Kind: AddressSuggestionKind.Setting } setting)
+                    pane.AcceptAddressSuggestion(setting);
+                else
+                    pane.NavigateToAddressCommand.Execute(null);
                 e.Handled = true;
                 break;
             case Key.Escape:
@@ -432,6 +521,13 @@ public sealed partial class MainWindow : Window
     private void CompleteSuggestion(PaneViewModel pane)
     {
         var suggestion = SuggestionList.SelectedItem as AddressSuggestion ?? pane.AddressSuggestions[0];
+        if (suggestion.Kind == AddressSuggestionKind.Setting)
+        {
+            _addressBeforeBrowsing = null;
+            pane.AcceptAddressSuggestion(suggestion);
+            return;
+        }
+
         var text = suggestion.Kind == AddressSuggestionKind.Folder ? suggestion.Text + Path.DirectorySeparatorChar : suggestion.Text;
         _addressBeforeBrowsing = null;
         SetAddressText(pane, text, silently: false);
@@ -750,7 +846,7 @@ public sealed partial class MainWindow : Window
 
     private void UpdateSidebarColumn()
     {
-        var visible = Shell.Sidebar.IsVisible;
+        var visible = Shell.Sidebar.IsVisible && _compactRestore is null;
         SidebarHost.IsVisible = visible;
         SidebarSplitter.IsVisible = visible;
         ContentGrid.ColumnDefinitions[0].Width = visible ? new GridLength(Shell.Sidebar.Width) : new GridLength(0);
@@ -768,6 +864,127 @@ public sealed partial class MainWindow : Window
             Avalonia.Threading.Dispatcher.UIThread.Post(RebuildKeyGestures);
         if (section is "appearance" or "*")
             Avalonia.Threading.Dispatcher.UIThread.Post(ApplyToolbarLabels);
+        if (section is "toolbar" or "*")
+            Avalonia.Threading.Dispatcher.UIThread.Post(ApplyToolbarLayout);
+    }
+
+    // ── Toolbar customization ─────────────────────────────────
+
+    /// <summary>
+    /// Settings → Appearance → Toolbar: shows, hides and orders the toolbar buttons. Existing controls are only moved
+    /// within their panel and toggled visible (nothing is rebuilt, bindings stay attached), and only when the stored
+    /// arrangement changed. Download/Upload stay right after Delete; the operations ring and update badge stay first
+    /// in the view group, since they appear on their own when needed.
+    /// </summary>
+    private void ApplyToolbarLayout()
+    {
+        var controls = new Dictionary<string, Control>(StringComparer.Ordinal)
+        {
+            ["new"] = NewButton,
+            ["separator.edit"] = SeparatorEdit,
+            ["cut"] = CutButton,
+            ["copy"] = CopyButton,
+            ["paste"] = PasteButton,
+            ["rename"] = RenameButton,
+            ["delete"] = DeleteButton,
+            ["separator.view"] = SeparatorView,
+            ["sort"] = SortButton,
+            ["group"] = GroupButton,
+            ["layout"] = LayoutButton,
+            ["more"] = MoreButton,
+            ["splitView"] = SplitViewButton,
+            ["previewPane"] = PreviewPaneButton,
+            ["compactOverlay"] = CompactOverlayButton,
+            ["alwaysOnTop"] = AlwaysOnTopButton,
+            ["pluginShop"] = PluginShopButton,
+            ["settings"] = SettingsButton,
+        };
+
+        var commands = new List<Control>(16);
+        var view = new List<Control>(10) { OperationsButton, UpdateButton };
+        foreach (var slot in ToolbarLayout.Resolve(_services.Settings.Current.Appearance.ToolbarItems))
+        {
+            if (!controls.TryGetValue(slot.Item.Id, out var control))
+                continue;
+            control.IsVisible = slot.IsVisible;
+            if (slot.Item.Group == ToolbarGroup.View)
+            {
+                view.Add(control);
+                continue;
+            }
+
+            commands.Add(control);
+            if (slot.Item.Id == "delete")
+            {
+                commands.Add(DownloadButton);
+                commands.Add(UploadButton);
+            }
+        }
+
+        Arrange(CommandBar, commands);
+        Arrange(ViewBar, view);
+
+        static void Arrange(Panel panel, List<Control> order)
+        {
+            for (var target = 0; target < order.Count; target++)
+            {
+                var current = panel.Children.IndexOf(order[target]);
+                if (current >= 0 && current != target)
+                    panel.Children.Move(current, target);
+            }
+        }
+    }
+
+    // ── Compact overlay / always on top ───────────────────────
+
+    /// <summary>
+    /// Compact overlay on: remembers the window's state and bounds, then shrinks it to a small always-on-top window
+    /// (smaller minimum size, sidebar hidden, narrower search box). Off: everything is put back as it was.
+    /// </summary>
+    private void ApplyCompactOverlay()
+    {
+        if (Shell.IsCompactOverlay && _compactRestore is null)
+        {
+            _compactRestore = new CompactRestore(WindowState, Position, Bounds.Width, Bounds.Height, MinWidth, MinHeight);
+            if (WindowState != WindowState.Normal)
+                WindowState = WindowState.Normal;
+            MinWidth = 340;
+            MinHeight = 300;
+            Width = CompactOverlaySize.Width;
+            Height = CompactOverlaySize.Height;
+            SearchBox.Width = 140;
+            KeepOnScreen();
+        }
+        else if (!Shell.IsCompactOverlay && _compactRestore is { } restore)
+        {
+            _compactRestore = null;
+            MinWidth = restore.MinWidth;
+            MinHeight = restore.MinHeight;
+            Width = restore.Width;
+            Height = restore.Height;
+            Position = restore.Position;
+            SearchBox.Width = 260;
+            if (restore.State is WindowState.Maximized or WindowState.FullScreen)
+                WindowState = restore.State;
+        }
+
+        Topmost = Shell.IsAlwaysOnTop || Shell.IsCompactOverlay;
+        UpdateSidebarColumn();
+    }
+
+    /// <summary>Moves the shrunken window back inside the working area of its screen.</summary>
+    private void KeepOnScreen()
+    {
+        if (Screens.ScreenFromWindow(this) is not { } screen)
+            return;
+        var area = screen.WorkingArea;
+        var scaling = screen.Scaling;
+        var width = (int)(Width * scaling);
+        var height = (int)(Height * scaling);
+        var x = Math.Clamp(Position.X, area.X, Math.Max(area.X, area.Right - width));
+        var y = Math.Clamp(Position.Y, area.Y, Math.Max(area.Y, area.Bottom - height));
+        if (x != Position.X || y != Position.Y)
+            Position = new PixelPoint(x, y);
     }
 
     /// <summary>Settings → Appearance → "Show labels on toolbar buttons": icon-only buttons keep their tooltips.</summary>

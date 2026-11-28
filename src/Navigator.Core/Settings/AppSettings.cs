@@ -135,6 +135,19 @@ public sealed class AppearanceSettings
     public double FontScale { get; set; } = 1.0;
 
     public bool ShowToolbarLabels { get; set; } = true;
+
+    /// <summary>
+    /// Toolbar buttons as arranged by the user (Settings → Appearance → Toolbar), in display order. Empty means the
+    /// default arrangement; ids the current version does not know are ignored, new buttons appear in their default slot.
+    /// </summary>
+    public List<ToolbarItemSetting> ToolbarItems { get; set; } = [];
+}
+
+public sealed class ToolbarItemSetting
+{
+    public string Id { get; set; } = string.Empty;
+
+    public bool IsVisible { get; set; } = true;
 }
 
 public sealed class GeneralSettings

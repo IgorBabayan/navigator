@@ -7,8 +7,9 @@
              x:DataType="items:FileItemViewModel">
   <!-- Details row: kept flat (one Border, one StackPanel, text blocks) so realizing rows is cheap. -->
   <c:RowSurface Classes="item" Classes.selected="{Binding IsSelected}" Height="{DynamicResource Size.Row}" ToolTip.Tip="{Binding FullPath}">
-    <StackPanel Orientation="Horizontal" Margin="12,0,8,0" Opacity="{Binding ContentOpacity}">
-      <Grid Width="{Binding $parent[v:PaneView].Columns.NameWidth}" ColumnDefinitions="Auto,Auto,*">
+    <!-- Cells follow the pane's column order (Columns.Order); widths are shared with the header. -->
+    <c:DetailsCellsPanel Margin="12,0,8,0" Opacity="{Binding ContentOpacity}" Order="{Binding $parent[v:PaneView].Columns.Order}">
+      <Grid c:DetailsCellsPanel.Cell="name" Width="{Binding $parent[v:PaneView].Columns.NameWidth}" ColumnDefinitions="Auto,Auto,*">
         <Border Classes="rowCheck"><c:IconView Kind="Check" /></Border>
         <Panel Grid.Column="1" Width="{StaticResource Size.RowIcon}" Height="{StaticResource Size.RowIcon}" Margin="0,0,10,0">
           <c:IconView Kind="{Binding IconKey}" SystemIcon="{Binding SystemIconKey}" Width="{StaticResource Size.RowIcon}" Height="{StaticResource Size.RowIcon}" IsVisible="{Binding !HasThumbnail}" />
@@ -16,11 +17,11 @@
         </Panel>
         <TextBlock Grid.Column="2" Classes="itemName" Text="{Binding DisplayName}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
       </Grid>
-      <TextBlock Width="{Binding $parent[v:PaneView].Columns.ModifiedWidth}" Classes="secondary" Text="{Binding ModifiedText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Padding="8,0" />
-      <TextBlock Width="{Binding $parent[v:PaneView].Columns.TypeWidth}" Classes="secondary" Text="{Binding TypeText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Padding="8,0" />
-      <TextBlock Width="{Binding $parent[v:PaneView].Columns.SizeWidth}" Classes="secondary" Text="{Binding SizeText}" VerticalAlignment="Center" TextAlignment="Right" Padding="8,0" />
-      <TextBlock Width="{Binding $parent[v:PaneView].Columns.CreatedWidth}" IsVisible="{Binding $parent[v:PaneView].Columns.ShowCreated}" Classes="secondary" Text="{Binding CreatedText}" VerticalAlignment="Center" Padding="8,0" />
-      <ItemsControl Width="{Binding $parent[v:PaneView].Columns.TagsWidth}" IsVisible="{Binding $parent[v:PaneView].Columns.ShowTags}" ItemsSource="{Binding Tags}" VerticalAlignment="Center" Padding="8,0">
+      <TextBlock c:DetailsCellsPanel.Cell="modified" Width="{Binding $parent[v:PaneView].Columns.ModifiedWidth}" Classes="secondary" Text="{Binding ModifiedText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Padding="8,0" />
+      <TextBlock c:DetailsCellsPanel.Cell="type" Width="{Binding $parent[v:PaneView].Columns.TypeWidth}" Classes="secondary" Text="{Binding TypeText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Padding="8,0" />
+      <TextBlock c:DetailsCellsPanel.Cell="size" Width="{Binding $parent[v:PaneView].Columns.SizeWidth}" Classes="secondary" Text="{Binding SizeText}" VerticalAlignment="Center" TextAlignment="Right" Padding="8,0" />
+      <TextBlock c:DetailsCellsPanel.Cell="created" Width="{Binding $parent[v:PaneView].Columns.CreatedWidth}" IsVisible="{Binding $parent[v:PaneView].Columns.ShowCreated}" Classes="secondary" Text="{Binding CreatedText}" VerticalAlignment="Center" Padding="8,0" />
+      <ItemsControl c:DetailsCellsPanel.Cell="tags" Width="{Binding $parent[v:PaneView].Columns.TagsWidth}" IsVisible="{Binding $parent[v:PaneView].Columns.ShowTags}" ItemsSource="{Binding Tags}" VerticalAlignment="Center" Padding="8,0">
         <ItemsControl.ItemsPanel>
           <ItemsPanelTemplate>
             <StackPanel Orientation="Horizontal" Spacing="4" />
@@ -33,6 +34,6 @@
         </ItemsControl.ItemTemplate>
       </ItemsControl>
       <TextBlock Classes="secondary" Text="{Binding OriginalLocationText}" VerticalAlignment="Center" Padding="8,0" IsVisible="{Binding TrashItem, Converter={x:Static ObjectConverters.IsNotNull}}" />
-    </StackPanel>
+    </c:DetailsCellsPanel>
   </c:RowSurface>
 </UserControl>

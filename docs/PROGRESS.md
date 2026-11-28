@@ -51,6 +51,10 @@ Originality scan: 0 matching code windows against Files app sources — see `doc
   NSWorkspace), with a setting to turn it off; icons on every menu item (attached `c:MenuIcon.Kind`), tag colors in
   the Edit tags menu.
 - Edit tags → "Clear tag(s)": disabled without tags, one entry for a single tag, a sub-menu per tag otherwise.
+- Navigation and layout (2026-11-28): column (Miller) layout, tab tear-off into a new window / onto another window,
+  compact overlay and always on top, details column reordering, toolbar customization, settings search from the
+  address bar. Path logic (`ColumnTrail`, `ColumnOrder`), toolbar arrangement and settings search are unit-tested
+  (tests written; not run in this environment, which had no .NET SDK); the Avalonia parts are written, not compiled.
 
 ## In progress / next (in order)
 
@@ -66,6 +70,8 @@ Originality scan: 0 matching code windows against Files app sources — see `doc
 
 | Date | Decision | Reason |
 |---|---|---|
+| 2026-11-28 | Column layout keeps the current folder as the pane's own list and draws ancestors as read-only columns | every command, the rename editor, drag and drop and virtualization keep working unchanged; navigation stays the single source of truth (history, breadcrumb) |
+| 2026-11-28 | Details cells are arranged by `DetailsCellsPanel` from a shared column order | reordering moves existing cells; no per-order templates and no row rebuild |
 | 2026-11-24 | View models use explicit properties, no MVVM source generators | predictable build, readable code, no generator dependency |
 | 2026-11-24 | Selection lives in `ItemSelection` (view model), not in the list control | container recycling, large-folder performance, testability |
 | 2026-11-24 | One virtualized `ItemsControl` over row models for all layouts | single virtualization path; grouping and tiles without nested panels |

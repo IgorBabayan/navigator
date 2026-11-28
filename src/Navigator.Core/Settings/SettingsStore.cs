@@ -152,6 +152,10 @@ public sealed class SettingsStore
         appearance.Transparency = Math.Clamp(appearance.Transparency, 0, 1);
         appearance.BackgroundImageOpacity = Math.Clamp(appearance.BackgroundImageOpacity, 0, 1);
         appearance.FontScale = Math.Clamp(appearance.FontScale, 0.75, 2.0);
+        appearance.ToolbarItems ??= [];
+        appearance.ToolbarItems.RemoveAll(item => item is null || string.IsNullOrWhiteSpace(item.Id));
+        if (appearance.ToolbarItems.Count > 64)
+            appearance.ToolbarItems.RemoveRange(64, appearance.ToolbarItems.Count - 64);
         settings.Sidebar.Width = Math.Clamp(settings.Sidebar.Width, 160, 480);
         settings.Operations.MaxConcurrentOperations = Math.Clamp(settings.Operations.MaxConcurrentOperations, 1, 8);
         settings.Search.MaxResults = Math.Clamp(settings.Search.MaxResults, 100, 100_000);

@@ -20,6 +20,7 @@ public sealed partial class PaneViewModel
         {
             if (SetProperty(ref _layout, value))
             {
+                OnColumnsLayoutChanged();
                 OnPropertyChanged(nameof(IsDetailsLayout));
                 OnPropertyChanged(nameof(IsListLayout));
                 OnPropertyChanged(nameof(IsTileLayout));
@@ -48,6 +49,7 @@ public sealed partial class PaneViewModel
                 OnPropertyChanged(nameof(SortColumn));
                 OnPropertyChanged(nameof(IsSortDescending));
                 _ = ResortAsync();
+                ResortTrailColumns();
                 SaveViewPreferences();
             }
         }
@@ -414,6 +416,10 @@ public sealed partial class PaneViewModel
 
     private void LoadViewPreferences()
     {
+        // Stepping through the column layout keeps it (and its sort): the per-folder views apply to folders opened anew.
+        if (ContinuesColumns())
+            return;
+
         var files = _services.Settings.Current.FilesAndFolders;
         if (files.RememberViewPerFolder && _location.Path is { } path && _location.IsFolder
             && files.FolderViews.TryGetValue(path, out var preference))
@@ -434,6 +440,7 @@ public sealed partial class PaneViewModel
         OnPropertyChanged(nameof(IsDetailsLayout));
         OnPropertyChanged(nameof(IsListLayout));
         OnPropertyChanged(nameof(IsTileLayout));
+        OnPropertyChanged(nameof(IsColumnsLayout));
         OnPropertyChanged(nameof(TileWidth));
         OnPropertyChanged(nameof(TileIconSize));
         OnPropertyChanged(nameof(Sort));

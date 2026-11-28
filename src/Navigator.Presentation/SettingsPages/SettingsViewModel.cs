@@ -270,7 +270,7 @@ public sealed class SettingsViewModel : ObservableObject
         Densities = [.. Enum.GetValues<InterfaceDensity>().Select(v => new Option<InterfaceDensity>(v, localizer["Density." + v]))];
         AnimationLevels = [.. Enum.GetValues<AnimationLevel>().Select(v => new Option<AnimationLevel>(v, localizer["Animations." + v]))];
         StartupOptions = [.. Enum.GetValues<StartupBehavior>().Select(v => new Option<StartupBehavior>(v, localizer["Startup." + v]))];
-        Layouts = [.. Enum.GetValues<FolderLayout>().Where(l => l != FolderLayout.Columns).Select(v => new Option<FolderLayout>(v, localizer["Layout." + v]))];
+        Layouts = [.. Enum.GetValues<FolderLayout>().Select(v => new Option<FolderLayout>(v, localizer["Layout." + v]))];
         SortColumns = [.. Enum.GetValues<SortColumn>().Select(v => new Option<SortColumn>(v, localizer["Sort." + v]))];
         GroupOptions = [.. Enum.GetValues<GroupBy>().Select(v => new Option<GroupBy>(v, localizer["GroupBy." + v]))];
         Channels = [.. Enum.GetValues<UpdateChannel>().Select(v => new Option<UpdateChannel>(v, localizer["Channel." + v]))];
@@ -279,6 +279,7 @@ public sealed class SettingsViewModel : ObservableObject
 
         ReloadTagRows();
         ReloadStartupLocations();
+        ReloadToolbarRows();
         foreach (var command in CommandRegistry.All)
             KeyBindings.Add(new KeyBindingRowViewModel(command, localizer[command.NameKey], localizer["CommandCategory." + command.Category], this));
         UpdateKeyBindingConflicts();
@@ -306,6 +307,13 @@ public sealed class SettingsViewModel : ObservableObject
         ClearSearchHistoryCommand = new RelayCommand(() => Set("search", new List<string>(), s => s.Search.History, (s, v) => s.Search.History = v));
         ClearThumbnailCacheCommand = new AsyncRelayCommand(() => _thumbnails.ClearDiskCacheAsync());
         PickAccentCommand = new RelayCommand<string>(color => AccentColor = color);
+        MoveToolbarItemUpCommand = new RelayCommand<ToolbarItemRowViewModel>(row => MoveToolbarItem(row, -1));
+        MoveToolbarItemDownCommand = new RelayCommand<ToolbarItemRowViewModel>(row => MoveToolbarItem(row, +1));
+        ResetToolbarCommand = new RelayCommand(() =>
+        {
+            _settings.Update("toolbar", s => s.Appearance.ToolbarItems = []);
+            ReloadToolbarRows();
+        });
         PickBackgroundImageCommand = new AsyncRelayCommand(PickBackgroundImageAsync);
         ChangeGlobalShortcutCommand = new RelayCommand(() =>
         {
@@ -379,6 +387,15 @@ public sealed class SettingsViewModel : ObservableObject
     public ObservableCollection<KeyBindingRowViewModel> KeyBindings { get; } = [];
 
     public ObservableCollection<string> StartupLocations { get; } = [];
+
+    /// <summary>Settings → Appearance → Toolbar: every customizable button in its current order.</summary>
+    public ObservableCollection<ToolbarItemRowViewModel> ToolbarRows { get; } = [];
+
+    /// <summary>
+    /// Raised with a setting's label (localized) when the window should scroll to it and draw attention to it
+    /// (a setting chosen from the address bar's suggestions).
+    /// </summary>
+    public event EventHandler<string>? RevealRequested;
 
     /// <summary>Search text for the shortcut list: matches command name, category, id and gestures ("ctrl+t", "tab close").</summary>
     public string KeyBindingFilter
@@ -783,6 +800,12 @@ public sealed class SettingsViewModel : ObservableObject
 
     public IRelayCommand<string> PickAccentCommand { get; }
 
+    public IRelayCommand<ToolbarItemRowViewModel> MoveToolbarItemUpCommand { get; }
+
+    public IRelayCommand<ToolbarItemRowViewModel> MoveToolbarItemDownCommand { get; }
+
+    public IRelayCommand ResetToolbarCommand { get; }
+
     public IAsyncRelayCommand PickBackgroundImageCommand { get; }
 
     /// <summary>Opens Keyboard shortcuts filtered to the global "open Navigator" command.</summary>
@@ -934,9 +957,63 @@ public sealed class SettingsViewModel : ObservableObject
     private void SaveTags() => _settings.Update("tags", _ => { });
 
     /// <summary>The settings object was replaced (reset all, import): row view models must re-bind to it.</summary>
+    /// <summary>Selects <paramref name="pageId"/> and asks the window to scroll to the setting labelled <paramref name="settingKey"/>.</summary>
+    public void Reveal(string? pageId, string? settingKey)
+    {
+        if (pageId is not null && Pages.FirstOrDefault(p => p.Id == pageId) is { } page)
+            SelectedPage = page;
+        if (settingKey is not null && _localizer.HasKey(settingKey))
+            RevealRequested?.Invoke(this, _localizer[settingKey]);
+    }
+
+    // ── Toolbar ─────────────────────────────────────────────
+
+    private void ReloadToolbarRows()
+    {
+        ToolbarRows.Clear();
+        foreach (var slot in Shell.ToolbarLayout.Resolve(S.Appearance.ToolbarItems))
+        {
+            var group = _localizer[slot.Item.Group == Shell.ToolbarGroup.Commands ? "Settings.ToolbarCommandBar" : "Settings.ToolbarViewButtons"];
+            ToolbarRows.Add(new ToolbarItemRowViewModel(slot.Item, _localizer[slot.Item.NameKey], group, slot.IsVisible, _ => PersistToolbarArrangement()));
+        }
+
+        UpdateToolbarMoveState();
+    }
+
+    /// <summary>Moves a row one step within its group (the command bar and the view buttons are separate strips).</summary>
+    private void MoveToolbarItem(ToolbarItemRowViewModel? row, int delta)
+    {
+        if (row is null)
+            return;
+        var from = ToolbarRows.IndexOf(row);
+        var to = from + delta;
+        if (from < 0 || to < 0 || to >= ToolbarRows.Count || ToolbarRows[to].Item.Group != row.Item.Group)
+            return;
+        ToolbarRows.Move(from, to);
+        UpdateToolbarMoveState();
+        PersistToolbarArrangement();
+    }
+
+    private void UpdateToolbarMoveState()
+    {
+        for (var i = 0; i < ToolbarRows.Count; i++)
+        {
+            var row = ToolbarRows[i];
+            row.CanMoveUp = i > 0 && ToolbarRows[i - 1].Item.Group == row.Item.Group;
+            row.CanMoveDown = i + 1 < ToolbarRows.Count && ToolbarRows[i + 1].Item.Group == row.Item.Group;
+        }
+    }
+
+    private void PersistToolbarArrangement()
+    {
+        var arrangement = Shell.ToolbarLayout.ToSettings(ToolbarRows.Select(r => new Shell.ToolbarSlot(r.Item, r.IsVisible)));
+        _settings.Update("toolbar", s => s.Appearance.ToolbarItems = arrangement);
+    }
+
     private void ReloadAfterReplace()
     {
         CancelKeyBindingRecording();
+        ReloadToolbarRows();
         ReloadTagRows();
         ReloadStartupLocations();
         foreach (var row in KeyBindings)

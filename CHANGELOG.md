@@ -8,6 +8,26 @@ workflow (`docs/RELEASE.md`); entries are collected under **Unreleased** until t
 
 ### Added
 
+- Column (Miller) layout (Layout → Columns, Ctrl+Shift+6): the current folder is the rightmost column with the full
+  list (selection, menus, rename, drag and drop), and each folder on the way to it gets a column on its left with the
+  open entry highlighted. Clicking a folder (or Right) opens it as the next column, Left goes back one column, a
+  click in an earlier column continues from there. Going deeper reuses the listing just left; other columns come from
+  the directory cache or one background listing, so stepping through columns does not re-read folders.
+- Tabs can be dragged out of the tab strip: released away from it, the tab opens in a new window at the pointer;
+  released over another window's tab strip, it joins that window there. The tab keeps its panes, history and
+  selection. The tab menu has "Move to new window" for the same.
+- Compact overlay: a small window that stays above other applications (toolbar button, More menu, command
+  palette). The sidebar is hidden while it is on; leaving it restores the window's size, position and state. "Always on
+  top" is available on its own as well.
+- Details view columns can be reordered by dragging a header sideways, or with the header menu (move left / right,
+  reset order). The order is saved; rows only re-arrange their cells, nothing is rebuilt.
+- Toolbar customization (Settings → Appearance → Toolbar, or right-click the toolbar): show, hide and reorder the
+  command bar buttons and separators and the view buttons; reset to the default arrangement. Download/Upload on
+  server folders, the operations ring and the update badge keep appearing on their own.
+- Settings can be searched from the address bar: typed words that are not a path list matching settings ("hidden",
+  "accent", "toolbar"); choosing one opens the settings window on its page and outlines the setting. Enter on a
+  word that is not a place opens the best matching setting instead of reporting a missing path.
+
 - In-place rename: F2 (or Rename in the menu / toolbar) edits the item's name right in the list, in every layout,
   instead of opening a dialog. The stem is selected; Enter or clicking elsewhere commits, Escape cancels, Tab /
   Shift+Tab commit and move on to the next / previous item. An unusable name turns the box red and Enter shows why.

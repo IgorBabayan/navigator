@@ -22,9 +22,9 @@ Honest list of what is missing, partial or unverified. Keep it current.
 | Drag and drop | Files dropped from other applications on Linux and macOS are copied by default (Shift moves): their paths are only read on drop, so the volume is not known while hovering. Server (plugin) items cannot be dropped anywhere (use Download); local items dropped on a server folder are uploaded. No spring-loaded folders (hovering a folder does not open it). |
 | Rubber-band selection | Selects only realized (visible) rows; items scrolled out of view during the drag are not included. |
 | Omnibar | No drag-and-drop onto breadcrumb segments; typed commands (e.g. `cmd`, `notepad`) and URLs are not launched; on Windows, mice whose driver sends only `WM_APPCOMMAND` (no XBUTTON or browser keys) do not navigate. |
-| Columns | Columns can be resized and hidden, not reordered. |
-| Views | No column (Miller) view; no compact overlay. |
-| Tabs | Cannot drag a tab out to a new window. |
+| Columns | The name column cannot be moved (it carries the icon and the rename editor); headers are reordered by dragging or from their menu, not with the keyboard. |
+| Views | Column (Miller) layout: the columns left of the current folder are read-only (no selection, context menu or drop target; click to navigate) and are not refreshed by file system changes until revisited. Compact overlay uses a fixed size (420×520) and keeps the window's position. Always on top relies on the window manager (some Wayland compositors ignore it). |
+| Tabs | A window's only tab cannot be torn into a new window (it can be dropped on another window's tab strip). There is no drag preview while a tab is outside the strip; the tab is only dimmed. Tabs are moved between windows of the same Navigator process only. |
 | Open with | Windows uses the system "Open with" dialog (no in-app handler list); macOS has no handler enumeration (uses `open -a`). |
 | macOS trash | Restore works only for items trashed by Navigator (Finder's "put back" metadata is private). |
 | Windows notifications | Finished-operation notifications are in-app toasts only. |
@@ -37,7 +37,7 @@ Honest list of what is missing, partial or unverified. Keep it current.
 | Search | No OS index integration (Windows Search, Spotlight, Tracker); content search is a linear scan. |
 | Tags | Stored in Navigator's data folder, not in file metadata; renaming files outside Navigator loses tags. |
 | Network | Only mounted network volumes; no SMB/NFS browsing, FTP, SFTP, WebDAV or cloud APIs. |
-| Settings | No search box over settings. |
+| Settings | Settings are searched from the address bar (by name, description and page); there is no separate search box inside the settings window. |
 | Performance indicator | Shows only what Avalonia's metrics report (all windows together); GPU time and per-window numbers are not available. Frames per second counts rendered frames, so it is near 0 while nothing changes on screen. |
 | Accessibility | No explicit `AutomationProperties` names; high-contrast themes not implemented; OS "reduce motion" is not followed automatically. |
 | Git integration | Not implemented. |

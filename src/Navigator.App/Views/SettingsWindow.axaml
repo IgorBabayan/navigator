@@ -27,6 +27,19 @@
     <Style Selector="ComboBox">
       <Setter Property="MinWidth" Value="200" />
     </Style>
+    <!-- A setting chosen from the address bar's suggestions is outlined for a moment (colors only: no relayout). -->
+    <Style Selector="Border.setting.revealed">
+      <Setter Property="BorderBrush" Value="{DynamicResource Accent.Brush}" />
+      <Setter Property="Background" Value="{DynamicResource Accent.SubtleBrush}" />
+    </Style>
+    <!-- Toolbar arrangement: compact rows, separators shown in a muted style. -->
+    <Style Selector="Border.toolbarRow">
+      <Setter Property="Padding" Value="8,4" />
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+    <Style Selector="Border.toolbarRow:pointerover">
+      <Setter Property="Background" Value="{DynamicResource Brush.Hover}" />
+    </Style>
     <Style Selector="TextBlock.modified">
       <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
@@ -160,6 +173,33 @@
               <Slider Grid.Column="1" Width="220" Minimum="0.75" Maximum="2" TickFrequency="0.05" IsSnapToTickEnabled="True" Value="{Binding FontScale}" /></Grid></Border>
             <Border Classes="setting"><Grid ColumnDefinitions="*,Auto"><TextBlock Text="{c:Tr Settings.ToolbarLabels}" VerticalAlignment="Center" />
               <ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowToolbarLabels}" OnContent="" OffContent="" /></Grid></Border>
+            <!-- Toolbar customization: show, hide and reorder the buttons of the command bar and the view buttons. -->
+            <Border Classes="setting"><StackPanel Spacing="8">
+              <Grid ColumnDefinitions="*,Auto"><StackPanel VerticalAlignment="Center"><TextBlock Text="{c:Tr Settings.Toolbar}" /><TextBlock Classes="description" Text="{c:Tr Settings.ToolbarDescription}" /></StackPanel>
+                <Button Grid.Column="1" Content="{c:Tr Settings.ResetToolbar}" Command="{Binding ResetToolbarCommand}" /></Grid>
+              <ItemsControl ItemsSource="{Binding ToolbarRows}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="p:ToolbarItemRowViewModel">
+                    <Border Classes="toolbarRow">
+                      <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto">
+                        <c:IconView Kind="{Binding IconKey}" Width="16" Height="16" Margin="0,0,10,0" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" Classes.secondary="{Binding IsSeparator}" />
+                        <TextBlock Grid.Column="2" Classes="caption" Text="{Binding GroupName}" VerticalAlignment="Center" Margin="12,0" />
+                        <Button Grid.Column="3" Classes="subtle icon" ToolTip.Tip="{c:Tr Settings.MoveUp}" IsEnabled="{Binding CanMoveUp}"
+                                Command="{Binding $parent[Window].((p:SettingsViewModel)DataContext).MoveToolbarItemUpCommand}" CommandParameter="{Binding}">
+                          <c:IconView Kind="ChevronUp" Width="12" Height="12" />
+                        </Button>
+                        <Button Grid.Column="4" Classes="subtle icon" ToolTip.Tip="{c:Tr Settings.MoveDown}" IsEnabled="{Binding CanMoveDown}"
+                                Command="{Binding $parent[Window].((p:SettingsViewModel)DataContext).MoveToolbarItemDownCommand}" CommandParameter="{Binding}">
+                          <c:IconView Kind="ChevronDown" Width="12" Height="12" />
+                        </Button>
+                        <ToggleSwitch Grid.Column="5" Margin="8,0,0,0" IsChecked="{Binding IsVisible}" OnContent="" OffContent="" />
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel></Border>
           </StackPanel>
 
           <!-- Files and folders -->

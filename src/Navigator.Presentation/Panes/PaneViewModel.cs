@@ -377,6 +377,9 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         CancelLoad();
         StopMonitoring();
         RememberListing();
+        // The folder being left: in the column layout its listing becomes the column next to the new one.
+        var previousFolder = IsFolder ? _location.Path : null;
+        var previousItems = _sortedAll;
         Location = History.Current;
         IsEditingAddress = false;
         ErrorText = null;
@@ -391,6 +394,7 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         Rows.ReplaceAll([]);
         UpdateBreadcrumbs();
         LoadViewPreferences();
+        UpdateTrailColumns(previousFolder, previousItems);
         RaiseNavigationState();
         Navigated?.Invoke(this, EventArgs.Empty);
 
@@ -892,6 +896,7 @@ public sealed partial class PaneViewModel : ObservableObject, IDisposable
         CancelAddressSuggestions();
         StopMonitoring();
         RememberListing();
+        ClearTrailColumns();
         _remoteWork.Cancel();
         _remoteWork.Dispose();
         foreach (var item in _ordered)

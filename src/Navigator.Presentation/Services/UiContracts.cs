@@ -178,7 +178,15 @@ public interface IWindowService
 {
     void OpenNewWindow(Navigator.Core.Navigation.Location? location = null);
 
-    void OpenSettings(string? page = null);
+    /// <summary>Opens (or activates) the settings window on <paramref name="page"/>, scrolled to the setting labelled by <paramref name="settingKey"/>.</summary>
+    void OpenSettings(string? page = null, string? settingKey = null);
 
     void CloseCurrentWindow();
+
+    /// <summary>
+    /// Moves <paramref name="tab"/> out of <paramref name="source"/>, keeping its panes, history and selection. With a
+    /// screen point over another window's tab strip the tab joins that window there; otherwise a new window opens at
+    /// the point (or beside the source window). A lone tab is only moved into another window, never into a new one.
+    /// </summary>
+    void MoveTabToWindow(Shell.ShellViewModel source, Shell.TabViewModel tab, double? screenX = null, double? screenY = null);
 }
